@@ -40,6 +40,9 @@ const TASK_ICONS: Record<(typeof TASK_KEYS)[number], string> = {
   spin: '🎡',
 };
 
+/** The four hero strip steps, each paired with a short icon. */
+const STEP_KEYS = ['register', 'mine', 'boost', 'withdraw'] as const;
+
 const LOCALE_LABELS: Record<string, string> = {
   en: 'EN',
   zh: '中文',
@@ -74,9 +77,9 @@ function Landing({ locale }: { locale: string }) {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen bg-white text-slate-900">
       {/* ─────────────────────────── Nav ─────────────────────────── */}
-      <header className="sticky top-0 z-10 border-b border-white/5 bg-slate-950/80 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/85 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 p-5">
           <span className="flex items-center gap-2 font-bold">
             <span className="logo-badge">M</span>
@@ -84,22 +87,22 @@ function Landing({ locale }: { locale: string }) {
           </span>
 
           <nav className="flex items-center gap-4 text-sm">
-            <div className="hidden gap-1 rounded-full border border-slate-800 p-1 sm:flex">
+            <div className="hidden gap-1 rounded-full border border-slate-200 p-1 sm:flex">
               {locales.map((l) => (
                 <Link
                   key={l}
                   href={`/${l}`}
                   className={
                     l === locale
-                      ? 'rounded-full bg-amber-500/15 px-2.5 py-1 text-amber-400'
-                      : 'rounded-full px-2.5 py-1 text-slate-400 hover:text-slate-200'
+                      ? 'rounded-full bg-indigo-50 px-2.5 py-1 text-indigo-600'
+                      : 'rounded-full px-2.5 py-1 text-slate-500 hover:text-slate-700'
                   }
                 >
                   {LOCALE_LABELS[l]}
                 </Link>
               ))}
             </div>
-            <Link href={signIn} className="text-slate-300 hover:text-amber-400">
+            <Link href={signIn} className="text-slate-600 hover:text-indigo-600">
               {t('nav.signIn')}
             </Link>
             <Link href={register} className="btn-primary px-4 py-2 text-sm">
@@ -110,35 +113,53 @@ function Landing({ locale }: { locale: string }) {
       </header>
 
       {/* ────────────────────────── Hero ─────────────────────────── */}
-      <section className="glow-field">
-        <div className="mx-auto grid max-w-6xl items-center gap-8 px-5 py-14 md:grid-cols-2 md:py-24">
+      <section className="glow-field-light">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-14 md:grid-cols-2 md:py-20">
           <div>
-            <span className="inline-block rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs uppercase tracking-wide text-amber-300">
+            <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-600">
+              <IconCube className="h-3.5 w-3.5" />
               {t('hero.badge')}
             </span>
-            <h1 className="mt-5 font-serif text-5xl font-medium leading-[1.05] tracking-tight sm:text-6xl">
+            <h1 className="mt-5 text-4xl font-extrabold leading-[1.08] tracking-tight text-slate-900 sm:text-5xl">
               {t('hero.title')}{' '}
-              <span className="italic text-amber-400">
-                {t('hero.titleAccent')}
-              </span>
+              <span className="text-gradient-brand">{t('hero.titleAccent')}</span>
             </h1>
-            <p className="mt-5 max-w-md text-lg text-slate-300">
+            <p className="mt-5 max-w-md text-lg text-slate-600">
               {t('hero.subtitle')}
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href={register} className="btn-primary px-6 py-3">
-                {t('hero.ctaPrimary')} →
-              </Link>
-              <Link href={signIn} className="btn-secondary px-6 py-3">
-                {t('hero.ctaSecondary')}
-              </Link>
+            {/* Quick-glance step strip. */}
+            <div className="card-soft mt-8 grid grid-cols-2 gap-x-4 gap-y-5 p-5 sm:grid-cols-4">
+              {STEP_KEYS.map((step, i) => (
+                <div key={step}>
+                  <div
+                    className={`grid h-9 w-9 place-items-center rounded-full ${STEP_ICON_STYLES[i]}`}
+                  >
+                    {STEP_ICONS[i]}
+                  </div>
+                  <div className="mt-2 text-sm font-semibold text-slate-900">
+                    {t(`how.${step}.title`)}
+                  </div>
+                </div>
+              ))}
             </div>
 
-            <p className="mt-6 flex items-start gap-2 text-xs text-slate-400">
-              <span aria-hidden>ⓘ</span>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <Link href={register} className="btn-primary flex-1 py-3.5 text-base">
+                {t('hero.ctaPrimary')} →
+              </Link>
+            </div>
+            <Link
+              href={signIn}
+              className="btn-outline-brand mt-3 flex w-full py-3.5 text-base"
+            >
+              {t('hero.ctaSecondary')} →
+            </Link>
+
+            <div className="mt-6 flex items-start gap-3 rounded-2xl bg-indigo-50/70 p-4 text-xs text-slate-600">
+              <IconShield className="mt-0.5 h-4 w-4 shrink-0 text-indigo-500" />
               {t('hero.honesty')}
-            </p>
+            </div>
           </div>
 
           <Coin3D />
@@ -146,7 +167,7 @@ function Landing({ locale }: { locale: string }) {
       </section>
 
       {/* ──────────────────────── Fact ticker ─────────────────────── */}
-      <div className="border-y border-white/5 bg-slate-900/70 py-3">
+      <div className="border-y border-slate-200 bg-slate-50 py-3">
         <div className="marquee">
           <div className="marquee-track">
             {[0, 1].map((copy) => (
@@ -154,10 +175,10 @@ function Landing({ locale }: { locale: string }) {
                 {tickerItems.map((item, i) => (
                   <span
                     key={`${copy}-${i}`}
-                    className="flex items-center gap-3 px-6 text-xs font-semibold uppercase tracking-wide text-slate-400"
+                    className="flex items-center gap-3 px-6 text-xs font-semibold uppercase tracking-wide text-slate-500"
                   >
                     {item}
-                    <span className="text-amber-500" aria-hidden>
+                    <span className="text-indigo-400" aria-hidden>
                       ✦
                     </span>
                   </span>
@@ -169,63 +190,87 @@ function Landing({ locale }: { locale: string }) {
       </div>
 
       {/* ───────────────────── Key numbers strip ─────────────────── */}
-      <section className="band-cream">
-        <div className="mx-auto grid max-w-6xl grid-cols-2 gap-4 px-5 py-12 lg:grid-cols-4">
-          <Figure value="0.9 /h" label={t('figures.baseRate')} />
-          <Figure value="3 : 1" label={t('figures.conversion')} />
-          <Figure value="100" label={t('figures.minWithdrawal')} />
-          <Figure value="30d" label={t('figures.boosterDuration')} />
+      <section className="mx-auto grid max-w-6xl grid-cols-2 gap-4 px-5 py-12 lg:grid-cols-4">
+        <Figure value="0.9 /h" label={t('figures.baseRate')} />
+        <Figure value="3 : 1" label={t('figures.conversion')} />
+        <Figure value="100" label={t('figures.minWithdrawal')} />
+        <Figure value="30d" label={t('figures.boosterDuration')} />
+      </section>
+
+      {/* ───────────────── Built on BNB Chain callout ─────────────── */}
+      <section className="mx-auto max-w-6xl px-5">
+        <div className="flex flex-col items-center gap-8 rounded-3xl bg-gradient-to-br from-indigo-50 via-white to-blue-50 p-8 sm:flex-row sm:justify-between sm:p-10">
+          <div>
+            <div className="text-sm text-slate-500">{t('chain.builtOn')}</div>
+            <div className="text-gradient-brand text-3xl font-extrabold sm:text-4xl">
+              BNB Chain
+            </div>
+            <p className="mt-2 text-sm text-slate-600">{t('chain.tagline')}</p>
+            <Link
+              href={signIn}
+              className="mt-5 inline-flex items-center gap-1 rounded-full bg-white px-4 py-2 text-sm font-semibold text-indigo-600 shadow-sm ring-1 ring-indigo-200 transition hover:ring-indigo-300"
+            >
+              {t('chain.learnMore')} ›
+            </Link>
+          </div>
+          <ChainCube />
         </div>
       </section>
 
       {/* ────────────────────── How it works ─────────────────────── */}
       <Section title={t('how.title')} subtitle={t('how.subtitle')}>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {['register', 'mine', 'boost', 'withdraw'].map((step, i) => (
-            <div key={step} className="card card-lift p-5">
-              <div className="grid h-9 w-9 place-items-center rounded-full bg-amber-500/15 font-bold text-amber-400">
-                {i + 1}
+          {STEP_KEYS.map((step, i) => (
+            <div key={step} className="card-soft card-soft-lift p-5">
+              <div
+                className={`grid h-9 w-9 place-items-center rounded-full ${STEP_ICON_STYLES[i]}`}
+              >
+                {STEP_ICONS[i]}
               </div>
-              <h3 className="mt-4 font-semibold">{t(`how.${step}.title`)}</h3>
-              <p className="mt-2 text-sm text-slate-400">
-                {t(`how.${step}.body`)}
-              </p>
+              <h3 className="mt-4 font-semibold text-slate-900">
+                {t(`how.${step}.title`)}
+              </h3>
+              <p className="mt-2 text-sm text-slate-500">{t(`how.${step}.body`)}</p>
             </div>
           ))}
         </div>
       </Section>
 
       {/* ──────────────────── Booster packages ───────────────────── */}
-      <section className="band-cream">
+      <section className="band-soft">
         <div className="mx-auto max-w-6xl px-5 py-14">
-          <h2 className="font-serif text-3xl font-medium sm:text-4xl">
+          <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
             {t('boosters.title')}
           </h2>
-          <p className="mb-10 mt-2 text-[#5c5346]">{t('boosters.subtitle')}</p>
+          <p className="mb-10 mt-2 text-slate-600">{t('boosters.subtitle')}</p>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {BOOSTERS.map((b) => (
               <div
                 key={b.price}
                 className={`card-chunky p-5 text-center ${
-                  b.popular ? 'bg-amber-400' : 'bg-white'
+                  b.popular ? 'card-chunky--brand text-white' : 'bg-white text-slate-900'
                 }`}
               >
                 {b.popular && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border-2 border-[#17130a] bg-[#17130a] px-3 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-amber-300">
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border-2 border-[#312e81] bg-[#1e1b4b] px-3 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-indigo-200">
                     Most picked
                   </span>
                 )}
-                <div className="text-3xl font-extrabold text-[#17130a]">
-                  ${b.price}
-                </div>
-                <div className="mt-3 text-sm text-[#5c5346]">
+                <div className="text-3xl font-extrabold">${b.price}</div>
+                <div
+                  className={`mt-3 text-sm ${b.popular ? 'text-indigo-100' : 'text-slate-500'}`}
+                >
                   {t('boosters.resultingRate')}
                 </div>
-                <div className="text-xl font-bold text-[#17130a]">
-                  {b.rate} /h
-                </div>
-                <div className="mt-4 border-t-2 border-[#17130a]/15 pt-3 text-xs text-[#5c5346]">
+                <div className="text-xl font-bold">{b.rate} /h</div>
+                <div
+                  className={`mt-4 border-t-2 pt-3 text-xs ${
+                    b.popular
+                      ? 'border-white/20 text-indigo-100'
+                      : 'border-slate-900/10 text-slate-500'
+                  }`}
+                >
                   {t('boosters.terms')}
                 </div>
               </div>
@@ -236,9 +281,9 @@ function Landing({ locale }: { locale: string }) {
 
       {/* ─────────────────────── Referrals ───────────────────────── */}
       <Section title={t('referrals.title')} subtitle={t('referrals.subtitle')}>
-        <div className="card overflow-x-auto">
+        <div className="card-soft overflow-x-auto">
           <table className="w-full min-w-[28rem] text-left text-sm">
-            <thead className="text-xs uppercase text-slate-400">
+            <thead className="text-xs uppercase text-slate-500">
               <tr>
                 <th className="p-4">{t('referrals.invited')}</th>
                 <th className="p-4">{t('referrals.level')}</th>
@@ -249,15 +294,15 @@ function Landing({ locale }: { locale: string }) {
               {TIERS.map((tier) => (
                 <tr
                   key={tier.level}
-                  className="border-t border-slate-800 transition hover:bg-slate-900/40"
+                  className="border-t border-slate-100 transition hover:bg-indigo-50/40"
                 >
                   <td className="p-4">{tier.invites}</td>
                   <td className="p-4">
-                    <span className="rounded-full bg-sky-500/10 px-2.5 py-1 text-xs font-semibold text-sky-400">
+                    <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-600">
                       L{tier.level}
                     </span>
                   </td>
-                  <td className="p-4 font-bold text-amber-400">
+                  <td className="p-4 font-bold text-indigo-600">
                     ×{tier.multiplier}
                   </td>
                 </tr>
@@ -268,19 +313,17 @@ function Landing({ locale }: { locale: string }) {
       </Section>
 
       {/* ───────────────────────── Tasks ─────────────────────────── */}
-      <section className="band-cream">
+      <section className="band-soft">
         <div className="mx-auto max-w-6xl px-5 py-14">
-          <h2 className="font-serif text-3xl font-medium sm:text-4xl">
+          <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
             {t('tasksSection.title')}
           </h2>
-          <p className="mb-8 mt-2 text-[#5c5346]">
-            {t('tasksSection.subtitle')}
-          </p>
+          <p className="mb-8 mt-2 text-slate-600">{t('tasksSection.subtitle')}</p>
           <div className="flex flex-wrap gap-3">
             {TASK_KEYS.map((key) => (
               <span
                 key={key}
-                className="flex items-center gap-2 rounded-full border-2 border-[#17130a] bg-white px-4 py-2 text-sm font-medium text-[#17130a] transition hover:-translate-y-0.5 hover:bg-amber-300"
+                className="flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-300 hover:text-indigo-600"
               >
                 <span aria-hidden>{TASK_ICONS[key]}</span>
                 {tasks(key)}
@@ -294,11 +337,11 @@ function Landing({ locale }: { locale: string }) {
       <Section title={t('withdrawals.title')} subtitle={t('withdrawals.subtitle')}>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {['minimum', 'frequency', 'kyc', 'approval'].map((rule) => (
-            <div key={rule} className="card p-5">
-              <h3 className="font-semibold text-amber-400">
+            <div key={rule} className="card-soft p-5">
+              <h3 className="font-semibold text-indigo-600">
                 {t(`withdrawals.${rule}.title`)}
               </h3>
-              <p className="mt-2 text-sm text-slate-400">
+              <p className="mt-2 text-sm text-slate-500">
                 {t(`withdrawals.${rule}.body`)}
               </p>
             </div>
@@ -307,19 +350,20 @@ function Landing({ locale }: { locale: string }) {
       </Section>
 
       {/* ─────────────────────── Final CTA ───────────────────────── */}
-      <section className="bg-amber-400 py-20 text-[#17130a]">
+      <section className="bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-600 py-20 text-white">
         <div className="mx-auto max-w-3xl px-5 text-center">
-          <h2 className="font-serif text-4xl font-medium sm:text-5xl">
-            {t('cta.title')}
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-[#4a3f1f]">{t('cta.body')}</p>
-          <Link href={register} className="btn-dark mt-8">
+          <h2 className="text-4xl font-extrabold sm:text-5xl">{t('cta.title')}</h2>
+          <p className="mx-auto mt-4 max-w-xl text-indigo-100">{t('cta.body')}</p>
+          <Link
+            href={register}
+            className="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-8 py-3 font-semibold text-indigo-700 shadow-lg transition hover:-translate-y-0.5"
+          >
             {t('cta.button')} →
           </Link>
         </div>
       </section>
 
-      <footer className="bg-slate-950 px-5 py-8 text-center text-xs text-slate-500">
+      <footer className="bg-slate-50 px-5 py-8 text-center text-xs text-slate-500">
         <p className="mx-auto max-w-2xl">{t('footer.disclaimer')}</p>
         <p className="mt-3">{t('footer.copyright')}</p>
       </footer>
@@ -338,8 +382,8 @@ function Section({
 }) {
   return (
     <section className="mx-auto max-w-6xl px-5 py-14">
-      <h2 className="font-serif text-3xl font-medium sm:text-4xl">{title}</h2>
-      <p className="mb-8 mt-2 text-slate-400">{subtitle}</p>
+      <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">{title}</h2>
+      <p className="mb-8 mt-2 text-slate-600">{subtitle}</p>
       {children}
     </section>
   );
@@ -347,11 +391,136 @@ function Section({
 
 function Figure({ value, label }: { value: string; label: string }) {
   return (
-    <div className="card card-lift p-5">
-      <div className="text-2xl font-extrabold text-amber-600">{value}</div>
-      <div className="mt-1 text-xs uppercase tracking-wide text-[#5c5346]">
-        {label}
-      </div>
+    <div className="card-soft card-soft-lift p-5">
+      <div className="text-2xl font-extrabold text-indigo-600">{value}</div>
+      <div className="mt-1 text-xs uppercase tracking-wide text-slate-500">{label}</div>
     </div>
+  );
+}
+
+/** A small faceted "block" — stands in for a chain/block icon without
+ *  reproducing any real network's logo. Same layered-gradient technique as
+ *  the hero coin, just square. */
+function ChainCube() {
+  return (
+    <div className="relative grid h-32 w-32 shrink-0 place-items-center">
+      <div className="orbit h-28 w-28 opacity-70" aria-hidden>
+        <span className="orbit-particle" />
+      </div>
+      <div
+        className="relative grid h-20 w-20 place-items-center rounded-2xl"
+        style={{
+          background:
+            'radial-gradient(120% 120% at 26% 20%, rgba(255,255,255,.7), rgba(255,255,255,0) 45%), linear-gradient(145deg, #a5b4fc 0%, #818cf8 35%, #4338ca 100%)',
+          boxShadow:
+            'inset 0.3rem 0.4rem 0.9rem rgba(255,255,255,.5), inset -0.4rem -0.5rem 1rem rgba(49,26,129,.35), 0 1rem 2rem rgba(79,70,229,.35)',
+        }}
+      >
+        <IconCube className="h-8 w-8 text-white" />
+      </div>
+      <span className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full bg-white text-indigo-600 shadow-md ring-1 ring-indigo-100">
+        <IconShield className="h-3.5 w-3.5" />
+      </span>
+    </div>
+  );
+}
+
+const STEP_ICON_STYLES = [
+  'bg-blue-100 text-blue-600',
+  'bg-violet-100 text-violet-600',
+  'bg-emerald-100 text-emerald-600',
+  'bg-orange-100 text-orange-600',
+];
+
+const STEP_ICONS = [
+  <IconCalendarCheck key="cal" className="h-4 w-4" />,
+  <IconRocket key="rocket" className="h-4 w-4" />,
+  <IconUsers key="users" className="h-4 w-4" />,
+  <IconWallet key="wallet" className="h-4 w-4" />,
+];
+
+function IconCalendarCheck({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path
+        d="M7 3v3M17 3v3M4 9h16M5 6h14a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Zm3.5 8 2 2 4-4"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconRocket({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M12 2c3 2 5 6 5 10 0 1.5-.3 2.9-.8 4l-2.2-1c.5-1 .8-2 .8-3 0-3-1.5-6-2.8-7.5C10.7 5.9 9 8.7 9 12c0 1 .3 2 .8 3l-2.2 1c-.5-1.1-.8-2.5-.8-4 0-4 2-8 5-10Zm-3 15 1.5 3H8l-1-2 2-1Zm6 0 2 1-1 2h-2.5l1.5-3Z" />
+    </svg>
+  );
+}
+
+function IconUsers({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M9 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-3.3 0-8 1.7-8 5v2h16v-2c0-3.3-4.7-5-8-5Zm7.5-3.5A3.5 3.5 0 1 0 16.5 3a3.5 3.5 0 0 0 0 7Zm.6 2.1c1.2.6 2.9 2 2.9 3.9v3H23v-3c0-2.7-2.5-3.5-5.9-3.9Z" />
+    </svg>
+  );
+}
+
+function IconWallet({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path
+        d="M3 7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v1h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M15 13.5a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function IconShield({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path
+        d="m12 3 7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m9 12 2 2 4-4"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconCube({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path
+        d="m12 2 8 4.5v11L12 22l-8-4.5v-11L12 2Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 2v20M4 6.5 12 11l8-4.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

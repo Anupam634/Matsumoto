@@ -70,7 +70,7 @@ function AuthForm() {
       <div className="w-full max-w-md">
         <Link
           href={`/${params.locale}`}
-          className="mb-6 inline-flex items-center gap-2 text-sm text-slate-400 transition hover:text-amber-400"
+          className="mb-6 inline-flex items-center gap-2 text-sm text-slate-400 transition hover:text-indigo-400"
         >
           ← {t('backHome')}
         </Link>
@@ -145,7 +145,7 @@ function AuthForm() {
 
         <button
           onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}
-          className="mt-6 w-full text-center text-sm text-amber-400 underline-offset-4 hover:underline"
+          className="mt-6 w-full text-center text-sm text-indigo-400 underline-offset-4 hover:underline"
         >
           {mode === 'login' ? t('noAccount') : t('haveAccount')}
         </button>

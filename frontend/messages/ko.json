@@ -19,6 +19,11 @@
       "minWithdrawal": "최소 출금 (포인트)",
       "boosterDuration": "부스터 기간"
     },
+    "chain": {
+      "builtOn": "기반 기술",
+      "tagline": "안전 · 투명 · 보상은 온전히 당신의 것",
+      "learnMore": "더 알아보기"
+    },
     "how": {
       "title": "이용 방법",
       "subtitle": "가입부터 출금까지 네 단계.",

@@ -9,24 +9,47 @@
  */
 
 @layer components {
-  /* ── Ambient background glow ─────────────────────────────── */
+  /* ── Ambient background glow (dark bands — login, dashboard) ─ */
   .glow-field {
     background:
       radial-gradient(
         60rem 40rem at 70% -10%,
-        rgba(245, 158, 11, 0.18),
+        rgba(99, 102, 241, 0.2),
         transparent 60%
       ),
       radial-gradient(
         40rem 30rem at 10% 20%,
-        rgba(56, 189, 248, 0.12),
+        rgba(56, 189, 248, 0.14),
         transparent 60%
       );
   }
 
+  /* ── Ambient blob glow — light hero band (landing page) ─────
+     Soft indigo/violet/blue blobs on a white base, echoing the
+     brand gradient without needing a WebGL renderer. ──────────*/
+  .glow-field-light {
+    background:
+      radial-gradient(
+        44rem 30rem at 82% 8%,
+        rgba(129, 140, 248, 0.28),
+        transparent 60%
+      ),
+      radial-gradient(
+        36rem 26rem at 8% 30%,
+        rgba(96, 165, 250, 0.2),
+        transparent 60%
+      ),
+      radial-gradient(
+        30rem 22rem at 60% 90%,
+        rgba(167, 139, 250, 0.18),
+        transparent 60%
+      ),
+      #f8f9ff;
+  }
+
   /* ── Rotating 3D coin ────────────────────────────────────── */
   .coin-stage {
-    perspective: 1200px;
+    perspective: 1400px;
   }
 
   .coin {
@@ -44,13 +67,21 @@
     display: grid;
     place-items: center;
     backface-visibility: hidden;
-    background: linear-gradient(145deg, #fde68a 0%, #f59e0b 45%, #b45309 100%);
+    background:
+      radial-gradient(
+        120% 120% at 26% 20%,
+        rgba(255, 255, 255, 0.75),
+        rgba(255, 255, 255, 0) 42%
+      ),
+      linear-gradient(145deg, #a5b4fc 0%, #818cf8 30%, #7c3aed 62%, #4338ca 100%);
     box-shadow:
-      inset 0 0 0 0.6rem rgba(120, 53, 15, 0.35),
-      inset 0 1rem 2rem rgba(255, 255, 255, 0.45),
-      0 1.5rem 3rem rgba(245, 158, 11, 0.25);
-    color: #451a03;
+      inset 0 0 0 0.55rem rgba(67, 56, 202, 0.4),
+      inset 0.4rem 0.6rem 1.4rem rgba(255, 255, 255, 0.55),
+      inset -0.6rem -0.8rem 1.6rem rgba(49, 26, 129, 0.35),
+      0 1.5rem 3rem rgba(79, 70, 229, 0.3);
+    color: #fff;
     font-weight: 800;
+    text-shadow: 0 2px 6px rgba(49, 26, 129, 0.35);
   }
 
   .coin-face--back {
@@ -62,25 +93,80 @@
     position: absolute;
     inset: 0;
     border-radius: 9999px;
-    background: linear-gradient(90deg, #92400e, #f59e0b, #92400e);
+    background: linear-gradient(90deg, #4338ca, #818cf8, #4338ca);
   }
 
-  /* ── Orbiting rings ──────────────────────────────────────── */
+  /* ── Coin pedestal — a glossy platform it appears to rest on ─ */
+  .coin-pedestal {
+    position: absolute;
+    bottom: 1.75rem;
+    left: 50%;
+    width: 11.5rem;
+    height: 3rem;
+    transform: translateX(-50%);
+    border-radius: 9999px;
+    background: linear-gradient(180deg, #c7d2fe 0%, #818cf8 55%, #4338ca 100%);
+    box-shadow:
+      inset 0 0.35rem 0.6rem rgba(255, 255, 255, 0.5),
+      0 1.5rem 2rem -0.5rem rgba(67, 56, 202, 0.55);
+  }
+
+  .coin-pedestal::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    width: 8rem;
+    height: 1.5rem;
+    transform: translateX(-50%);
+    border-radius: 9999px;
+    background: rgba(67, 56, 202, 0.25);
+    filter: blur(10px);
+  }
+
+  /* ── Orbiting rings + the small particles riding on them ───── */
   .orbit {
     position: absolute;
     border-radius: 9999px;
-    border: 1px solid rgba(245, 158, 11, 0.35);
+    border: 1px solid rgba(129, 140, 248, 0.4);
     transform-style: preserve-3d;
     animation: orbit-tilt 16s linear infinite;
   }
 
   .orbit--wide {
-    border-color: rgba(56, 189, 248, 0.28);
+    border-color: rgba(56, 189, 248, 0.32);
     animation-duration: 24s;
     animation-direction: reverse;
   }
 
-  /* ── Cards ───────────────────────────────────────────────── */
+  .orbit-particle {
+    position: absolute;
+    top: -0.3rem;
+    left: 50%;
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 9999px;
+    transform: translateX(-50%);
+    background: radial-gradient(circle at 32% 30%, #fff, #93c5fd 45%, #3b82f6 100%);
+    box-shadow: 0 0 0.6rem rgba(96, 165, 250, 0.85);
+  }
+
+  .orbit--wide .orbit-particle {
+    top: auto;
+    bottom: -0.3rem;
+    background: radial-gradient(circle at 32% 30%, #fff, #d8b4fe 45%, #7c3aed 100%);
+    box-shadow: 0 0 0.6rem rgba(167, 139, 250, 0.85);
+  }
+
+  /* ── Twinkling sparkle accents around the coin ──────────────── */
+  .sparkle {
+    position: absolute;
+    color: #fff;
+    filter: drop-shadow(0 0 6px rgba(129, 140, 248, 0.8));
+    animation: twinkle 2.6s ease-in-out infinite;
+  }
+
+  /* ── Cards (dark — dashboard, login) ────────────────────────  */
   .card {
     border-radius: 1rem;
     border: 1px solid rgb(30 41 59);
@@ -99,26 +185,51 @@
 
   .card-lift:hover {
     transform: translateY(-4px);
-    border-color: rgba(245, 158, 11, 0.5);
+    border-color: rgba(129, 140, 248, 0.5);
+  }
+
+  /* ── Cards (light — landing page) ───────────────────────────  */
+  .card-soft {
+    border-radius: 1.25rem;
+    border: 1px solid rgb(226 232 240);
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .card-soft-lift {
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease,
+      border-color 0.2s ease;
+  }
+
+  .card-soft-lift:hover {
+    transform: translateY(-4px);
+    border-color: rgba(129, 140, 248, 0.5);
+    box-shadow: 0 16px 28px -12px rgba(79, 70, 229, 0.25);
   }
 
   /* ── Shared buttons ──────────────────────────────────────── */
   .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
     border-radius: 9999px;
-    background-image: linear-gradient(135deg, #fbbf24, #f59e0b);
+    background-image: linear-gradient(135deg, #6366f1, #7c3aed 55%, #2563eb);
     padding: 0.75rem 1.5rem;
     font-weight: 600;
-    color: #1e1206;
+    color: #fff;
     transition:
       transform 0.15s ease,
       box-shadow 0.15s ease,
       opacity 0.15s ease;
-    box-shadow: 0 8px 20px -8px rgba(245, 158, 11, 0.55);
+    box-shadow: 0 10px 22px -8px rgba(79, 70, 229, 0.55);
   }
 
   .btn-primary:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 12px 24px -8px rgba(245, 158, 11, 0.65);
+    box-shadow: 0 14px 26px -8px rgba(79, 70, 229, 0.65);
   }
 
   .btn-primary:disabled {
@@ -129,6 +240,10 @@
   }
 
   .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
     border-radius: 9999px;
     border: 1px solid rgb(51 65 85);
     background: rgba(15, 23, 42, 0.6);
@@ -141,28 +256,30 @@
   }
 
   .btn-secondary:hover {
-    border-color: rgba(245, 158, 11, 0.6);
-    color: rgb(251 191 36);
+    border-color: rgba(129, 140, 248, 0.6);
+    color: rgb(199 210 254);
   }
 
-  /* ── Ink pill button — for use on cream bands ────────────── */
-  .btn-dark {
+  /* ── Outline pill button — for use on light bands ─────────── */
+  .btn-outline-brand {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
+    justify-content: center;
+    gap: 0.5rem;
     border-radius: 9999px;
-    background: #17130a;
+    border: 1.5px solid rgb(199 210 254);
+    background: #fff;
     padding: 0.75rem 1.5rem;
     font-weight: 600;
-    color: #f6efe0;
+    color: rgb(67 56 202);
     transition:
-      transform 0.15s ease,
-      opacity 0.15s ease;
+      border-color 0.2s ease,
+      background-color 0.2s ease;
   }
 
-  .btn-dark:hover {
-    transform: translateY(-1px);
-    opacity: 0.88;
+  .btn-outline-brand:hover {
+    border-color: rgb(165 180 252);
+    background: rgb(238 242 255);
   }
 
   /* ── Shared form fields ──────────────────────────────────── */
@@ -180,8 +297,8 @@
   }
 
   .input-field:focus {
-    border-color: rgba(245, 158, 11, 0.6);
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+    border-color: rgba(129, 140, 248, 0.6);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
   }
 
   /* ── Segmented tab switch (auth mode) ───────────────────── */
@@ -205,32 +322,22 @@
   }
 
   .tab-switch button[data-active='true'] {
-    background: rgba(245, 158, 11, 0.15);
-    color: rgb(251 191 36);
+    background: rgba(99, 102, 241, 0.2);
+    color: rgb(199 210 254);
   }
 
-  /* ── Editorial cream band — a warm break from the ink bands ─ */
-  .band-cream {
-    background: #f3ecdc;
-    color: #1c1712;
-  }
-
-  .band-cream .card {
-    border: 1px solid rgba(28, 23, 18, 0.12);
-    background: #fffdf8;
-    box-shadow: 0 1px 2px rgba(28, 23, 18, 0.04);
-  }
-
-  .band-cream .card-lift:hover {
-    border-color: rgba(217, 119, 6, 0.55);
+  /* ── Soft indigo band — a light break between white sections ─ */
+  .band-soft {
+    background: linear-gradient(180deg, #eef1ff 0%, #f5f3ff 100%);
+    color: #1e1b2e;
   }
 
   /* ── Chunky, stamped-shadow card — booster pricing tiles ──── */
   .card-chunky {
     position: relative;
     border-radius: 1.25rem;
-    border: 2px solid #17130a;
-    box-shadow: 6px 6px 0 0 #17130a;
+    border: 2px solid #312e81;
+    box-shadow: 6px 6px 0 0 #312e81;
     transition:
       transform 0.15s ease,
       box-shadow 0.15s ease;
@@ -238,16 +345,17 @@
 
   .card-chunky:hover {
     transform: translate(-2px, -2px);
-    box-shadow: 8px 8px 0 0 #17130a;
+    box-shadow: 8px 8px 0 0 #312e81;
   }
 
-  .card-chunky--ink {
-    border-color: #f5b62e;
-    box-shadow: 6px 6px 0 0 #f5b62e;
+  .card-chunky--brand {
+    border-color: #312e81;
+    box-shadow: 6px 6px 0 0 #312e81;
+    background-image: linear-gradient(135deg, #818cf8, #7c3aed 60%, #4338ca);
   }
 
-  .card-chunky--ink:hover {
-    box-shadow: 8px 8px 0 0 #f5b62e;
+  .card-chunky--brand:hover {
+    box-shadow: 8px 8px 0 0 #312e81;
   }
 
   /* ── Marquee ticker ──────────────────────────────────────── */
@@ -281,6 +389,14 @@
     }
   }
 
+  /* ── Brand gradient text ────────────────────────────────────  */
+  .text-gradient-brand {
+    background-image: linear-gradient(135deg, #4f46e5, #7c3aed 55%, #2563eb);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
   /* ── Logo badge ──────────────────────────────────────────── */
   .logo-badge {
     display: grid;
@@ -290,8 +406,8 @@
     border-radius: 9999px;
     font-size: 0.875rem;
     font-weight: 700;
-    background-image: linear-gradient(135deg, #fde68a, #d97706);
-    color: #451a03;
+    background-image: linear-gradient(135deg, #818cf8, #7c3aed 55%, #2563eb);
+    color: #fff;
   }
 
   /* ── Mine button pulse while claimable ──────────────────── */
@@ -304,7 +420,7 @@
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55);
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.55);
     animation: pulse-ring 2.4s ease-out infinite;
     pointer-events: none;
   }
@@ -317,10 +433,22 @@
 
 @keyframes pulse-ring {
   0% {
-    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.45);
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.45);
   }
   100% {
-    box-shadow: 0 0 0 1.25rem rgba(245, 158, 11, 0);
+    box-shadow: 0 0 0 1.25rem rgba(99, 102, 241, 0);
+  }
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
   }
 }
 
@@ -362,6 +490,7 @@
 }
 
 .animate-float {
+  position: relative;
   animation: float-y 6s ease-in-out infinite;
 }
 
@@ -369,7 +498,8 @@
 @media (prefers-reduced-motion: reduce) {
   .coin,
   .orbit,
-  .animate-float {
+  .animate-float,
+  .sparkle {
     animation: none !important;
   }
 

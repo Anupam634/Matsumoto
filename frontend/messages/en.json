@@ -19,6 +19,11 @@
       "minWithdrawal": "Min withdrawal (points)",
       "boosterDuration": "Booster duration"
     },
+    "chain": {
+      "builtOn": "Built on",
+      "tagline": "Secure · Transparent · You own your rewards",
+      "learnMore": "Learn more"
+    },
     "how": {
       "title": "How it works",
       "subtitle": "Four steps from signup to payout.",
