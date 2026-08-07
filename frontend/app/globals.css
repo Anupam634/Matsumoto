@@ -104,11 +104,11 @@
 
   /* ── Shared buttons ──────────────────────────────────────── */
   .btn-primary {
-    border-radius: 0.75rem;
+    border-radius: 9999px;
     background-image: linear-gradient(135deg, #fbbf24, #f59e0b);
     padding: 0.75rem 1.5rem;
     font-weight: 600;
-    color: #1e293b;
+    color: #1e1206;
     transition:
       transform 0.15s ease,
       box-shadow 0.15s ease,
@@ -129,7 +129,7 @@
   }
 
   .btn-secondary {
-    border-radius: 0.75rem;
+    border-radius: 9999px;
     border: 1px solid rgb(51 65 85);
     background: rgba(15, 23, 42, 0.6);
     padding: 0.75rem 1.5rem;
@@ -145,13 +145,33 @@
     color: rgb(251 191 36);
   }
 
+  /* ── Ink pill button — for use on cream bands ────────────── */
+  .btn-dark {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: 9999px;
+    background: #17130a;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    color: #f6efe0;
+    transition:
+      transform 0.15s ease,
+      opacity 0.15s ease;
+  }
+
+  .btn-dark:hover {
+    transform: translateY(-1px);
+    opacity: 0.88;
+  }
+
   /* ── Shared form fields ──────────────────────────────────── */
   .input-field {
     width: 100%;
-    border-radius: 0.75rem;
+    border-radius: 9999px;
     border: 1px solid rgb(30 41 59);
     background: rgba(2, 6, 23, 0.7);
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 1.25rem;
     color: rgb(241 245 249);
     outline: none;
     transition:
@@ -167,14 +187,14 @@
   /* ── Segmented tab switch (auth mode) ───────────────────── */
   .tab-switch {
     display: inline-flex;
-    border-radius: 0.75rem;
+    border-radius: 9999px;
     border: 1px solid rgb(30 41 59);
     background: rgba(2, 6, 23, 0.6);
     padding: 0.25rem;
   }
 
   .tab-switch button {
-    border-radius: 0.5rem;
+    border-radius: 9999px;
     padding: 0.5rem 1rem;
     font-size: 0.8125rem;
     font-weight: 600;
@@ -187,6 +207,78 @@
   .tab-switch button[data-active='true'] {
     background: rgba(245, 158, 11, 0.15);
     color: rgb(251 191 36);
+  }
+
+  /* ── Editorial cream band — a warm break from the ink bands ─ */
+  .band-cream {
+    background: #f3ecdc;
+    color: #1c1712;
+  }
+
+  .band-cream .card {
+    border: 1px solid rgba(28, 23, 18, 0.12);
+    background: #fffdf8;
+    box-shadow: 0 1px 2px rgba(28, 23, 18, 0.04);
+  }
+
+  .band-cream .card-lift:hover {
+    border-color: rgba(217, 119, 6, 0.55);
+  }
+
+  /* ── Chunky, stamped-shadow card — booster pricing tiles ──── */
+  .card-chunky {
+    position: relative;
+    border-radius: 1.25rem;
+    border: 2px solid #17130a;
+    box-shadow: 6px 6px 0 0 #17130a;
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .card-chunky:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 8px 8px 0 0 #17130a;
+  }
+
+  .card-chunky--ink {
+    border-color: #f5b62e;
+    box-shadow: 6px 6px 0 0 #f5b62e;
+  }
+
+  .card-chunky--ink:hover {
+    box-shadow: 8px 8px 0 0 #f5b62e;
+  }
+
+  /* ── Marquee ticker ──────────────────────────────────────── */
+  .marquee {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent,
+      black 6%,
+      black 94%,
+      transparent
+    );
+    mask-image: linear-gradient(
+      90deg,
+      transparent,
+      black 6%,
+      black 94%,
+      transparent
+    );
+  }
+
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    animation: marquee 28s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .marquee-track {
+      animation: none;
+    }
   }
 
   /* ── Logo badge ──────────────────────────────────────────── */
@@ -247,6 +339,15 @@
   }
   to {
     transform: rotateX(72deg) rotateZ(360deg);
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
   }
 }
 
