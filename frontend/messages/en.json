@@ -1,0 +1,141 @@
+{
+  "landing": {
+    "nav": {
+      "signIn": "Sign in",
+      "getStarted": "Get started"
+    },
+    "hero": {
+      "badge": "BNB Chain · Tap to earn",
+      "title": "Earn Matsumoto Points",
+      "titleAccent": "every single day",
+      "subtitle": "Register free, tap Mine once every 24 hours, and grow your rate with boosters and invites. Points convert to on-chain $Matsumoto and pay out to your BNB Chain wallet.",
+      "ctaPrimary": "Create free account",
+      "ctaSecondary": "I already have an account",
+      "honesty": "Mining here is scheduled reward accrual, not physical hardware. Points are internal units — only $Matsumoto withdrawals settle on-chain."
+    },
+    "figures": {
+      "baseRate": "Base rate",
+      "conversion": "Points per $Matsumoto",
+      "minWithdrawal": "Min withdrawal (points)",
+      "boosterDuration": "Booster duration"
+    },
+    "how": {
+      "title": "How it works",
+      "subtitle": "Four steps from signup to payout.",
+      "register": {
+        "title": "Register free",
+        "body": "Email and password. No deposit needed to start earning at the base rate."
+      },
+      "mine": {
+        "title": "Tap Mine daily",
+        "body": "One tap every 24 hours keeps your accrual running. Miss it and the window pauses."
+      },
+      "boost": {
+        "title": "Boost and invite",
+        "body": "Boosters raise your hourly rate for 30 days and stack. Invites raise your multiplier up to ×8."
+      },
+      "withdraw": {
+        "title": "Withdraw on-chain",
+        "body": "Convert points to $Matsumoto at 3:1 and receive them at your BNB Chain address."
+      }
+    },
+    "boosters": {
+      "title": "Booster packages",
+      "subtitle": "Paid boosters add to your hourly rate. Stack as many as you like.",
+      "resultingRate": "Resulting rate",
+      "terms": "30 days · stackable"
+    },
+    "referrals": {
+      "title": "Referral tiers",
+      "subtitle": "The more people you invite, the higher your mining multiplier.",
+      "invited": "Invited users",
+      "level": "Level",
+      "multiplier": "Multiplier"
+    },
+    "tasksSection": {
+      "title": "Earn more with tasks",
+      "subtitle": "Complete social and engagement tasks for extra points."
+    },
+    "withdrawals": {
+      "title": "Withdrawal rules",
+      "subtitle": "Clear and documented — no hidden gates.",
+      "minimum": {
+        "title": "100 points minimum",
+        "body": "Requests below 100 Matsumoto Points are not accepted."
+      },
+      "frequency": {
+        "title": "One request per week",
+        "body": "Each account can submit a single withdrawal request every 7 days."
+      },
+      "kyc": {
+        "title": "KYC required",
+        "body": "Verification must be approved before your first payout, for fair distribution."
+      },
+      "approval": {
+        "title": "Admin review",
+        "body": "Every payout is reviewed before the on-chain transfer is executed."
+      }
+    },
+    "cta": {
+      "title": "Start earning today",
+      "body": "Free to join, and you earn at the base rate from your very first tap.",
+      "button": "Create my account"
+    },
+    "footer": {
+      "disclaimer": "Matsumoto is a reward-simulation platform: \"mining\" is scheduled point accrual, not proof-of-work hardware. Points hold no value until they are converted and withdrawn as $Matsumoto on BNB Chain, subject to KYC and review.",
+      "copyright": "© Matsumoto Mining Platform"
+    }
+  },
+  "dashboard": {
+    "title": "Mining Dashboard",
+    "hashRate": "Hash Rate",
+    "miningRewards": "Mining Rewards",
+    "activeMiners": "Active Miners",
+    "earnings": "Earnings",
+    "ratePerHour": "Points / hour",
+    "pending": "Pending points",
+    "balance": "Balance",
+    "referralTier": "Referral Tier",
+    "mineButton": "Mine",
+    "cooldown": "Next mine available in {time}",
+    "boosters": "Active Boosters",
+    "referrals": "Invited Users",
+    "referralLink": "Your referral link",
+    "kycRequired": "KYC status: {status}. Approval is required before you can withdraw.",
+    "signOut": "Sign out",
+    "loading": "Loading…",
+    "offline": "Can't reach the server. Try again."
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "createAccount": "Create your account",
+    "email": "Email",
+    "password": "Password",
+    "referralCode": "Referral code (optional)",
+    "passwordHint": "At least 8 characters.",
+    "noAccount": "No account? Register — it's free.",
+    "haveAccount": "Already registered? Sign in.",
+    "working": "Please wait…",
+    "networkError": "Can't reach the server. Try again.",
+    "referralRejected": "Your account was created, but the referral code wasn't applied because the inviter shares this device or network.",
+    "backHome": "Back to home"
+  },
+  "tasks": {
+    "title": "Tasks",
+    "tweet": "Tweet",
+    "follow": "Follow",
+    "repost": "Repost",
+    "youtube": "Watch YouTube",
+    "quiz": "Quiz",
+    "spin": "Spin Wheel"
+  },
+  "withdraw": {
+    "title": "Withdraw",
+    "amount": "Amount (points)",
+    "address": "BNB Chain address",
+    "min": "Minimum 100 points",
+    "weekly": "1 request per week",
+    "submit": "Request Withdrawal"
+  }
+}

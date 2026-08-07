@@ -1,0 +1,193 @@
+// Matsumoto Mining Platform — data model
+// See SPEC.md for the rules these tables encode.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────── Users ───────────────────────────
+model User {
+  id            String   @id @default(cuid())
+  email         String?  @unique
+  walletAddress String?  @unique
+  passwordHash  String?
+  countryCode   String?  // ISO-2, for admin per-country counts
+  isBlocked     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  // balances are stored as integer "milli-points" to avoid float drift
+  // (1 point = 1000 units). Helpers convert to/from decimal.
+  pointsBalance BigInt   @default(0)
+
+  // referral graph
+  referralCode  String   @unique @default(cuid())
+  referredById  String?
+  referredBy    User?    @relation("Referrals", fields: [referredById], references: [id])
+  referrals     User[]   @relation("Referrals")
+
+  // last successful "Mine" tap — gates the 24h cooldown & accrual window
+  lastMineAt    DateTime?
+
+  kyc           KycRecord?
+  boosters      Booster[]
+  taskClaims    TaskClaim[]
+  withdrawals   Withdrawal[]
+  ledger        LedgerEntry[]
+  devices       DeviceFingerprint[]
+
+  @@index([referredById])
+  @@index([countryCode])
+}
+
+// ─────────────────────────── KYC ─────────────────────────────
+enum KycStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model KycRecord {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  user      User      @relation(fields: [userId], references: [id])
+  status    KycStatus @default(NONE)
+  provider  String?   // e.g. "sumsub"
+  reference String?   // provider-side applicant id
+  updatedAt DateTime  @updatedAt
+}
+
+// ─────────────────────── Booster plans ───────────────────────
+// Catalogue of purchasable plans (seeded from SPEC.md table).
+model BoosterPlan {
+  id           String    @id @default(cuid())
+  priceUsd     Int       // 1, 5, 10, 50
+  // rate CONTRIBUTION added on top of base, in milli-points/hour.
+  // $1 => resulting 2.9 from 0.9 base => +2.0/hr => 2000 milli.
+  rateBonusMilli Int
+  durationDays Int       @default(30)
+  active       Boolean   @default(true)
+  boosters     Booster[]
+}
+
+model Booster {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id])
+  planId     String
+  plan       BoosterPlan @relation(fields: [planId], references: [id])
+  startedAt  DateTime    @default(now())
+  expiresAt  DateTime
+  txHash     String?     // on-chain payment reference
+  createdAt  DateTime    @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ─────────────────────────── Tasks ───────────────────────────
+enum TaskType {
+  TWEET
+  FOLLOW
+  REPOST
+  YOUTUBE
+  QUIZ
+  SPIN_WHEEL
+}
+
+model Task {
+  id           String     @id @default(cuid())
+  type         TaskType
+  title        String
+  rewardMilli  Int        // point reward in milli-points
+  cooldownHours Int       @default(24)
+  active       Boolean    @default(true)
+  claims       TaskClaim[]
+}
+
+model TaskClaim {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id])
+  claimedAt DateTime @default(now())
+  verified  Boolean  @default(false)
+
+  @@index([userId, taskId])
+}
+
+// ─────────────────────── Withdrawals ─────────────────────────
+enum WithdrawalStatus {
+  PENDING     // awaiting admin approval
+  APPROVED    // approved, queued for payout
+  PAID        // on-chain tx confirmed
+  REJECTED
+}
+
+model Withdrawal {
+  id            String           @id @default(cuid())
+  userId        String
+  user          User             @relation(fields: [userId], references: [id])
+  pointsAmount  BigInt           // milli-points debited
+  tokenAmount   String           // $Matsumoto (points/3), decimal string
+  toAddress     String
+  status        WithdrawalStatus @default(PENDING)
+  txHash        String?
+  adminNote     String?
+  requestedAt   DateTime         @default(now())
+  resolvedAt    DateTime?
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ───────────────────── Accounting ledger ─────────────────────
+enum LedgerReason {
+  MINING
+  TASK_REWARD
+  REFERRAL_BONUS
+  BOOSTER_PURCHASE
+  WITHDRAWAL
+  AIRDROP
+  ADMIN_ADJUST
+}
+
+model LedgerEntry {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+  reason    LedgerReason
+  deltaMilli BigInt      // signed change to pointsBalance
+  meta      Json?
+  createdAt DateTime     @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ─────────────────── Anti-abuse signals ──────────────────────
+model DeviceFingerprint {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  fingerprint String
+  lastIp      String?
+  seenAt      DateTime @default(now())
+
+  @@index([fingerprint])
+  @@index([lastIp])
+}
+
+// ─────────────────────────── Admin ───────────────────────────
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         String   @default("admin")
+  createdAt    DateTime @default(now())
+}

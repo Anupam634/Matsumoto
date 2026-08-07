@@ -1,0 +1,141 @@
+{
+  "landing": {
+    "nav": {
+      "signIn": "登录",
+      "getStarted": "立即开始"
+    },
+    "hero": {
+      "badge": "BNB 链 · 点击赚取",
+      "title": "每天赚取",
+      "titleAccent": "Matsumoto 积分",
+      "subtitle": "免费注册，每 24 小时点击一次「挖矿」，通过加速包和邀请提升速率。积分可兑换为链上 $Matsumoto，并提现至您的 BNB 链钱包。",
+      "ctaPrimary": "免费创建账户",
+      "ctaSecondary": "我已有账户",
+      "honesty": "此处的「挖矿」是按计划累积奖励，并非实体矿机。积分为平台内部单位，只有 $Matsumoto 提现才会在链上结算。"
+    },
+    "figures": {
+      "baseRate": "基础速率",
+      "conversion": "积分兑换 $Matsumoto",
+      "minWithdrawal": "最低提现（积分）",
+      "boosterDuration": "加速包时长"
+    },
+    "how": {
+      "title": "运作方式",
+      "subtitle": "从注册到提现，只需四步。",
+      "register": {
+        "title": "免费注册",
+        "body": "只需邮箱和密码。无需充值即可按基础速率开始累积。"
+      },
+      "mine": {
+        "title": "每日点击挖矿",
+        "body": "每 24 小时点击一次即可持续累积。错过则累积窗口暂停。"
+      },
+      "boost": {
+        "title": "加速与邀请",
+        "body": "加速包在 30 天内提升每小时速率且可叠加；邀请可将倍数提升至 ×8。"
+      },
+      "withdraw": {
+        "title": "链上提现",
+        "body": "按 3:1 将积分兑换为 $Matsumoto，并发送至您的 BNB 链地址。"
+      }
+    },
+    "boosters": {
+      "title": "加速包",
+      "subtitle": "付费加速包可提升每小时速率，数量不限，可任意叠加。",
+      "resultingRate": "提升后速率",
+      "terms": "30 天 · 可叠加"
+    },
+    "referrals": {
+      "title": "推荐等级",
+      "subtitle": "邀请的用户越多，挖矿倍数越高。",
+      "invited": "已邀请用户",
+      "level": "等级",
+      "multiplier": "倍数"
+    },
+    "tasksSection": {
+      "title": "通过任务赚取更多",
+      "subtitle": "完成社交与互动任务，获得额外积分。"
+    },
+    "withdrawals": {
+      "title": "提现规则",
+      "subtitle": "规则清晰公开，没有隐藏门槛。",
+      "minimum": {
+        "title": "最低 100 积分",
+        "body": "低于 100 Matsumoto 积分的申请将不予受理。"
+      },
+      "frequency": {
+        "title": "每周一次申请",
+        "body": "每个账户每 7 天可提交一次提现申请。"
+      },
+      "kyc": {
+        "title": "需完成 KYC",
+        "body": "为保证公平分配，首次提现前须通过身份验证。"
+      },
+      "approval": {
+        "title": "管理员审核",
+        "body": "每笔提现在链上转账前都会经过审核。"
+      }
+    },
+    "cta": {
+      "title": "今天就开始赚取",
+      "body": "免费加入，从第一次点击起即按基础速率累积。",
+      "button": "创建我的账户"
+    },
+    "footer": {
+      "disclaimer": "Matsumoto 是一个奖励模拟平台：「挖矿」为按计划累积积分，并非工作量证明硬件。积分在兑换并作为 $Matsumoto 于 BNB 链提现之前不具价值，且须通过 KYC 与审核。",
+      "copyright": "© Matsumoto 挖矿平台"
+    }
+  },
+  "dashboard": {
+    "title": "挖矿仪表盘",
+    "hashRate": "算力",
+    "miningRewards": "挖矿奖励",
+    "activeMiners": "活跃矿工",
+    "earnings": "收益",
+    "ratePerHour": "积分 / 小时",
+    "pending": "待领取积分",
+    "balance": "余额",
+    "referralTier": "推荐等级",
+    "mineButton": "挖矿",
+    "cooldown": "距离下次挖矿还有 {time}",
+    "boosters": "生效中的加速包",
+    "referrals": "已邀请用户",
+    "referralLink": "您的邀请链接",
+    "kycRequired": "KYC 状态：{status}。提现前需先通过审核。",
+    "signOut": "退出登录",
+    "loading": "加载中…",
+    "offline": "无法连接服务器，请重试。"
+  },
+  "auth": {
+    "signIn": "登录",
+    "signUp": "注册",
+    "createAccount": "创建账户",
+    "email": "邮箱",
+    "password": "密码",
+    "referralCode": "邀请码（可选）",
+    "passwordHint": "至少 8 位字符。",
+    "noAccount": "还没有账户？免费注册。",
+    "haveAccount": "已有账户？立即登录。",
+    "working": "请稍候…",
+    "networkError": "无法连接服务器，请重试。",
+    "referralRejected": "账户已创建，但邀请码未生效：邀请人与您使用同一设备或网络。",
+    "backHome": "返回首页"
+  },
+  "tasks": {
+    "title": "任务",
+    "tweet": "发推文",
+    "follow": "关注",
+    "repost": "转发",
+    "youtube": "观看 YouTube",
+    "quiz": "答题",
+    "spin": "转盘"
+  },
+  "withdraw": {
+    "title": "提现",
+    "amount": "数量（积分）",
+    "address": "BNB 链地址",
+    "min": "最低 100 积分",
+    "weekly": "每周 1 次申请",
+    "submit": "申请提现"
+  }
+}

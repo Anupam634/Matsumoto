@@ -1,0 +1,50 @@
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  Length,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+
+export class RegisterDto {
+  @IsEmail()
+  email!: string;
+
+  @IsString()
+  @MinLength(8, { message: 'Password must be at least 8 characters.' })
+  @MaxLength(128)
+  password!: string;
+
+  /** Referral code of the inviting user (SPEC §2 referral tiers). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  referralCode?: string;
+
+  /** ISO-3166 alpha-2, powers the admin per-country breakdown (SPEC §6). */
+  @IsOptional()
+  @IsString()
+  @Length(2, 2)
+  countryCode?: string;
+
+  /** Client-side device fingerprint, used by the anti-abuse guard (SPEC §7). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  deviceFingerprint?: string;
+}
+
+export class LoginDto {
+  @IsEmail()
+  email!: string;
+
+  @IsString()
+  @MaxLength(128)
+  password!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  deviceFingerprint?: string;
+}

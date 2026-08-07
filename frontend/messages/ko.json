@@ -1,0 +1,141 @@
+{
+  "landing": {
+    "nav": {
+      "signIn": "로그인",
+      "getStarted": "시작하기"
+    },
+    "hero": {
+      "badge": "BNB 체인 · 탭하여 적립",
+      "title": "매일 적립하는",
+      "titleAccent": "Matsumoto 포인트",
+      "subtitle": "무료로 가입하고 24시간마다 한 번 마이닝을 탭하세요. 부스터와 초대로 적립 속도를 높일 수 있습니다. 포인트는 온체인 $Matsumoto로 전환되어 BNB 체인 지갑으로 출금됩니다.",
+      "ctaPrimary": "무료 계정 만들기",
+      "ctaSecondary": "이미 계정이 있습니다",
+      "honesty": "여기서의 마이닝은 예약된 보상 적립이며 실제 채굴 장비가 아닙니다. 포인트는 플랫폼 내부 단위이며, $Matsumoto 출금만 온체인에서 정산됩니다."
+    },
+    "figures": {
+      "baseRate": "기본 적립률",
+      "conversion": "$Matsumoto당 포인트",
+      "minWithdrawal": "최소 출금 (포인트)",
+      "boosterDuration": "부스터 기간"
+    },
+    "how": {
+      "title": "이용 방법",
+      "subtitle": "가입부터 출금까지 네 단계.",
+      "register": {
+        "title": "무료 가입",
+        "body": "이메일과 비밀번호만 있으면 됩니다. 입금 없이 기본 적립률로 시작하세요."
+      },
+      "mine": {
+        "title": "매일 마이닝 탭",
+        "body": "24시간마다 한 번 탭하면 적립이 계속됩니다. 놓치면 적립 창이 멈춥니다."
+      },
+      "boost": {
+        "title": "부스터와 초대",
+        "body": "부스터는 30일 동안 시간당 적립률을 올리며 중첩됩니다. 초대는 배수를 최대 ×8까지 올려 줍니다."
+      },
+      "withdraw": {
+        "title": "온체인 출금",
+        "body": "포인트를 3:1 비율로 $Matsumoto로 전환해 BNB 체인 주소로 받습니다."
+      }
+    },
+    "boosters": {
+      "title": "부스터 패키지",
+      "subtitle": "유료 부스터가 시간당 적립률을 더해 줍니다. 원하는 만큼 중첩할 수 있습니다.",
+      "resultingRate": "적용 후 적립률",
+      "terms": "30일 · 중첩 가능"
+    },
+    "referrals": {
+      "title": "추천 등급",
+      "subtitle": "더 많은 사람을 초대할수록 마이닝 배수가 높아집니다.",
+      "invited": "초대한 사용자",
+      "level": "등급",
+      "multiplier": "배수"
+    },
+    "tasksSection": {
+      "title": "작업으로 더 적립하기",
+      "subtitle": "소셜 및 참여 작업을 완료하고 추가 포인트를 받으세요."
+    },
+    "withdrawals": {
+      "title": "출금 규정",
+      "subtitle": "명확하게 공개된 규정 — 숨겨진 조건은 없습니다.",
+      "minimum": {
+        "title": "최소 100 포인트",
+        "body": "100 Matsumoto 포인트 미만의 신청은 접수되지 않습니다."
+      },
+      "frequency": {
+        "title": "주 1회 신청",
+        "body": "계정당 7일마다 한 번 출금을 신청할 수 있습니다."
+      },
+      "kyc": {
+        "title": "KYC 필수",
+        "body": "공정한 배분을 위해 첫 출금 전에 인증 승인이 필요합니다."
+      },
+      "approval": {
+        "title": "관리자 검토",
+        "body": "모든 출금은 온체인 전송 전에 검토를 거칩니다."
+      }
+    },
+    "cta": {
+      "title": "오늘 바로 시작하세요",
+      "body": "가입은 무료이며, 첫 탭부터 기본 적립률이 적용됩니다.",
+      "button": "계정 만들기"
+    },
+    "footer": {
+      "disclaimer": "Matsumoto는 보상 시뮬레이션 플랫폼입니다. '마이닝'은 예약된 포인트 적립이며 작업증명 하드웨어가 아닙니다. 포인트는 KYC와 검토를 거쳐 BNB 체인에서 $Matsumoto로 전환·출금되기 전까지는 가치를 갖지 않습니다.",
+      "copyright": "© Matsumoto 마이닝 플랫폼"
+    }
+  },
+  "dashboard": {
+    "title": "마이닝 대시보드",
+    "hashRate": "해시레이트",
+    "miningRewards": "마이닝 보상",
+    "activeMiners": "활성 채굴자",
+    "earnings": "수익",
+    "ratePerHour": "포인트 / 시간",
+    "pending": "대기 중인 포인트",
+    "balance": "잔액",
+    "referralTier": "추천 등급",
+    "mineButton": "마이닝",
+    "cooldown": "다음 마이닝까지 {time}",
+    "boosters": "활성 부스터",
+    "referrals": "초대한 사용자",
+    "referralLink": "내 추천 링크",
+    "kycRequired": "KYC 상태: {status}. 출금하려면 승인이 필요합니다.",
+    "signOut": "로그아웃",
+    "loading": "불러오는 중…",
+    "offline": "서버에 연결할 수 없습니다. 다시 시도해 주세요."
+  },
+  "auth": {
+    "signIn": "로그인",
+    "signUp": "회원가입",
+    "createAccount": "계정 만들기",
+    "email": "이메일",
+    "password": "비밀번호",
+    "referralCode": "추천 코드 (선택)",
+    "passwordHint": "8자 이상이어야 합니다.",
+    "noAccount": "계정이 없으신가요? 무료로 가입하세요.",
+    "haveAccount": "이미 가입하셨나요? 로그인하세요.",
+    "working": "잠시만 기다려 주세요…",
+    "networkError": "서버에 연결할 수 없습니다. 다시 시도해 주세요.",
+    "referralRejected": "계정이 생성되었지만, 추천인이 동일한 기기 또는 네트워크를 사용하여 추천 코드가 적용되지 않았습니다.",
+    "backHome": "홈으로 돌아가기"
+  },
+  "tasks": {
+    "title": "작업",
+    "tweet": "트윗",
+    "follow": "팔로우",
+    "repost": "리포스트",
+    "youtube": "YouTube 시청",
+    "quiz": "퀴즈",
+    "spin": "룰렛 돌리기"
+  },
+  "withdraw": {
+    "title": "출금",
+    "amount": "수량 (포인트)",
+    "address": "BNB 체인 주소",
+    "min": "최소 100 포인트",
+    "weekly": "주 1회 신청",
+    "submit": "출금 신청"
+  }
+}

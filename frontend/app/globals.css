@@ -1,0 +1,145 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Landing-page visuals. Everything here is pure CSS 3D — no image assets,
+ * no WebGL, nothing to download — so the hero renders instantly and the PWA
+ * stays light.
+ */
+
+@layer components {
+  /* ── Ambient background glow ─────────────────────────────── */
+  .glow-field {
+    background:
+      radial-gradient(
+        60rem 40rem at 70% -10%,
+        rgba(245, 158, 11, 0.18),
+        transparent 60%
+      ),
+      radial-gradient(
+        40rem 30rem at 10% 20%,
+        rgba(56, 189, 248, 0.12),
+        transparent 60%
+      );
+  }
+
+  /* ── Rotating 3D coin ────────────────────────────────────── */
+  .coin-stage {
+    perspective: 1200px;
+  }
+
+  .coin {
+    position: relative;
+    width: 13rem;
+    height: 13rem;
+    transform-style: preserve-3d;
+    animation: coin-spin 9s linear infinite;
+  }
+
+  .coin-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    display: grid;
+    place-items: center;
+    backface-visibility: hidden;
+    background: linear-gradient(145deg, #fde68a 0%, #f59e0b 45%, #b45309 100%);
+    box-shadow:
+      inset 0 0 0 0.6rem rgba(120, 53, 15, 0.35),
+      inset 0 1rem 2rem rgba(255, 255, 255, 0.45),
+      0 1.5rem 3rem rgba(245, 158, 11, 0.25);
+    color: #451a03;
+    font-weight: 800;
+  }
+
+  .coin-face--back {
+    transform: rotateY(180deg);
+  }
+
+  /* Stacked slices fake the coin's thickness as it turns edge-on. */
+  .coin-edge {
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, #92400e, #f59e0b, #92400e);
+  }
+
+  /* ── Orbiting rings ──────────────────────────────────────── */
+  .orbit {
+    position: absolute;
+    border-radius: 9999px;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    transform-style: preserve-3d;
+    animation: orbit-tilt 16s linear infinite;
+  }
+
+  .orbit--wide {
+    border-color: rgba(56, 189, 248, 0.28);
+    animation-duration: 24s;
+    animation-direction: reverse;
+  }
+
+  /* ── Cards ───────────────────────────────────────────────── */
+  .card {
+    border-radius: 1rem;
+    border: 1px solid rgb(30 41 59);
+    background: linear-gradient(
+      160deg,
+      rgba(15, 23, 42, 0.9),
+      rgba(2, 6, 23, 0.9)
+    );
+  }
+
+  .card-lift {
+    transition:
+      transform 0.25s ease,
+      border-color 0.25s ease;
+  }
+
+  .card-lift:hover {
+    transform: translateY(-4px);
+    border-color: rgba(245, 158, 11, 0.5);
+  }
+}
+
+@keyframes coin-spin {
+  from {
+    transform: rotateY(0deg) rotateX(12deg);
+  }
+  to {
+    transform: rotateY(360deg) rotateX(12deg);
+  }
+}
+
+@keyframes orbit-tilt {
+  from {
+    transform: rotateX(72deg) rotateZ(0deg);
+  }
+  to {
+    transform: rotateX(72deg) rotateZ(360deg);
+  }
+}
+
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float-y 6s ease-in-out infinite;
+}
+
+/* Respect users who ask for less motion — the hero still reads fine static. */
+@media (prefers-reduced-motion: reduce) {
+  .coin,
+  .orbit,
+  .animate-float {
+    animation: none !important;
+  }
+}

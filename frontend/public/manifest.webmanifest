@@ -1,0 +1,18 @@
+{
+  "name": "Matsumoto Mining Platform",
+  "short_name": "Matsumoto",
+  "description": "Earn Matsumoto Points daily and withdraw as $Matsumoto on BNB Chain.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#f59e0b",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
