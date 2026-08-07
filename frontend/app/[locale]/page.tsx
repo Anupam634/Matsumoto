@@ -7,7 +7,7 @@ import { locales } from '../../i18n';
 /** Booster catalogue — mirrors SPEC.md §2 and prisma/seed.ts. */
 const BOOSTERS = [
   { price: 1, rate: '2.9' },
-  { price: 5, rate: '10.9' },
+  { price: 5, rate: '10.9', popular: true },
   { price: 10, rate: '20.9' },
   { price: 50, rate: '90.9' },
 ];
@@ -30,6 +30,15 @@ const TASK_KEYS = [
   'quiz',
   'spin',
 ] as const;
+
+const TASK_ICONS: Record<(typeof TASK_KEYS)[number], string> = {
+  tweet: '𝕏',
+  follow: '➕',
+  repost: '🔁',
+  youtube: '▶',
+  quiz: '❓',
+  spin: '🎡',
+};
 
 const LOCALE_LABELS: Record<string, string> = {
   en: 'EN',
@@ -56,40 +65,37 @@ function Landing({ locale }: { locale: string }) {
   return (
     <div className="glow-field min-h-screen">
       {/* ─────────────────────────── Nav ─────────────────────────── */}
-      <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 p-5">
-        <span className="flex items-center gap-2 font-bold">
-          <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-amber-200 to-amber-600 text-sm text-amber-950">
-            M
+      <header className="sticky top-0 z-10 border-b border-slate-900/80 bg-slate-950/70 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 p-5">
+          <span className="flex items-center gap-2 font-bold">
+            <span className="logo-badge">M</span>
+            Matsumoto
           </span>
-          Matsumoto
-        </span>
 
-        <nav className="flex items-center gap-4 text-sm">
-          <div className="hidden gap-2 sm:flex">
-            {locales.map((l) => (
-              <Link
-                key={l}
-                href={`/${l}`}
-                className={
-                  l === locale
-                    ? 'text-amber-400'
-                    : 'text-slate-400 hover:text-slate-200'
-                }
-              >
-                {LOCALE_LABELS[l]}
-              </Link>
-            ))}
-          </div>
-          <Link href={signIn} className="text-slate-300 hover:text-amber-400">
-            {t('nav.signIn')}
-          </Link>
-          <Link
-            href={register}
-            className="rounded-lg bg-amber-500 px-4 py-2 font-semibold text-slate-900 hover:bg-amber-400"
-          >
-            {t('nav.getStarted')}
-          </Link>
-        </nav>
+          <nav className="flex items-center gap-4 text-sm">
+            <div className="hidden gap-1 rounded-full border border-slate-800 p-1 sm:flex">
+              {locales.map((l) => (
+                <Link
+                  key={l}
+                  href={`/${l}`}
+                  className={
+                    l === locale
+                      ? 'rounded-full bg-amber-500/15 px-2.5 py-1 text-amber-400'
+                      : 'rounded-full px-2.5 py-1 text-slate-400 hover:text-slate-200'
+                  }
+                >
+                  {LOCALE_LABELS[l]}
+                </Link>
+              ))}
+            </div>
+            <Link href={signIn} className="text-slate-300 hover:text-amber-400">
+              {t('nav.signIn')}
+            </Link>
+            <Link href={register} className="btn-primary px-4 py-2 text-sm">
+              {t('nav.getStarted')}
+            </Link>
+          </nav>
+        </div>
       </header>
 
       {/* ────────────────────────── Hero ─────────────────────────── */}
@@ -107,21 +113,18 @@ function Landing({ locale }: { locale: string }) {
           <p className="mt-5 text-lg text-slate-300">{t('hero.subtitle')}</p>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              href={register}
-              className="rounded-xl bg-amber-500 px-6 py-3 font-semibold text-slate-900 hover:bg-amber-400"
-            >
+            <Link href={register} className="btn-primary px-6 py-3">
               {t('hero.ctaPrimary')}
             </Link>
-            <Link
-              href={signIn}
-              className="rounded-xl border border-slate-700 px-6 py-3 font-semibold text-slate-200 hover:border-amber-500/60"
-            >
+            <Link href={signIn} className="btn-secondary px-6 py-3">
               {t('hero.ctaSecondary')}
             </Link>
           </div>
 
-          <p className="mt-5 text-xs text-slate-400">{t('hero.honesty')}</p>
+          <p className="mt-5 flex items-start gap-2 text-xs text-slate-400">
+            <span aria-hidden>ⓘ</span>
+            {t('hero.honesty')}
+          </p>
         </div>
 
         <Coin3D />
@@ -137,7 +140,7 @@ function Landing({ locale }: { locale: string }) {
 
       {/* ────────────────────── How it works ─────────────────────── */}
       <Section title={t('how.title')} subtitle={t('how.subtitle')}>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="relative grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {['register', 'mine', 'boost', 'withdraw'].map((step, i) => (
             <div key={step} className="card card-lift p-5">
               <div className="grid h-9 w-9 place-items-center rounded-full bg-amber-500/15 font-bold text-amber-400">
@@ -156,7 +159,17 @@ function Landing({ locale }: { locale: string }) {
       <Section title={t('boosters.title')} subtitle={t('boosters.subtitle')}>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {BOOSTERS.map((b) => (
-            <div key={b.price} className="card card-lift p-5 text-center">
+            <div
+              key={b.price}
+              className={`card card-lift relative p-5 text-center ${
+                b.popular ? 'border-amber-500/60' : ''
+              }`}
+            >
+              {b.popular && (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-amber-500 px-3 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-slate-900">
+                  ★
+                </span>
+              )}
               <div className="text-3xl font-extrabold text-amber-400">
                 ${b.price}
               </div>
@@ -185,9 +198,16 @@ function Landing({ locale }: { locale: string }) {
             </thead>
             <tbody>
               {TIERS.map((tier) => (
-                <tr key={tier.level} className="border-t border-slate-800">
+                <tr
+                  key={tier.level}
+                  className="border-t border-slate-800 transition hover:bg-slate-900/40"
+                >
                   <td className="p-4">{tier.invites}</td>
-                  <td className="p-4">{tier.level}</td>
+                  <td className="p-4">
+                    <span className="rounded-full bg-sky-500/10 px-2.5 py-1 text-xs font-semibold text-sky-400">
+                      L{tier.level}
+                    </span>
+                  </td>
                   <td className="p-4 font-bold text-amber-400">
                     ×{tier.multiplier}
                   </td>
@@ -204,8 +224,9 @@ function Landing({ locale }: { locale: string }) {
           {TASK_KEYS.map((key) => (
             <span
               key={key}
-              className="rounded-full border border-slate-700 bg-slate-900 px-4 py-2 text-sm"
+              className="card card-lift flex items-center gap-2 rounded-full px-4 py-2 text-sm"
             >
+              <span aria-hidden>{TASK_ICONS[key]}</span>
               {tasks(key)}
             </span>
           ))}
@@ -230,15 +251,16 @@ function Landing({ locale }: { locale: string }) {
 
       {/* ─────────────────────── Final CTA ───────────────────────── */}
       <section className="mx-auto max-w-6xl px-5 py-16">
-        <div className="card p-8 text-center sm:p-12">
-          <h2 className="text-3xl font-extrabold">{t('cta.title')}</h2>
-          <p className="mx-auto mt-3 max-w-xl text-slate-400">
+        <div className="card relative overflow-hidden p-8 text-center sm:p-12">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(40rem_20rem_at_50%_-20%,rgba(245,158,11,0.16),transparent_60%)]"
+          />
+          <h2 className="relative text-3xl font-extrabold">{t('cta.title')}</h2>
+          <p className="relative mx-auto mt-3 max-w-xl text-slate-400">
             {t('cta.body')}
           </p>
-          <Link
-            href={register}
-            className="mt-8 inline-block rounded-xl bg-amber-500 px-8 py-3 font-semibold text-slate-900 hover:bg-amber-400"
-          >
+          <Link href={register} className="btn-primary relative mt-8 inline-block px-8 py-3">
             {t('cta.button')}
           </Link>
         </div>
@@ -272,7 +294,7 @@ function Section({
 
 function Figure({ value, label }: { value: string; label: string }) {
   return (
-    <div className="card p-5">
+    <div className="card card-lift p-5">
       <div className="text-2xl font-extrabold text-amber-400">{value}</div>
       <div className="mt-1 text-xs uppercase tracking-wide text-slate-400">
         {label}

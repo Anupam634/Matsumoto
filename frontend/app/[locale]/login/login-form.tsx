@@ -36,6 +36,11 @@ function AuthForm() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  function switchMode(next: Mode) {
+    setMode(next);
+    setError(null);
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -61,74 +66,91 @@ function AuthForm() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center p-6">
-      <Link
-        href={`/${params.locale}`}
-        className="mb-8 text-sm text-slate-400 hover:text-amber-400"
-      >
-        ← {t('backHome')}
-      </Link>
+    <div className="glow-field flex min-h-screen flex-col items-center justify-center px-5 py-12">
+      <div className="w-full max-w-md">
+        <Link
+          href={`/${params.locale}`}
+          className="mb-6 inline-flex items-center gap-2 text-sm text-slate-400 transition hover:text-amber-400"
+        >
+          ← {t('backHome')}
+        </Link>
 
-      <h1 className="mb-6 text-2xl font-bold">
-        {mode === 'login' ? t('signIn') : t('createAccount')}
-      </h1>
+        <div className="card p-6 sm:p-8">
+          <div className="mb-6 flex items-center gap-3">
+            <span className="logo-badge">M</span>
+            <h1 className="text-xl font-bold">
+              {mode === 'login' ? t('signIn') : t('createAccount')}
+            </h1>
+          </div>
 
-      <form onSubmit={submit} className="space-y-4">
-        <Field
-          label={t('email')}
-          type="email"
-          value={email}
-          onChange={setEmail}
-          autoComplete="email"
-        />
-        <Field
-          label={t('password')}
-          type="password"
-          value={password}
-          onChange={setPassword}
-          autoComplete={
-            mode === 'login' ? 'current-password' : 'new-password'
-          }
-        />
-        {mode === 'register' && (
-          <Field
-            label={t('referralCode')}
-            type="text"
-            value={referralCode}
-            onChange={setReferralCode}
-            optional
-          />
-        )}
+          <div className="tab-switch mb-6 grid w-full grid-cols-2">
+            <button
+              type="button"
+              data-active={mode === 'login'}
+              onClick={() => switchMode('login')}
+            >
+              {t('signIn')}
+            </button>
+            <button
+              type="button"
+              data-active={mode === 'register'}
+              onClick={() => switchMode('register')}
+            >
+              {t('signUp')}
+            </button>
+          </div>
 
-        {mode === 'register' && (
-          <p className="text-xs text-slate-400">{t('passwordHint')}</p>
-        )}
+          <form onSubmit={submit} className="space-y-4">
+            <Field
+              label={t('email')}
+              type="email"
+              value={email}
+              onChange={setEmail}
+              autoComplete="email"
+            />
+            <Field
+              label={t('password')}
+              type="password"
+              value={password}
+              onChange={setPassword}
+              autoComplete={
+                mode === 'login' ? 'current-password' : 'new-password'
+              }
+            />
+            {mode === 'register' && (
+              <Field
+                label={t('referralCode')}
+                type="text"
+                value={referralCode}
+                onChange={setReferralCode}
+                optional
+              />
+            )}
 
-        {error && (
-          <p className="rounded-lg bg-red-950 p-3 text-sm text-red-300">
-            {error}
-          </p>
-        )}
+            {mode === 'register' && (
+              <p className="text-xs text-slate-400">{t('passwordHint')}</p>
+            )}
+
+            {error && (
+              <p className="rounded-lg border border-red-900/50 bg-red-950/60 p-3 text-sm text-red-300">
+                {error}
+              </p>
+            )}
+
+            <button type="submit" disabled={busy} className="btn-primary w-full">
+              {busy ? t('working') : mode === 'login' ? t('signIn') : t('signUp')}
+            </button>
+          </form>
+        </div>
 
         <button
-          type="submit"
-          disabled={busy}
-          className="w-full rounded-xl bg-amber-500 py-3 font-semibold text-slate-900 disabled:opacity-40"
+          onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}
+          className="mt-6 w-full text-center text-sm text-amber-400 underline-offset-4 hover:underline"
         >
-          {busy ? t('working') : mode === 'login' ? t('signIn') : t('signUp')}
+          {mode === 'login' ? t('noAccount') : t('haveAccount')}
         </button>
-      </form>
-
-      <button
-        onClick={() => {
-          setMode(mode === 'login' ? 'register' : 'login');
-          setError(null);
-        }}
-        className="mt-6 text-sm text-amber-400 underline"
-      >
-        {mode === 'login' ? t('noAccount') : t('haveAccount')}
-      </button>
-    </main>
+      </div>
+    </div>
   );
 }
 
@@ -149,9 +171,11 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-xs uppercase text-slate-400">{label}</span>
+      <span className="text-xs uppercase tracking-wide text-slate-400">
+        {label}
+      </span>
       <input
-        className="mt-1 w-full rounded-lg bg-slate-900 p-3 outline-none ring-amber-500 focus:ring-2"
+        className="input-field mt-1"
         type={type}
         value={value}
         required={!optional}
