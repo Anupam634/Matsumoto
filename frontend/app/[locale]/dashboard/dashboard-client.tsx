@@ -124,7 +124,7 @@ export default function DashboardClient() {
                 {t('hashRate')}
               </div>
               <div className="mt-1 flex items-baseline justify-center gap-2 sm:justify-start">
-                <span className="text-4xl font-extrabold text-amber-400">
+                <span className="text-4xl font-extrabold text-indigo-400">
                   {status.ratePerHour}
                 </span>
                 <span className="text-sm text-slate-400">/h</span>
@@ -151,7 +151,7 @@ export default function DashboardClient() {
         <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
           <Stat
             icon={<IconBolt />}
-            accent="amber"
+            accent="indigo"
             label={t('balance')}
             value={profile.pointsBalance.toFixed(2)}
           />
@@ -163,7 +163,7 @@ export default function DashboardClient() {
           />
           <Stat
             icon={<IconRocket />}
-            accent="amber"
+            accent="indigo"
             label={t('boosters')}
             value={String(status.activeBoosters)}
           />
@@ -181,7 +181,7 @@ export default function DashboardClient() {
             {t('referralLink')}
           </div>
           <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-            <code className="flex-1 break-all rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-amber-400">
+            <code className="flex-1 break-all rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-indigo-400">
               {referralLink}
             </code>
             <button onClick={copyReferral} className="btn-secondary shrink-0 text-sm">
@@ -206,13 +206,13 @@ function Stat({
   value,
 }: {
   icon: React.ReactNode;
-  accent: 'amber' | 'sky';
+  accent: 'indigo' | 'sky';
   label: string;
   value: string;
 }) {
   const accentClasses =
-    accent === 'amber'
-      ? 'bg-amber-500/15 text-amber-400'
+    accent === 'indigo'
+      ? 'bg-indigo-500/15 text-indigo-400'
       : 'bg-sky-500/15 text-sky-400';
   return (
     <div className="card card-lift p-4">

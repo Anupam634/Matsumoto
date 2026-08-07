@@ -19,6 +19,11 @@
       "minWithdrawal": "最低提现（积分）",
       "boosterDuration": "加速包时长"
     },
+    "chain": {
+      "builtOn": "构建于",
+      "tagline": "安全 · 透明 · 奖励由您掌控",
+      "learnMore": "了解更多"
+    },
     "how": {
       "title": "运作方式",
       "subtitle": "从注册到提现，只需四步。",
