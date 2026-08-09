@@ -33,6 +33,10 @@ model User {
   // last successful "Mine" tap — gates the 24h cooldown & accrual window
   lastMineAt    DateTime?
 
+  // Manual hash-rate adjustment from the admin panel (SPEC §6), in
+  // milli-points/hour. Signed: negative throttles a suspected abuser.
+  rateAdjustMilli Int    @default(0)
+
   kyc           KycRecord?
   boosters      Booster[]
   taskClaims    TaskClaim[]

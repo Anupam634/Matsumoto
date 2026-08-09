@@ -22,6 +22,7 @@ export class MiningService {
     boosters: ActiveBooster[];
     inviteCount: number;
     lastMineAt: Date | null;
+    rateAdjustMilli: number;
   }> {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -38,14 +39,19 @@ export class MiningService {
       boosters,
       inviteCount: user._count.referrals,
       lastMineAt: user.lastMineAt,
+      rateAdjustMilli: user.rateAdjustMilli,
     };
   }
 
   /** Live stats for the dashboard (rate, tier, whether a tap is available). */
   async getStatus(userId: string) {
-    const { boosters, inviteCount, lastMineAt } =
+    const { boosters, inviteCount, lastMineAt, rateAdjustMilli } =
       await this.loadInputs(userId);
-    const rateMilli = effectiveRateMilli({ boosters, inviteCount });
+    const rateMilli = effectiveRateMilli({
+      boosters,
+      inviteCount,
+      rateAdjustMilli,
+    });
     const pending = accrueMilli({ rateMilli, lastMineAt });
     return {
       ratePerHour: rateMilli / 1000,
@@ -65,13 +71,17 @@ export class MiningService {
 
   /** Settle a "Mine" tap: credit accrued points, reset the 24h cooldown. */
   async claim(userId: string) {
-    const { boosters, inviteCount, lastMineAt } =
+    const { boosters, inviteCount, lastMineAt, rateAdjustMilli } =
       await this.loadInputs(userId);
 
     if (!canClaim({ lastMineAt })) {
       throw new BadRequestException('Mining cooldown is still active (24h).');
     }
-    const rateMilli = effectiveRateMilli({ boosters, inviteCount });
+    const rateMilli = effectiveRateMilli({
+      boosters,
+      inviteCount,
+      rateAdjustMilli,
+    });
     const earnedMilli = accrueMilli({ rateMilli, lastMineAt });
     const now = new Date();
 
