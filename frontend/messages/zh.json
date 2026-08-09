@@ -124,7 +124,9 @@
     "working": "请稍候…",
     "networkError": "无法连接服务器，请重试。",
     "referralRejected": "账户已创建，但邀请码未生效：邀请人与您使用同一设备或网络。",
-    "backHome": "返回首页"
+    "backHome": "返回首页",
+    "showPassword": "显示密码",
+    "hidePassword": "隐藏密码"
   },
   "tasks": {
     "title": "任务",
