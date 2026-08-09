@@ -124,7 +124,9 @@
     "working": "잠시만 기다려 주세요…",
     "networkError": "서버에 연결할 수 없습니다. 다시 시도해 주세요.",
     "referralRejected": "계정이 생성되었지만, 추천인이 동일한 기기 또는 네트워크를 사용하여 추천 코드가 적용되지 않았습니다.",
-    "backHome": "홈으로 돌아가기"
+    "backHome": "홈으로 돌아가기",
+    "showPassword": "비밀번호 표시",
+    "hidePassword": "비밀번호 숨기기"
   },
   "tasks": {
     "title": "작업",

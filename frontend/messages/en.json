@@ -124,7 +124,9 @@
     "working": "Please wait…",
     "networkError": "Can't reach the server. Try again.",
     "referralRejected": "Your account was created, but the referral code wasn't applied because the inviter shares this device or network.",
-    "backHome": "Back to home"
+    "backHome": "Back to home",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   },
   "tasks": {
     "title": "Tasks",
