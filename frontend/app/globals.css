@@ -232,10 +232,13 @@
     box-shadow: 0 14px 26px -8px rgba(79, 70, 229, 0.65);
   }
 
+  /* No `transform: none` here — the hover lift is already scoped to
+     :not(:disabled), and resetting transform outranks Tailwind's translate
+     utilities, which silently breaks any disabled button positioned with
+     them (e.g. the dashboard's centred Mine button). */
   .btn-primary:disabled {
     cursor: not-allowed;
     opacity: 0.4;
-    transform: none;
     box-shadow: none;
   }
 
@@ -441,6 +444,155 @@
     animation: none;
     box-shadow: none;
   }
+
+  /* ── Dashboard: staggered card entrance ─────────────────────
+     Index is set per-card via the --i custom property.  ───────*/
+  .rise-in {
+    animation: rise-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    animation-delay: calc(var(--i, 0) * 70ms);
+  }
+
+  /* ── Dashboard: skeleton shimmer while the first load lands ─ */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    background: rgb(226 232 240);
+  }
+
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.7),
+      transparent
+    );
+    animation: shimmer 1.4s infinite;
+  }
+
+  /* ── Dashboard: the live "accruing" dot next to pending points ─ */
+  .live-dot {
+    display: inline-block;
+    height: 0.5rem;
+    width: 0.5rem;
+    border-radius: 9999px;
+    background: #22c55e;
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+    animation: live-pulse 2s ease-out infinite;
+  }
+
+  /* ── Dashboard: "+12.34" that floats up after a successful tap ─ */
+  .float-up {
+    animation: float-up 1.6s ease-out forwards;
+    pointer-events: none;
+  }
+
+  /* ── Dashboard: burst particles on claim ───────────────────── */
+  .burst-particle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    height: 0.5rem;
+    width: 0.5rem;
+    border-radius: 9999px;
+    animation: burst 0.9s ease-out forwards;
+  }
+
+  /* ── Dashboard: sweeping sheen across the mining hero card ─── */
+  .sheen::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      110deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.55) 50%,
+      transparent 70%
+    );
+    transform: translateX(-100%);
+    animation: sheen 6s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  /* ── Dashboard: cooldown / accrual progress ring ───────────── */
+  .ring-track {
+    stroke: rgb(226 232 240);
+  }
+
+  .ring-progress {
+    stroke: url(#ringGradient);
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 0.6rem rgba(34, 197, 94, 0);
+  }
+}
+
+@keyframes float-up {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.8);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(-50%, -0.75rem) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -4.5rem) scale(1);
+  }
+}
+
+@keyframes burst {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--a)) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--a)) translateY(-4.5rem)
+      scale(0.3);
+  }
+}
+
+@keyframes sheen {
+  0%,
+  65% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 @keyframes pulse-ring {
@@ -511,11 +663,28 @@
   .coin,
   .orbit,
   .animate-float,
-  .sparkle {
+  .sparkle,
+  .rise-in,
+  .live-dot,
+  .float-up,
+  .burst-particle,
+  .skeleton::after,
+  .sheen::before {
     animation: none !important;
   }
 
   .pulse-ring::after {
     animation: none !important;
+  }
+
+  /* Entrance animations use `backwards` fill, so without this the cards
+     would stay stuck at opacity 0 for reduced-motion users. */
+  .rise-in {
+    opacity: 1;
+    transform: none;
+  }
+
+  .ring-progress {
+    transition: none;
   }
 }

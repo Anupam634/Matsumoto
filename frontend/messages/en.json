@@ -109,7 +109,11 @@
     "kycRequired": "KYC status: {status}. Approval is required before you can withdraw.",
     "signOut": "Sign out",
     "loading": "Loading…",
-    "offline": "Can't reach the server. Try again."
+    "offline": "Can't reach the server. Try again.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "ready": "Ready to mine",
+    "accruing": "Accruing"
   },
   "auth": {
     "signIn": "Sign in",
