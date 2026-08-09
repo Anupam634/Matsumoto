@@ -14,6 +14,7 @@ import {
   type MiningStatus,
   type Profile,
 } from '../../../lib/api';
+import TasksSection from './tasks-section';
 
 /** How often the live accrual counter repaints. 10fps reads as smooth. */
 const TICK_MS = 100;
@@ -159,9 +160,11 @@ export default function DashboardClient() {
           />
         </div>
 
+        <TasksSection onClaimed={load} />
+
         <section
           className="card-soft rise-in mt-4 p-5"
-          style={{ '--i': 4 } as React.CSSProperties}
+          style={{ '--i': 6 } as React.CSSProperties}
         >
           <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
             {t('referralLink')}

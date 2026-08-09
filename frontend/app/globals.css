@@ -502,6 +502,11 @@
     animation: burst 0.9s ease-out forwards;
   }
 
+  /* ── Tasks: the spin-wheel actually spinning ───────────────── */
+  .wheel-spin {
+    animation: wheel-spin 0.6s cubic-bezier(0.3, 0, 0.2, 1) infinite;
+  }
+
   /* ── Dashboard: sweeping sheen across the mining hero card ─── */
   .sheen::before {
     content: '';
@@ -582,6 +587,12 @@
     opacity: 0;
     transform: translate(-50%, -50%) rotate(var(--a)) translateY(-4.5rem)
       scale(0.3);
+  }
+}
+
+@keyframes wheel-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -669,6 +680,7 @@
   .float-up,
   .burst-particle,
   .skeleton::after,
+  .wheel-spin,
   .sheen::before {
     animation: none !important;
   }

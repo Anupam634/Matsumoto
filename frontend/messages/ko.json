@@ -113,7 +113,13 @@
     "copy": "복사",
     "copied": "복사됨",
     "ready": "채굴 가능",
-    "accruing": "적립 중"
+    "accruing": "적립 중",
+    "tasksTitle": "작업",
+    "tasksSubtitle": "추가 포인트 적립",
+    "claim": "받기",
+    "cooldownShort": "남음",
+    "pointsShort": "포인트",
+    "working": "잠시만 기다려 주세요…"
   },
   "auth": {
     "signIn": "로그인",

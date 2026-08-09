@@ -162,3 +162,25 @@ export const claimMining = () =>
   apiFetch<{ earnedPoints: number; nextClaimAt: string }>('/mining/claim', {
     method: 'POST',
   });
+
+// ─────────────────────────── Tasks ──────────────────────────
+
+export interface TaskDto {
+  id: string;
+  type: 'TWEET' | 'FOLLOW' | 'REPOST' | 'YOUTUBE' | 'QUIZ' | 'SPIN_WHEEL';
+  title: string;
+  rewardPoints: number;
+  cooldownHours: number;
+  canClaim: boolean;
+  nextAvailableAt: string | null;
+  lastClaimedAt: string | null;
+}
+
+export const getTasks = () => apiFetch<TaskDto[]>('/tasks');
+
+export const claimTask = (id: string) =>
+  apiFetch<{
+    earnedPoints: number;
+    balancePoints: number;
+    nextAvailableAt: string;
+  }>(`/tasks/${id}/claim`, { method: 'POST' });

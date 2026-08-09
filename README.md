@@ -42,7 +42,7 @@ npm run dev                 # http://localhost:3000
 | `mining/` | Reward accrual engine — base rate × boosters × referral multiplier |
 | `boosters/` | Paid booster plans ($1/$5/$10/$50, 30d, stackable) |
 | `referrals/` | Invite tree + multiplier tiers |
-| `tasks/` | Tweet/follow/repost/YouTube/quiz/spin-wheel rewards |
+| `tasks/` | Tweet/follow/repost/YouTube/quiz/spin-wheel rewards (honour-system claims) |
 | `withdrawals/` | Points → $Matsumoto (3:1), min 100, 1/week, admin-approved |
 | `wallet/` | **Swappable** chain layer (offchain ↔ testnet ↔ mainnet) |
 | `admin/` | Miners, referral tree, block, per-country, rate adjust, airdrop |
@@ -63,6 +63,8 @@ All routes are under `/api`. Everything except register/login needs
 | POST | `/mining/claim` | Tap "Mine" — settles accrued points |
 | POST | `/withdrawals` | `{ points, toAddress }` — min 100 pts, 1/week, KYC-gated |
 | GET | `/withdrawals` | Caller's own request history |
+| GET | `/tasks` | Active tasks with the caller's cooldown state |
+| POST | `/tasks/:id/claim` | Credit a task reward (per-task cooldown) |
 
 ### Admin panel (`/api/admin`, SPEC §6)
 

@@ -113,7 +113,13 @@
     "copy": "Copy",
     "copied": "Copied",
     "ready": "Ready to mine",
-    "accruing": "Accruing"
+    "accruing": "Accruing",
+    "tasksTitle": "Tasks",
+    "tasksSubtitle": "Earn extra points",
+    "claim": "Claim",
+    "cooldownShort": "in",
+    "pointsShort": "pts",
+    "working": "Please wait…"
   },
   "auth": {
     "signIn": "Sign in",

@@ -68,10 +68,16 @@ you started in step 2.
 
 ### What's not wired up yet
 
-- **Boosters**: the booster catalogue (`prisma/seed.ts`) isn't run by
-  `npx prisma db seed` — `package.json` is missing the `"prisma": {
-  "seed": ... }` block, so `npx prisma migrate dev` won't seed it
-  automatically. Doesn't block the core register/mine/withdraw flow.
+- **Seeding is required for tasks and boosters.** `prisma migrate deploy`
+  creates the tables but does not populate them, so the Tasks section
+  renders empty until you run this once per environment:
+  ```bash
+  cd backend && npx prisma db seed
+  ```
+  That inserts the four booster plans and the six tasks from SPEC.
+- **Boosters**: the catalogue seeds, and the rate maths honours active
+  boosters, but there is **no purchase flow** — that is blocked until the
+  client picks a payment rail (SPEC §9b.2).
 - **Admin panel**: built (SPEC §6) at `/<locale>/admin`. There is no admin
   self-signup — create the first operator account from the `backend/`
   directory:
@@ -101,6 +107,8 @@ locally. Free tiers are enough for testing.
    - **Root directory**: `backend`
    - **Build command**: `npm install && npx prisma generate && npm run build`
    - **Start command**: `npx prisma migrate deploy && npm run start:prod`
+     (run `npx prisma db seed` once from Render's shell afterwards, or the
+     tasks and booster catalogue will be empty — see the note above)
    - **Environment variables**: copy every key from `backend/.env.example`, with:
      - `DATABASE_URL` → the Postgres URL from step 2
      - `REDIS_URL` → the Redis URL from step 3
