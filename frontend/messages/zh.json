@@ -113,7 +113,13 @@
     "copy": "复制",
     "copied": "已复制",
     "ready": "可以挖矿",
-    "accruing": "累积中"
+    "accruing": "累积中",
+    "tasksTitle": "任务",
+    "tasksSubtitle": "赚取额外积分",
+    "claim": "领取",
+    "cooldownShort": "还需",
+    "pointsShort": "积分",
+    "working": "请稍候…"
   },
   "auth": {
     "signIn": "登录",
