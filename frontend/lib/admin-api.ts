@@ -169,3 +169,36 @@ export const decideWithdrawal = (id: string, approve: boolean, note?: string) =>
     method: 'POST',
     body: JSON.stringify({ approve, note }),
   });
+
+// ──────────────────────── KYC review ─────────────────────────
+
+export interface AdminKycRow {
+  userId: string;
+  userEmail: string | null;
+  isBlocked: boolean;
+  status: string;
+  fullName: string | null;
+  documentType: string | null;
+  documentNumber: string | null;
+  countryCode: string | null;
+  documentCount: number;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  reviewerNote: string | null;
+}
+
+export interface AdminKycDetail extends AdminKycRow {
+  documents: { id: string; kind: string; dataUrl: string }[];
+}
+
+export const listKyc = (status: string) =>
+  adminFetch<AdminKycRow[]>(`/kyc${status ? `?status=${status}` : ''}`);
+
+export const getKycDetail = (userId: string) =>
+  adminFetch<AdminKycDetail>(`/kyc/${userId}`);
+
+export const decideKyc = (userId: string, approve: boolean, note?: string) =>
+  adminFetch<{ userId: string; status: string }>(`/kyc/${userId}/decision`, {
+    method: 'POST',
+    body: JSON.stringify({ approve, note }),
+  });

@@ -87,9 +87,15 @@ you started in step 2.
   Then sign in at e.g. `http://localhost:3000/en/admin`. Admin sessions use a
   separate token type from miner sessions, so a miner's token cannot reach
   any admin route.
-- **KYC / withdrawals payout**: withdrawal requests can be created via the
-  API, but there's no KYC provider wired up, so a fresh account's
-  `kycStatus` stays `NONE` and withdrawal is blocked by design.
+- **KYC**: built as **in-house manual review** — miners upload documents at
+  `/<locale>/kyc` and an operator approves or rejects them from the admin
+  panel's KYC tab. No third-party provider is wired up, because the client
+  hasn't chosen one (SPEC §9b.4). Document images are stored base64 in
+  Postgres; that is fine for manual review at this scale, but move them to
+  object storage before serious volume.
+- **Withdrawal payouts** still settle through the swappable `WalletService`,
+  which stays in `offchain` mode until the client supplies the token's
+  contract address, ABI and decimals.
 
 ---
 

@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
 // Balances are BigInt milli-points; JSON.stringify throws on BigInt by
@@ -14,6 +15,11 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors();
+  // KYC submissions carry base64 identity photos, which blow past Express's
+  // 100kb default. The DTO caps each image at ~2MB, so 10mb leaves room for
+  // three images plus the surrounding JSON.
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ limit: '10mb', extended: true }));
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
   const port = process.env.PORT ?? 4000;
