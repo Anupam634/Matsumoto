@@ -72,7 +72,15 @@ you started in step 2.
   `npx prisma db seed` — `package.json` is missing the `"prisma": {
   "seed": ... }` block, so `npx prisma migrate dev` won't seed it
   automatically. Doesn't block the core register/mine/withdraw flow.
-- **Admin panel**: not built yet, frontend or backend (see SPEC.md §6).
+- **Admin panel**: built (SPEC §6) at `/<locale>/admin`. There is no admin
+  self-signup — create the first operator account from the `backend/`
+  directory:
+  ```bash
+  npm run admin:create -- admin@yourdomain.com 'a-strong-password'
+  ```
+  Then sign in at e.g. `http://localhost:3000/en/admin`. Admin sessions use a
+  separate token type from miner sessions, so a miner's token cannot reach
+  any admin route.
 - **KYC / withdrawals payout**: withdrawal requests can be created via the
   API, but there's no KYC provider wired up, so a fresh account's
   `kycStatus` stays `NONE` and withdrawal is blocked by design.

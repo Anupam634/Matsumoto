@@ -6,10 +6,11 @@ import { AuthModule } from './auth/auth.module';
 import { AntiabuseModule } from './antiabuse/antiabuse.module';
 import { MiningModule } from './mining/mining.module';
 import { WithdrawalsModule } from './withdrawals/withdrawals.module';
+import { AdminModule } from './admin/admin.module';
 
 /**
  * Root module. Feature modules that are still stubs (boosters, referrals,
- * tasks, admin, kyc) get wired here as they are built out.
+ * tasks, kyc) get wired here as they are built out.
  */
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { WithdrawalsModule } from './withdrawals/withdrawals.module';
     AntiabuseModule,
     MiningModule,
     WithdrawalsModule,
+    AdminModule,
   ],
   providers: [PrismaService],
 })

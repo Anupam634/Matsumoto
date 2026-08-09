@@ -64,7 +64,24 @@ All routes are under `/api`. Everything except register/login needs
 | POST | `/withdrawals` | `{ points, toAddress }` — min 100 pts, 1/week, KYC-gated |
 | GET | `/withdrawals` | Caller's own request history |
 
-Admin routes (approval queue, block, airdrop) land with the `admin/` module.
+### Admin panel (`/api/admin`, SPEC §6)
+
+Separate token type — `typ: 'admin'`; a miner token is rejected on every route
+below. Create the first operator with `npm run admin:create -- <email> <pass>`.
+
+| Method | Route | Notes |
+|---|---|---|
+| POST | `/admin/login` | Returns an admin-scoped `accessToken` |
+| GET | `/admin/stats` | Active miners (24h), totals, per-country counts |
+| GET | `/admin/users` | Paginated + searchable miner list with live rates |
+| GET | `/admin/users/:id` | Detail, referral tree (6 levels), ledger |
+| POST | `/admin/users/:id/block` | Block / unblock |
+| POST | `/admin/users/:id/rate` | Manual hash-rate adjustment |
+| POST | `/admin/users/:id/airdrop` | Manual point grant |
+| GET | `/admin/withdrawals` | Approval queue, filterable by status |
+| POST | `/admin/withdrawals/:id/decision` | Approve (pays out) or reject (refunds) |
+
+UI lives at `/<locale>/admin`.
 
 ## Design principles (kept honest)
 
