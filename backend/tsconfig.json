@@ -16,5 +16,12 @@
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
     "resolveJsonModule": true
-  }
+  },
+  // Scoped to src/ only. Without this, `prisma/seed.ts` (outside src/) gets
+  // swept into the same compile, which changes TypeScript's inferred
+  // rootDir and moves the entry point from dist/main.js to dist/src/main.js
+  // — breaking `start:prod`'s `node dist/main`. Spec files are excluded so
+  // they don't ship in the production build either.
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "**/*.spec.ts"]
 }
