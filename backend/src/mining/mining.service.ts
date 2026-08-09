@@ -6,6 +6,7 @@ import {
   canClaim,
   referralTierFor,
   ActiveBooster,
+  CLAIM_WINDOW_HOURS,
 } from './mining.engine';
 
 /**
@@ -52,6 +53,13 @@ export class MiningService {
       activeBoosters: boosters.filter((b) => b.expiresAt > new Date()).length,
       pendingPoints: pending / 1000,
       canClaim: canClaim({ lastMineAt }),
+      // The dashboard interpolates accrual between polls rather than
+      // hammering this endpoint: it needs the cooldown deadline to run a
+      // countdown, and the 24h accrual ceiling to know when to stop ticking.
+      nextClaimAt: lastMineAt
+        ? new Date(lastMineAt.getTime() + CLAIM_WINDOW_HOURS * 3_600_000)
+        : null,
+      maxPendingPoints: (rateMilli * CLAIM_WINDOW_HOURS) / 1000,
     };
   }
 
@@ -85,6 +93,9 @@ export class MiningService {
       }),
     ]);
 
-    return { earnedPoints: earnedMilli / 1000, nextClaimAt: new Date(now.getTime() + 24 * 3_600_000) };
+    return {
+      earnedPoints: earnedMilli / 1000,
+      nextClaimAt: new Date(now.getTime() + CLAIM_WINDOW_HOURS * 3_600_000),
+    };
   }
 }

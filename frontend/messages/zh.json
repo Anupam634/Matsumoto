@@ -109,7 +109,11 @@
     "kycRequired": "KYC 状态：{status}。提现前需先通过审核。",
     "signOut": "退出登录",
     "loading": "加载中…",
-    "offline": "无法连接服务器，请重试。"
+    "offline": "无法连接服务器，请重试。",
+    "copy": "复制",
+    "copied": "已复制",
+    "ready": "可以挖矿",
+    "accruing": "累积中"
   },
   "auth": {
     "signIn": "登录",

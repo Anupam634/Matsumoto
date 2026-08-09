@@ -11,6 +11,12 @@
 export const MILLI = 1000;
 export const BASE_RATE_MILLI = 900; // 0.9 points/hour
 
+/**
+ * The tap cadence from SPEC §2: accrual is capped at this many hours, and
+ * the same window gates the next "Mine" tap.
+ */
+export const CLAIM_WINDOW_HOURS = 24;
+
 /** Referral multiplier tiers, keyed by number of invited users (SPEC §2). */
 export interface ReferralTier {
   minInvites: number;
@@ -80,7 +86,7 @@ export function accrueMilli(params: {
   claimWindowHours?: number;
 }): number {
   const now = params.now ?? new Date();
-  const windowH = params.claimWindowHours ?? 24;
+  const windowH = params.claimWindowHours ?? CLAIM_WINDOW_HOURS;
   if (!params.lastMineAt) {
     // First-ever tap collects one full window's worth.
     return Math.floor(params.rateMilli * windowH);
@@ -99,7 +105,7 @@ export function canClaim(params: {
 }): boolean {
   if (!params.lastMineAt) return true;
   const now = params.now ?? new Date();
-  const cooldown = (params.cooldownHours ?? 24) * 3_600_000;
+  const cooldown = (params.cooldownHours ?? CLAIM_WINDOW_HOURS) * 3_600_000;
   return now.getTime() - params.lastMineAt.getTime() >= cooldown;
 }
 

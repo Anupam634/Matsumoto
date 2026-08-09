@@ -150,6 +150,10 @@ export interface MiningStatus {
   activeBoosters: number;
   canClaim: boolean;
   referralTier: { level: number; multiplier: number };
+  /** ISO timestamp the 24h cooldown lifts, or null if never mined. */
+  nextClaimAt: string | null;
+  /** Accrual ceiling (rate × 24h) — pending stops growing here. */
+  maxPendingPoints: number;
 }
 
 export const getMiningStatus = () => apiFetch<MiningStatus>('/mining/status');

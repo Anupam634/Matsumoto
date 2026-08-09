@@ -109,7 +109,11 @@
     "kycRequired": "KYC 상태: {status}. 출금하려면 승인이 필요합니다.",
     "signOut": "로그아웃",
     "loading": "불러오는 중…",
-    "offline": "서버에 연결할 수 없습니다. 다시 시도해 주세요."
+    "offline": "서버에 연결할 수 없습니다. 다시 시도해 주세요.",
+    "copy": "복사",
+    "copied": "복사됨",
+    "ready": "채굴 가능",
+    "accruing": "적립 중"
   },
   "auth": {
     "signIn": "로그인",
