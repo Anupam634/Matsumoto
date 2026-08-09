@@ -119,7 +119,8 @@
     "claim": "Claim",
     "cooldownShort": "in",
     "pointsShort": "pts",
-    "working": "Please wait…"
+    "working": "Please wait…",
+    "verifyCta": "Verify identity"
   },
   "auth": {
     "signIn": "Sign in",
@@ -154,5 +155,42 @@
     "min": "Minimum 100 points",
     "weekly": "1 request per week",
     "submit": "Request Withdrawal"
+  },
+  "kyc": {
+    "title": "Identity verification",
+    "why": "KYC is required before your first withdrawal, so coins are distributed fairly.",
+    "backToDashboard": "Back to dashboard",
+    "formTitle": "Submit your documents",
+    "formHint": "A reviewer checks these manually. You'll see the result here.",
+    "fullName": "Full name",
+    "documentType": "Document type",
+    "documentNumber": "Document number",
+    "country": "Country",
+    "countryIso": "Country (2-letter)",
+    "front": "Document front",
+    "back": "Document back",
+    "selfie": "Selfie",
+    "optional": "optional",
+    "tapToUpload": "Tap to upload",
+    "imageError": "Couldn't read that image",
+    "needImages": "Please add the document front and a selfie.",
+    "privacy": "Photos are stored only for this review and are deleted if your application is rejected.",
+    "submit": "Submit for review",
+    "submitting": "Submitting…",
+    "reason": "Reason",
+    "pendingBody": "Your documents are under review. This usually takes a short while.",
+    "approvedBody": "You're verified and can withdraw once you meet the minimum.",
+    "offline": "Can't reach the server. Try again.",
+    "status": {
+      "NONE": "Not verified yet",
+      "PENDING": "Under review",
+      "APPROVED": "Verified",
+      "REJECTED": "Rejected — you can re-submit"
+    },
+    "docType": {
+      "PASSPORT": "Passport",
+      "NATIONAL_ID": "National ID",
+      "DRIVERS_LICENSE": "Driver's licence"
+    }
   }
 }

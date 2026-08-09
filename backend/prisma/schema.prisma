@@ -56,14 +56,49 @@ enum KycStatus {
   REJECTED
 }
 
+enum KycDocumentType {
+  PASSPORT
+  NATIONAL_ID
+  DRIVERS_LICENSE
+}
+
 model KycRecord {
   id        String    @id @default(cuid())
   userId    String    @unique
   user      User      @relation(fields: [userId], references: [id])
   status    KycStatus @default(NONE)
-  provider  String?   // e.g. "sumsub"
+  provider  String?   // e.g. "sumsub"; "manual" for in-house review
   reference String?   // provider-side applicant id
   updatedAt DateTime  @updatedAt
+
+  // ── Manual review (no third-party provider chosen yet, SPEC §9b.4) ──
+  fullName       String?
+  documentType   KycDocumentType?
+  documentNumber String?
+  countryCode    String?
+  submittedAt    DateTime?
+  reviewedAt     DateTime?
+  reviewerNote   String?
+
+  documents KycDocument[]
+}
+
+// An uploaded identity image, held as a base64 data payload.
+//
+// Kept in its own table so listing KYC records never drags image blobs into
+// memory — they are only read on the single-applicant view. This is a
+// stopgap for manual review: a real deployment should move these to object
+// storage (or a KYC provider) rather than keep documents in the app database.
+model KycDocument {
+  id        String    @id @default(cuid())
+  recordId  String
+  record    KycRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  kind      String // "front" | "back" | "selfie"
+  mimeType  String
+  data      String    @db.Text // base64, size-capped at the API boundary
+  createdAt DateTime  @default(now())
+
+  @@index([recordId])
 }
 
 // ─────────────────────── Booster plans ───────────────────────

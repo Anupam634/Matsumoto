@@ -184,3 +184,39 @@ export const claimTask = (id: string) =>
     balancePoints: number;
     nextAvailableAt: string;
   }>(`/tasks/${id}/claim`, { method: 'POST' });
+
+// ──────────────────────────── KYC ───────────────────────────
+
+export type KycStatus = 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface KycStatusDto {
+  status: KycStatus;
+  fullName: string | null;
+  documentType: string | null;
+  countryCode: string | null;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  reviewerNote: string | null;
+  canSubmit: boolean;
+}
+
+export interface KycImage {
+  mimeType: string;
+  data: string;
+}
+
+export const getKyc = () => apiFetch<KycStatusDto>('/kyc');
+
+export const submitKyc = (body: {
+  fullName: string;
+  documentType: string;
+  documentNumber: string;
+  countryCode: string;
+  front: KycImage;
+  back?: KycImage;
+  selfie: KycImage;
+}) =>
+  apiFetch<KycStatusDto>('/kyc', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });

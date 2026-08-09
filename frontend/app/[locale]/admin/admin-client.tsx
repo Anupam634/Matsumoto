@@ -6,28 +6,33 @@
  * the miner-facing app.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import {
   ApiError,
   adjustRate,
   adminLogin,
   adminLogout,
   airdrop,
+  decideKyc,
   decideWithdrawal,
   getAdminToken,
   getStats,
+  getKycDetail,
   getUserDetail,
+  listKyc,
   listUsers,
   listWithdrawals,
   setBlocked,
   type AdminStats,
   type AdminUserDetail,
+  type AdminKycDetail,
+  type AdminKycRow,
   type AdminUserRow,
   type AdminWithdrawal,
   type TreeNode,
 } from '../../../lib/admin-api';
 
-type Tab = 'miners' | 'withdrawals';
+type Tab = 'miners' | 'withdrawals' | 'kyc';
 
 export default function AdminClient() {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -207,14 +212,19 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
             Withdrawals
             {stats?.pendingWithdrawals ? ` (${stats.pendingWithdrawals})` : ''}
           </button>
+          <button data-active={tab === 'kyc'} onClick={() => setTab('kyc')}>
+            KYC
+          </button>
         </div>
 
         <div className="mt-4">
-          {tab === 'miners' ? (
+          {tab === 'miners' && (
             <MinersTab onChanged={loadStats} onUnauthorized={onSignOut} />
-          ) : (
+          )}
+          {tab === 'withdrawals' && (
             <WithdrawalsTab onChanged={loadStats} onUnauthorized={onSignOut} />
           )}
+          {tab === 'kyc' && <KycTab onUnauthorized={onSignOut} />}
         </div>
       </main>
     </div>
@@ -737,5 +747,194 @@ function WithdrawalBadge({ status }: { status: string }) {
     <span className={`rounded-full px-2 py-1 text-xs font-semibold ${tone}`}>
       {status}
     </span>
+  );
+}
+
+/* ─────────────────────────── KYC review ────────────────────── */
+
+function KycTab({ onUnauthorized }: { onUnauthorized: () => void }) {
+  const [status, setStatus] = useState('PENDING');
+  const [rows, setRows] = useState<AdminKycRow[]>([]);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      setRows(await listKyc(status));
+      setError(null);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) return onUnauthorized();
+      setError(err instanceof ApiError ? err.message : 'Cannot reach the server.');
+    }
+  }, [status, onUnauthorized]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function decide(row: AdminKycRow, approve: boolean) {
+    const note = prompt(
+      approve
+        ? `Approve ${row.fullName ?? row.userEmail}? Optional note:`
+        : `Reason for rejecting ${row.fullName ?? row.userEmail}? (shown to the user, and their documents are deleted)`,
+      approve ? 'Documents match' : 'Document unreadable',
+    );
+    if (note === null) return;
+    setBusyId(row.userId);
+    try {
+      await decideKyc(row.userId, approve, note);
+      setOpenId(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Action failed.');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <section className="card-soft overflow-hidden">
+      <div className="flex flex-wrap gap-2 border-b border-slate-200 p-4">
+        {['PENDING', 'APPROVED', 'REJECTED', ''].map((s) => (
+          <button
+            key={s || 'ALL'}
+            onClick={() => setStatus(s)}
+            data-active={status === s}
+            className="rounded-full border border-slate-200 px-3 py-1.5 text-sm data-[active=true]:border-indigo-200 data-[active=true]:bg-indigo-50 data-[active=true]:text-indigo-700"
+          >
+            {s || 'All'}
+          </button>
+        ))}
+      </div>
+
+      {error && <p className="bg-red-50 p-3 text-sm text-red-600">{error}</p>}
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[56rem] text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+            <tr>
+              <th className="p-3">Applicant</th>
+              <th className="p-3">Document</th>
+              <th className="p-3">Country</th>
+              <th className="p-3">Docs</th>
+              <th className="p-3">Status</th>
+              <th className="p-3 text-right">Review</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <Fragment key={r.userId}>
+                <tr className="border-t border-slate-100 hover:bg-slate-50/60">
+                  <td className="p-3">
+                    <button
+                      onClick={() => setOpenId(openId === r.userId ? null : r.userId)}
+                      className="text-left"
+                    >
+                      <div className="font-medium text-indigo-700 hover:underline">
+                        {r.fullName ?? '(no name)'}
+                      </div>
+                      <div className="text-xs text-slate-400">{r.userEmail}</div>
+                    </button>
+                  </td>
+                  <td className="p-3">
+                    <div>{r.documentType?.replace('_', ' ') ?? '—'}</div>
+                    <div className="font-mono text-xs text-slate-400">
+                      {r.documentNumber ?? ''}
+                    </div>
+                  </td>
+                  <td className="p-3">{r.countryCode ?? '—'}</td>
+                  <td className="p-3 tabular-nums">{r.documentCount}</td>
+                  <td className="p-3">
+                    <KycBadge status={r.status} />
+                  </td>
+                  <td className="p-3">
+                    {r.status === 'PENDING' ? (
+                      <div className="flex justify-end gap-2">
+                        <button
+                          disabled={busyId === r.userId}
+                          onClick={() => decide(r, true)}
+                          className="btn-primary px-3 py-1.5 text-xs"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          disabled={busyId === r.userId}
+                          onClick={() => decide(r, false)}
+                          className="btn-outline-brand px-3 py-1.5 text-xs"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-right text-xs text-slate-400">
+                        {r.reviewerNote ?? '—'}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+                {openId === r.userId && (
+                  <tr className="border-t border-slate-100 bg-slate-50/60">
+                    <td colSpan={6} className="p-4">
+                      <KycDocuments userId={r.userId} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            ))}
+            {!rows.length && (
+              <tr>
+                <td colSpan={6} className="p-6 text-center text-slate-500">
+                  Nothing in this queue.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+/** Loads the applicant's images on demand — they aren't in the list payload. */
+function KycDocuments({ userId }: { userId: string }) {
+  const [detail, setDetail] = useState<AdminKycDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getKycDetail(userId)
+      .then(setDetail)
+      .catch((err) =>
+        setError(err instanceof ApiError ? err.message : 'Failed to load.'),
+      );
+  }, [userId]);
+
+  if (error) return <p className="text-sm text-red-600">{error}</p>;
+  if (!detail) return <div className="skeleton h-40 w-full" />;
+  if (!detail.documents.length)
+    return (
+      <p className="text-sm text-slate-500">
+        No documents on file (they are deleted when an application is rejected).
+      </p>
+    );
+
+  return (
+    <div className="flex flex-wrap gap-4">
+      {detail.documents.map((d) => (
+        <figure key={d.id}>
+          <a href={d.dataUrl} target="_blank" rel="noreferrer">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={d.dataUrl}
+              alt={d.kind}
+              className="h-44 w-64 rounded-xl border border-slate-200 bg-white object-contain"
+            />
+          </a>
+          <figcaption className="mt-1 text-center text-xs uppercase tracking-wide text-slate-500">
+            {d.kind}
+          </figcaption>
+        </figure>
+      ))}
+    </div>
   );
 }

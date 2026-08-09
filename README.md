@@ -47,7 +47,7 @@ npm run dev                 # http://localhost:3000
 | `wallet/` | **Swappable** chain layer (offchain ↔ testnet ↔ mainnet) |
 | `admin/` | Miners, referral tree, block, per-country, rate adjust, airdrop |
 | `antiabuse/` | Multi-account / same-IP / same-device / bot-farm guards |
-| `kyc/` | Mandatory KYC gate |
+| `kyc/` | Mandatory KYC gate — in-house manual document review |
 
 ## API (built so far)
 
@@ -65,6 +65,8 @@ All routes are under `/api`. Everything except register/login needs
 | GET | `/withdrawals` | Caller's own request history |
 | GET | `/tasks` | Active tasks with the caller's cooldown state |
 | POST | `/tasks/:id/claim` | Credit a task reward (per-task cooldown) |
+| GET | `/kyc` | Caller's own verification status |
+| POST | `/kyc` | Submit identity documents for manual review |
 
 ### Admin panel (`/api/admin`, SPEC §6)
 
@@ -80,6 +82,9 @@ below. Create the first operator with `npm run admin:create -- <email> <pass>`.
 | POST | `/admin/users/:id/block` | Block / unblock |
 | POST | `/admin/users/:id/rate` | Manual hash-rate adjustment |
 | POST | `/admin/users/:id/airdrop` | Manual point grant |
+| GET | `/admin/kyc` | KYC review queue, filterable by status |
+| GET | `/admin/kyc/:userId` | Applicant detail, including document images |
+| POST | `/admin/kyc/:userId/decision` | Approve or reject an application |
 | GET | `/admin/withdrawals` | Approval queue, filterable by status |
 | POST | `/admin/withdrawals/:id/decision` | Approve (pays out) or reject (refunds) |
 

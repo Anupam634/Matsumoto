@@ -8,10 +8,10 @@ import { MiningModule } from './mining/mining.module';
 import { WithdrawalsModule } from './withdrawals/withdrawals.module';
 import { AdminModule } from './admin/admin.module';
 import { TasksModule } from './tasks/tasks.module';
+import { KycModule } from './kyc/kyc.module';
 
 /**
- * Root module. Feature modules that are still stubs (boosters, referrals,
- * kyc) get wired here as they are built out.
+ * Root module. Feature modules that are still stubs (boosters, referrals) get wired here as they are built out.
  */
 @Module({
   imports: [
@@ -23,6 +23,7 @@ import { TasksModule } from './tasks/tasks.module';
     WithdrawalsModule,
     AdminModule,
     TasksModule,
+    KycModule,
   ],
   providers: [PrismaService],
 })

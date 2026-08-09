@@ -119,7 +119,8 @@
     "claim": "领取",
     "cooldownShort": "还需",
     "pointsShort": "积分",
-    "working": "请稍候…"
+    "working": "请稍候…",
+    "verifyCta": "去验证"
   },
   "auth": {
     "signIn": "登录",
@@ -154,5 +155,42 @@
     "min": "最低 100 积分",
     "weekly": "每周 1 次申请",
     "submit": "申请提现"
+  },
+  "kyc": {
+    "title": "身份验证",
+    "why": "首次提现前需完成 KYC，以保证代币公平分配。",
+    "backToDashboard": "返回仪表盘",
+    "formTitle": "提交您的证件",
+    "formHint": "审核由人工完成，结果将在此显示。",
+    "fullName": "姓名",
+    "documentType": "证件类型",
+    "documentNumber": "证件号码",
+    "country": "国家",
+    "countryIso": "国家（两位代码）",
+    "front": "证件正面",
+    "back": "证件背面",
+    "selfie": "自拍照",
+    "optional": "可选",
+    "tapToUpload": "点击上传",
+    "imageError": "无法读取该图片",
+    "needImages": "请上传证件正面和自拍照。",
+    "privacy": "照片仅用于本次审核，申请被拒后将被删除。",
+    "submit": "提交审核",
+    "submitting": "提交中…",
+    "reason": "原因",
+    "pendingBody": "您的证件正在审核中，通常很快完成。",
+    "approvedBody": "已通过验证，达到最低额度后即可提现。",
+    "offline": "无法连接服务器，请重试。",
+    "status": {
+      "NONE": "尚未验证",
+      "PENDING": "审核中",
+      "APPROVED": "已验证",
+      "REJECTED": "已拒绝 — 可重新提交"
+    },
+    "docType": {
+      "PASSPORT": "护照",
+      "NATIONAL_ID": "身份证",
+      "DRIVERS_LICENSE": "驾驶证"
+    }
   }
 }

@@ -181,10 +181,18 @@ export default function DashboardClient() {
             </button>
           </div>
           {profile.kycStatus !== 'APPROVED' && (
-            <p className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-700">
-              <span aria-hidden>ⓘ</span>
-              {t('kycRequired', { status: profile.kycStatus })}
-            </p>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 p-3">
+              <p className="flex items-start gap-2 text-xs text-amber-700">
+                <span aria-hidden>ⓘ</span>
+                {t('kycRequired', { status: profile.kycStatus })}
+              </p>
+              <Link
+                href={`/${params.locale}/kyc`}
+                className="btn-outline-brand shrink-0 px-3 py-1.5 text-xs"
+              >
+                {t('verifyCta')} →
+              </Link>
+            </div>
           )}
         </section>
       </main>
