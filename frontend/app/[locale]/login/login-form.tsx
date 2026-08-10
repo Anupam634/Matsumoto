@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
@@ -108,7 +109,14 @@ function AuthForm() {
           href={`/${params.locale}`}
           className="inline-flex items-center gap-2 font-bold text-slate-900"
         >
-          <span className="logo-badge">M</span>
+          <Image
+            src="/logo.svg"
+            alt="Matsumoto"
+            width={40}
+            height={40}
+            className="rounded-lg"
+            priority
+          />
           Matsumoto
         </Link>
 

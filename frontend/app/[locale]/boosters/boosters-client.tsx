@@ -72,6 +72,9 @@ export default function BoostersClient() {
           {t('title')}
         </h1>
         <p className="mt-2 text-slate-400">{t('subtitle')}</p>
+        <div className="mt-3">
+          <span className="bnb-badge">Powered by BNB Chain</span>
+        </div>
 
         {error && (
           <p className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
@@ -212,6 +215,9 @@ function PlanCard({
       <div className="text-3xl font-extrabold text-indigo-300">
         ${plan.priceUsd}
       </div>
+      <div className="mt-1.5">
+        <span className="bnb-badge">BNB Chain</span>
+      </div>
       <div className="mt-3 text-xs uppercase tracking-wide text-slate-400">
         {t('resultingRate')}
       </div>
@@ -278,7 +284,10 @@ function PayModal({
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm">
       <div className="panel w-full max-w-md p-6">
-        <h2 className="text-lg font-bold">{t('payTitle')}</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold">{t('payTitle')}</h2>
+          <span className="bnb-badge">BNB Chain</span>
+        </div>
         <p className="mt-1 text-sm text-slate-400">{t('payBody')}</p>
 
         <dl className="mt-4 space-y-3">

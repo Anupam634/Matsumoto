@@ -12,6 +12,11 @@ export const metadata = {
   title: 'Matsumoto Mining',
   description: 'Cloud mining rewards on BNB Chain',
   manifest: '/manifest.webmanifest',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/logo.svg',
+  },
 };
 
 // viewport-fit=cover lets the auth/dashboard screens pad around the notch

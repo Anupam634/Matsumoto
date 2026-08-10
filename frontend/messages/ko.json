@@ -158,7 +158,11 @@
       "WITHDRAWAL": "출금",
       "AIRDROP": "에어드랍",
       "ADMIN_ADJUST": "관리자 조정"
-    }
+    },
+    "poweredByBnb": "BNB Chain으로 구동됨",
+    "bnbRewards": "BNB Chain의 보상",
+    "blockchainVerified": "블록체인 검증됨",
+    "chainIndicator": "BNB Chain"
   },
   "auth": {
     "signIn": "로그인",
