@@ -6,6 +6,7 @@ import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Coin3D } from '../../../components/Coin3D';
 import { login, register, getToken, ApiError } from '../../../lib/api';
+import { CountrySelect } from '../../../components/CountrySelect';
 
 type Mode = 'login' | 'register';
 
@@ -45,6 +46,7 @@ function AuthForm() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [referralCode, setReferralCode] = useState(search.get('ref') ?? '');
+  const [countryCode, setCountryCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -65,10 +67,24 @@ function AuthForm() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    // The form sets noValidate so errors render in our own styling, which
+    // also means `required` on the country select is not enforced by the
+    // browser — check it here rather than letting a blank country through.
+    if (mode === 'register' && !countryCode) {
+      setError(t('countryRequired'));
+      return;
+    }
+
     setBusy(true);
     try {
       if (mode === 'register') {
-        const res = await register({ email, password, referralCode });
+        const res = await register({
+          email,
+          password,
+          referralCode,
+          countryCode,
+        });
         if (res.referralRejected) {
           // Account exists, but the invite wasn't credited — say so plainly.
           alert(t('referralRejected'));
@@ -194,6 +210,17 @@ function AuthForm() {
                 </button>
               }
             />
+            {mode === 'register' && (
+              <CountrySelect
+                id="signup-country"
+                locale={params.locale}
+                value={countryCode}
+                onChange={setCountryCode}
+                label={t('country')}
+                placeholder={t('countryPlaceholder')}
+                required
+              />
+            )}
             {mode === 'register' && (
               <Field
                 label={t('referralCode')}

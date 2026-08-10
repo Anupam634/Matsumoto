@@ -8,6 +8,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsCountryCode } from '../common/is-country-code';
 
 export enum KycDocumentTypeDto {
   PASSPORT = 'PASSPORT',
@@ -49,8 +50,7 @@ export class SubmitKycDto {
   documentNumber!: string;
 
   @IsString()
-  @MinLength(2)
-  @MaxLength(2)
+  @IsCountryCode()
   countryCode!: string;
 
   @ValidateNested()

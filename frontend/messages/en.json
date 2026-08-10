@@ -139,7 +139,10 @@
     "referralRejected": "Your account was created, but the referral code wasn't applied because the inviter shares this device or network.",
     "backHome": "Back to home",
     "showPassword": "Show password",
-    "hidePassword": "Hide password"
+    "hidePassword": "Hide password",
+    "country": "Country",
+    "countryPlaceholder": "Select your country",
+    "countryRequired": "Please select your country."
   },
   "tasks": {
     "title": "Tasks",
@@ -168,7 +171,6 @@
     "documentType": "Document type",
     "documentNumber": "Document number",
     "country": "Country",
-    "countryIso": "Country (2-letter)",
     "front": "Document front",
     "back": "Document back",
     "selfie": "Selfie",
@@ -193,7 +195,8 @@
       "PASSPORT": "Passport",
       "NATIONAL_ID": "National ID",
       "DRIVERS_LICENSE": "Driver's licence"
-    }
+    },
+    "countryPlaceholder": "Select your country"
   },
   "boosters": {
     "title": "Booster packages",

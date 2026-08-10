@@ -139,7 +139,10 @@
     "referralRejected": "계정이 생성되었지만, 추천인이 동일한 기기 또는 네트워크를 사용하여 추천 코드가 적용되지 않았습니다.",
     "backHome": "홈으로 돌아가기",
     "showPassword": "비밀번호 표시",
-    "hidePassword": "비밀번호 숨기기"
+    "hidePassword": "비밀번호 숨기기",
+    "country": "국가",
+    "countryPlaceholder": "국가를 선택하세요",
+    "countryRequired": "국가를 선택해 주세요."
   },
   "tasks": {
     "title": "작업",
@@ -168,7 +171,6 @@
     "documentType": "서류 종류",
     "documentNumber": "서류 번호",
     "country": "국가",
-    "countryIso": "국가 (2자리)",
     "front": "서류 앞면",
     "back": "서류 뒷면",
     "selfie": "셀카",
@@ -193,7 +195,8 @@
       "PASSPORT": "여권",
       "NATIONAL_ID": "주민등록증",
       "DRIVERS_LICENSE": "운전면허증"
-    }
+    },
+    "countryPlaceholder": "국가를 선택하세요"
   },
   "boosters": {
     "title": "부스터 패키지",

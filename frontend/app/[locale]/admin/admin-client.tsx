@@ -31,6 +31,7 @@ import {
   type AdminWithdrawal,
   type TreeNode,
 } from '../../../lib/admin-api';
+import { countryFlag, countryName } from '../../../lib/countries';
 
 type Tab = 'miners' | 'withdrawals' | 'kyc';
 
@@ -192,8 +193,8 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
                   key={c.countryCode}
                   className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm"
                 >
-                  <span className="font-semibold">{c.countryCode}</span>{' '}
-                  <span className="text-slate-500">{c.users}</span>
+                  <Country code={c.countryCode} />{' '}
+                  <span className="font-semibold text-slate-500">{c.users}</span>
                 </span>
               ))}
             </div>
@@ -228,6 +229,18 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
         </div>
       </main>
     </div>
+  );
+}
+
+/** Flag + full country name; falls back to a dash when unknown. */
+function Country({ code }: { code: string | null }) {
+  if (!code || code === 'unknown') {
+    return <span className="text-slate-400">—</span>;
+  }
+  return (
+    <span title={code}>
+      {countryFlag(code)} {countryName(code)}
+    </span>
   );
 }
 
@@ -405,7 +418,7 @@ function MinerRow({
             <div className="font-mono text-xs text-slate-400">{u.id.slice(0, 14)}…</div>
           </button>
         </td>
-        <td className="p-3">{u.countryCode ?? '—'}</td>
+        <td className="p-3"><Country code={u.countryCode} /></td>
         <td className="p-3 tabular-nums">
           {u.ratePerHour} /h
           {u.rateAdjustMilli !== 0 && (
@@ -571,7 +584,9 @@ function Tree({ nodes }: { nodes: TreeNode[] }) {
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-slate-700">{n.email ?? n.id.slice(0, 12)}</span>
             {n.countryCode && (
-              <span className="text-xs text-slate-400">{n.countryCode}</span>
+              <span className="text-xs text-slate-400">
+                {countryFlag(n.countryCode)} {countryName(n.countryCode)}
+              </span>
             )}
             <span className="tabular-nums text-xs text-slate-500">
               {n.balancePoints.toFixed(2)} pts
@@ -843,7 +858,7 @@ function KycTab({ onUnauthorized }: { onUnauthorized: () => void }) {
                       {r.documentNumber ?? ''}
                     </div>
                   </td>
-                  <td className="p-3">{r.countryCode ?? '—'}</td>
+                  <td className="p-3"><Country code={r.countryCode} /></td>
                   <td className="p-3 tabular-nums">{r.documentCount}</td>
                   <td className="p-3">
                     <KycBadge status={r.status} />
