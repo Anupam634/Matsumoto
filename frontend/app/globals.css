@@ -943,3 +943,39 @@
     animation: none !important;
   }
 }
+
+/* BNB Chain branding badge and indicators */
+.bnb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  background: rgba(255, 215, 0, 0.08);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  color: rgb(250, 204, 21);
+}
+
+.bnb-badge::before {
+  content: '⛓';
+  font-size: 0.85rem;
+}
+
+.chain-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgb(250, 204, 21);
+}
+
+.chain-indicator::before {
+  content: '⛓';
+  font-size: 0.7rem;
+  opacity: 0.7;
+}

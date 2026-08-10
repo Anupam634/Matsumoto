@@ -158,7 +158,11 @@
       "WITHDRAWAL": "Withdrawal",
       "AIRDROP": "Airdrop",
       "ADMIN_ADJUST": "Admin adjustment"
-    }
+    },
+    "poweredByBnb": "Powered by BNB Chain",
+    "bnbRewards": "Rewards on BNB Chain",
+    "blockchainVerified": "Blockchain-verified",
+    "chainIndicator": "BNB Chain"
   },
   "auth": {
     "signIn": "Sign in",

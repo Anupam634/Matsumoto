@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -231,7 +232,14 @@ function TopBar({ locale, onSignOut }: { locale: string; onSignOut: () => void }
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <Link href={`/${locale}`} className="flex items-center gap-2.5">
-          <span className="logo-badge">M</span>
+          <Image
+            src="/logo.svg"
+            alt="Matsumoto"
+            width={44}
+            height={44}
+            className="rounded-lg"
+            priority
+          />
           <span className="leading-none">
             <span className="block text-sm font-extrabold tracking-tight">
               Matsumoto
@@ -374,6 +382,9 @@ function HeroPanel({
           <p className="mt-1.5 max-w-sm text-sm text-slate-400">
             {t('heroBody')}
           </p>
+          <div className="mt-2.5">
+            <span className="bnb-badge">{t('bnbRewards')}</span>
+          </div>
         </div>
         <MiningRig active={!ready} />
       </div>
@@ -497,6 +508,9 @@ function BalancePanel({
         <div className="mt-1 text-sm text-slate-400">
           ≈ {token.toFixed(4)} $Matsumoto
           <span className="ml-1 text-xs text-slate-500">({t('atRate')})</span>
+        </div>
+        <div className="mt-2.5">
+          <span className="chain-indicator">{t('chainIndicator')}</span>
         </div>
       </div>
 

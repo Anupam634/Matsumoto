@@ -158,7 +158,11 @@
       "WITHDRAWAL": "提现",
       "AIRDROP": "空投",
       "ADMIN_ADJUST": "管理员调整"
-    }
+    },
+    "poweredByBnb": "由 BNB Chain 提供支持",
+    "bnbRewards": "BNB Chain 上的奖励",
+    "blockchainVerified": "区块链验证",
+    "chainIndicator": "BNB Chain"
   },
   "auth": {
     "signIn": "登录",
