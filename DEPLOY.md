@@ -75,9 +75,22 @@ you started in step 2.
   cd backend && npx prisma db seed
   ```
   That inserts the four booster plans and the six tasks from SPEC.
-- **Boosters**: the catalogue seeds, and the rate maths honours active
-  boosters, but there is **no purchase flow** — that is blocked until the
-  client picks a payment rail (SPEC §9b.2).
+- **Boosters**: fully purchasable, paid on BNB Chain and verified
+  automatically — no admin approval. Purchases stay **disabled until you
+  configure a receiving wallet**, and the UI says so plainly rather than
+  offering a button that cannot work. To enable, set in the backend env:
+  ```
+  BOOSTER_PAY_TO_ADDRESS=0xYourReceivingWallet
+  BOOSTER_PAY_TOKEN=USDT                 # or BNB
+  BOOSTER_PAY_TOKEN_ADDRESS=0x55d398326f99059fF775485246999027B3197955
+  BOOSTER_PAY_TOKEN_DECIMALS=18
+  BOOSTER_MIN_CONFIRMATIONS=6
+  BOOSTER_RPC_URL=https://bsc-dataseed.binance.org/
+  ```
+  Plans are priced in USD, so a dollar stablecoin (USDT) maps 1:1 and needs
+  no price feed. Paying in **BNB** additionally requires `BOOSTER_BNB_PER_USD`
+  — without an explicit rate, BNB payments stay disabled rather than being
+  priced by a guess.
 - **Admin panel**: built (SPEC §6) at `/<locale>/admin`. There is no admin
   self-signup — create the first operator account from the `backend/`
   directory:

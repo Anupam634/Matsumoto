@@ -41,6 +41,7 @@ model User {
   boosters      Booster[]
   taskClaims    TaskClaim[]
   withdrawals   Withdrawal[]
+  boosterPurchases BoosterPurchase[]
   ledger        LedgerEntry[]
   devices       DeviceFingerprint[]
 
@@ -112,6 +113,50 @@ model BoosterPlan {
   durationDays Int       @default(30)
   active       Boolean   @default(true)
   boosters     Booster[]
+  purchases    BoosterPurchase[]
+}
+
+enum BoosterPurchaseStatus {
+  AWAITING_PAYMENT
+  CONFIRMED
+  FAILED
+  EXPIRED
+}
+
+// An on-chain payment intent for a booster plan. Created before the user
+// pays so the expected amount, recipient and payer wallet are all pinned;
+// the transaction is then verified against those pinned values.
+model BoosterPurchase {
+  id             String                @id @default(cuid())
+  userId         String
+  user           User                  @relation(fields: [userId], references: [id])
+  planId         String
+  plan           BoosterPlan           @relation(fields: [planId], references: [id])
+  status         BoosterPurchaseStatus @default(AWAITING_PAYMENT)
+  tokenSymbol    String
+  // Smallest-unit amount required, as a decimal string (bigint-safe).
+  expectedUnits  String
+  // Human-readable amount for the payment instructions, e.g. "5.0".
+  expectedAmount String
+  payToAddress   String
+  // Wallet the user declared they will pay from. Verification requires the
+  // transaction's sender to match, so a stranger's tx hash cannot be claimed.
+  fromAddress    String
+  // Only ever set on a CONFIRMED purchase, and unique — so one transaction
+  // can fund exactly one booster. Deliberately NOT written on failure: a
+  // rejected attempt must leave the payer free to re-submit the same real
+  // payment against a corrected purchase.
+  txHash         String?               @unique
+  // Last hash the user tried, kept for support. Non-unique on purpose.
+  attemptedTxHash String?
+  failureReason  String?
+  confirmedAt    DateTime?
+  createdAt      DateTime              @default(now())
+  expiresAt      DateTime
+  booster        Booster?
+
+  @@index([userId])
+  @@index([status])
 }
 
 model Booster {
@@ -124,6 +169,8 @@ model Booster {
   expiresAt  DateTime
   txHash     String?     // on-chain payment reference
   createdAt  DateTime    @default(now())
+  purchaseId String?     @unique
+  purchase   BoosterPurchase? @relation(fields: [purchaseId], references: [id])
 
   @@index([userId])
   @@index([expiresAt])

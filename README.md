@@ -36,18 +36,18 @@ npm run dev                 # http://localhost:3000
 
 ## Core modules (backend `src/`)
 
-| Module | Purpose |
-|---|---|
-| `auth/` | Email + password (scrypt), JWT sessions, `JwtAuthGuard`, referral capture |
-| `mining/` | Reward accrual engine — base rate × boosters × referral multiplier |
-| `boosters/` | Paid booster plans ($1/$5/$10/$50, 30d, stackable) |
-| `referrals/` | Invite tree + multiplier tiers |
-| `tasks/` | Tweet/follow/repost/YouTube/quiz/spin-wheel rewards (honour-system claims) |
-| `withdrawals/` | Points → $Matsumoto (3:1), min 100, 1/week, admin-approved |
-| `wallet/` | **Swappable** chain layer (offchain ↔ testnet ↔ mainnet) |
-| `admin/` | Miners, referral tree, block, per-country, rate adjust, airdrop |
-| `antiabuse/` | Multi-account / same-IP / same-device / bot-farm guards |
-| `kyc/` | Mandatory KYC gate — in-house manual document review |
+| Module | Purpose | Built? |
+|---|---|---|
+| `auth/` | Email + password (scrypt), JWT sessions, `JwtAuthGuard`, referral capture | ✅ |
+| `mining/` | Reward accrual engine — base rate × boosters × referral multiplier | ✅ |
+| `boosters/` | Paid booster plans ($1/$5/$10/$50, 30d, stackable) | ✅ — bought with on-chain crypto, verified automatically, no admin step |
+| `referrals/` | Invite tree + multiplier tiers | ✅ — no separate module; capture lives in `auth/`, the multiplier in `mining/`, the tree in `admin/` |
+| `tasks/` | Tweet/follow/repost/YouTube/quiz/spin-wheel rewards (honour-system claims) | ✅ |
+| `withdrawals/` | Points → $Matsumoto (3:1), min 100, 1/week, admin-approved | ✅ |
+| `wallet/` | **Swappable** chain layer (offchain ↔ testnet ↔ mainnet) | ✅ — `offchain` until the token contract details arrive |
+| `admin/` | Miners, referral tree, block, per-country, rate adjust, airdrop | ✅ |
+| `antiabuse/` | Multi-account / same-IP / same-device / bot-farm guards | ✅ |
+| `kyc/` | Mandatory KYC gate — in-house manual document review | ✅ |
 
 ## API (built so far)
 
@@ -67,6 +67,9 @@ All routes are under `/api`. Everything except register/login needs
 | POST | `/tasks/:id/claim` | Credit a task reward (per-task cooldown) |
 | GET | `/kyc` | Caller's own verification status |
 | POST | `/kyc` | Submit identity documents for manual review |
+| GET | `/boosters` | Plan catalogue, your active boosters, recent purchases |
+| POST | `/boosters/purchase` | Quote a plan — pins price, payee and payer wallet |
+| POST | `/boosters/purchase/:id/submit` | Submit the tx hash; verified on chain, activates on success |
 
 ### Admin panel (`/api/admin`, SPEC §6)
 

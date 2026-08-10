@@ -220,3 +220,64 @@ export const submitKyc = (body: {
     method: 'POST',
     body: JSON.stringify(body),
   });
+
+// ───────────────────────── Boosters ─────────────────────────
+
+export interface BoosterPlanDto {
+  id: string;
+  priceUsd: number;
+  rateBonusPerHour: number;
+  durationDays: number;
+  resultingRatePerHour: number;
+}
+
+export interface ActiveBoosterDto {
+  id: string;
+  priceUsd: number;
+  rateBonusPerHour: number;
+  startedAt: string;
+  expiresAt: string;
+}
+
+export interface BoosterPurchaseDto {
+  id: string;
+  status: 'AWAITING_PAYMENT' | 'CONFIRMED' | 'FAILED' | 'EXPIRED';
+  tokenSymbol: string;
+  amount: string;
+  payToAddress: string;
+  fromAddress: string;
+  txHash: string | null;
+  failureReason: string | null;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface BoosterOverview {
+  payment: {
+    enabled: boolean;
+    disabledReason?: string;
+    tokenSymbol: string;
+    payToAddress: string | null;
+    minConfirmations: number;
+  };
+  plans: BoosterPlanDto[];
+  activeBoosters: ActiveBoosterDto[];
+  purchases: BoosterPurchaseDto[];
+}
+
+export const getBoosters = () => apiFetch<BoosterOverview>('/boosters');
+
+export const createBoosterIntent = (planId: string, fromAddress: string) =>
+  apiFetch<BoosterPurchaseDto>('/boosters/purchase', {
+    method: 'POST',
+    body: JSON.stringify({ planId, fromAddress }),
+  });
+
+export const submitBoosterPayment = (purchaseId: string, txHash: string) =>
+  apiFetch<{
+    activated: boolean;
+    booster: { id: string; rateBonusPerHour: number; expiresAt: string };
+  }>(`/boosters/purchase/${purchaseId}/submit`, {
+    method: 'POST',
+    body: JSON.stringify({ txHash }),
+  });

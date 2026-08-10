@@ -121,7 +121,8 @@
     "cooldownShort": "还需",
     "pointsShort": "积分",
     "working": "请稍候…",
-    "verifyCta": "去验证"
+    "verifyCta": "去验证",
+    "buyBoosters": "购买加速包"
   },
   "auth": {
     "signIn": "登录",
@@ -193,5 +194,32 @@
       "NATIONAL_ID": "身份证",
       "DRIVERS_LICENSE": "驾驶证"
     }
+  },
+  "boosters": {
+    "title": "加速包",
+    "subtitle": "加速包可在 30 天内提升每小时挖矿速率，且可叠加 — 数量不限。",
+    "backToDashboard": "返回仪表盘",
+    "activeTitle": "生效中的加速包",
+    "expires": "到期",
+    "historyTitle": "最近购买",
+    "resultingRate": "提升后速率",
+    "days": "天",
+    "stackable": "可叠加",
+    "buy": "购买",
+    "working": "请稍候…",
+    "offline": "无法连接服务器，请重试。",
+    "askWallet": "您将使用哪个 BNB 链钱包付款？\n\n付款必须来自该地址，以防他人冒领您的交易。",
+    "paymentsDisabled": "加速包暂不可购买 — 服务器尚未配置收款钱包。",
+    "payTitle": "发送付款",
+    "payBody": "请从您填写的钱包发送以下确切金额，然后在下方粘贴交易哈希。",
+    "amount": "金额",
+    "payTo": "收款地址",
+    "payFrom": "付款地址",
+    "copy": "复制",
+    "txHash": "交易哈希",
+    "verify": "验证付款",
+    "verifying": "验证中…",
+    "close": "取消",
+    "payWarning": "付款将在 BNB 链上自动验证，无需人工审核。需先获得 {confirmations} 个确认，若提示等待确认，请稍后重试。"
   }
 }
