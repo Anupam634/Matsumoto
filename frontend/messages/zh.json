@@ -2,7 +2,8 @@
   "landing": {
     "nav": {
       "signIn": "登录",
-      "getStarted": "立即开始"
+      "getStarted": "立即开始",
+      "dashboard": "进入仪表盘"
     },
     "hero": {
       "badge": "BNB 链 · 点击赚取",

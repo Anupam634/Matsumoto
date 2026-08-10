@@ -2,6 +2,11 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import { Coin3D } from '../../components/Coin3D';
+import {
+  AuthAwareCta,
+  HideWhenAuthed,
+  NavAuth,
+} from '../../components/AuthAware';
 import { locales } from '../../i18n';
 
 /** Booster catalogue — mirrors SPEC.md §2 and prisma/seed.ts. */
@@ -102,12 +107,12 @@ function Landing({ locale }: { locale: string }) {
                 </Link>
               ))}
             </div>
-            <Link href={signIn} className="text-slate-600 hover:text-indigo-600">
-              {t('nav.signIn')}
-            </Link>
-            <Link href={register} className="btn-primary px-4 py-2 text-sm">
-              {t('nav.getStarted')} →
-            </Link>
+            <NavAuth
+              locale={locale}
+              signInLabel={t('nav.signIn')}
+              getStartedLabel={t('nav.getStarted')}
+              dashboardLabel={t('nav.dashboard')}
+            />
           </nav>
         </div>
       </header>
@@ -145,16 +150,22 @@ function Landing({ locale }: { locale: string }) {
             </div>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Link href={register} className="btn-primary flex-1 py-3.5 text-base">
-                {t('hero.ctaPrimary')} →
-              </Link>
+              <AuthAwareCta
+                locale={locale}
+                href={register}
+                className="btn-primary flex-1 py-3.5 text-base"
+                label={t('hero.ctaPrimary')}
+                dashboardLabel={t('nav.dashboard')}
+              />
             </div>
-            <Link
-              href={signIn}
-              className="btn-outline-brand mt-3 flex w-full py-3.5 text-base"
-            >
-              {t('hero.ctaSecondary')} →
-            </Link>
+            <HideWhenAuthed>
+              <Link
+                href={signIn}
+                className="btn-outline-brand mt-3 flex w-full py-3.5 text-base"
+              >
+                {t('hero.ctaSecondary')} →
+              </Link>
+            </HideWhenAuthed>
 
             <div className="mt-6 flex items-start gap-3 rounded-2xl bg-indigo-50/70 p-4 text-xs text-slate-600">
               <IconShield className="mt-0.5 h-4 w-4 shrink-0 text-indigo-500" />
@@ -354,12 +365,13 @@ function Landing({ locale }: { locale: string }) {
         <div className="mx-auto max-w-3xl px-5 text-center">
           <h2 className="text-4xl font-extrabold sm:text-5xl">{t('cta.title')}</h2>
           <p className="mx-auto mt-4 max-w-xl text-indigo-100">{t('cta.body')}</p>
-          <Link
+          <AuthAwareCta
+            locale={locale}
             href={register}
             className="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-8 py-3 font-semibold text-indigo-700 shadow-lg transition hover:-translate-y-0.5"
-          >
-            {t('cta.button')} →
-          </Link>
+            label={t('cta.button')}
+            dashboardLabel={t('nav.dashboard')}
+          />
         </div>
       </section>
 

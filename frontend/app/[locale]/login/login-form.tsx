@@ -1,11 +1,11 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Coin3D } from '../../../components/Coin3D';
-import { login, register, ApiError } from '../../../lib/api';
+import { login, register, getToken, ApiError } from '../../../lib/api';
 
 type Mode = 'login' | 'register';
 
@@ -47,6 +47,15 @@ function AuthForm() {
   const [referralCode, setReferralCode] = useState(search.get('ref') ?? '');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Already signed in? Don't sit on a sign-up form — go straight through.
+  // A ?ref= link is the exception: it is meant to onboard someone new, so
+  // it still shows the form rather than bouncing the current session away.
+  useEffect(() => {
+    if (getToken() && !search.get('ref')) {
+      router.replace(`/${params.locale}/dashboard`);
+    }
+  }, [router, params.locale, search]);
 
   function switchMode(next: Mode) {
     setMode(next);
