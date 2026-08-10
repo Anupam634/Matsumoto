@@ -1,13 +1,14 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
-import { Coin3D } from '../../components/Coin3D';
 import {
   AuthAwareCta,
   HideWhenAuthed,
   NavAuth,
 } from '../../components/AuthAware';
 import { locales } from '../../i18n';
+import { LogoLockup, LogoMark } from '../../components/Logo';
+import { BnbLogo } from '../../components/BnbLogo';
 
 /** Booster catalogue — mirrors SPEC.md §2 and prisma/seed.ts. */
 const BOOSTERS = [
@@ -87,7 +88,7 @@ function Landing({ locale }: { locale: string }) {
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/85 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 p-5">
           <span className="flex items-center gap-2 font-bold">
-            <span className="logo-badge">M</span>
+            <LogoMark size={36} priority />
             Matsumoto
           </span>
 
@@ -122,7 +123,7 @@ function Landing({ locale }: { locale: string }) {
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-14 md:grid-cols-2 md:py-20">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-600">
-              <IconCube className="h-3.5 w-3.5" />
+              <BnbLogo className="h-3.5 w-3.5" />
               {t('hero.badge')}
             </span>
             <h1 className="mt-5 text-4xl font-extrabold leading-[1.08] tracking-tight text-slate-900 sm:text-5xl">
@@ -173,7 +174,7 @@ function Landing({ locale }: { locale: string }) {
             </div>
           </div>
 
-          <Coin3D />
+          <HeroArt />
         </div>
       </section>
 
@@ -413,6 +414,22 @@ function Figure({ value, label }: { value: string; label: string }) {
 /** A small faceted "block" — stands in for a chain/block icon without
  *  reproducing any real network's logo. Same layered-gradient technique as
  *  the hero coin, just square. */
+/** Hero art — the brand mark, lit, instead of a generic placeholder coin. */
+function HeroArt() {
+  return (
+    <div className="relative grid place-items-center py-4">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute h-64 w-64 rounded-full bg-indigo-400/25 blur-3xl"
+      />
+      <div className="orbit absolute h-72 w-72 opacity-50" aria-hidden>
+        <span className="orbit-particle" />
+      </div>
+      <LogoLockup width={380} priority className="relative w-full max-w-[380px]" />
+    </div>
+  );
+}
+
 function ChainCube() {
   return (
     <div className="relative grid h-32 w-32 shrink-0 place-items-center">
@@ -423,12 +440,12 @@ function ChainCube() {
         className="relative grid h-20 w-20 place-items-center rounded-2xl"
         style={{
           background:
-            'radial-gradient(120% 120% at 26% 20%, rgba(255,255,255,.7), rgba(255,255,255,0) 45%), linear-gradient(145deg, #a5b4fc 0%, #818cf8 35%, #4338ca 100%)',
+            'radial-gradient(120% 120% at 26% 20%, rgba(255,255,255,.55), rgba(255,255,255,0) 45%), linear-gradient(145deg, #2b2b2b 0%, #14161c 100%)',
           boxShadow:
-            'inset 0.3rem 0.4rem 0.9rem rgba(255,255,255,.5), inset -0.4rem -0.5rem 1rem rgba(49,26,129,.35), 0 1rem 2rem rgba(79,70,229,.35)',
+            'inset 0.3rem 0.4rem 0.9rem rgba(255,255,255,.14), inset -0.4rem -0.5rem 1rem rgba(0,0,0,.5), 0 1rem 2rem rgba(240,185,11,.25)',
         }}
       >
-        <IconCube className="h-8 w-8 text-white" />
+        <BnbLogo className="h-9 w-9 text-[#f0b90b]" />
       </div>
       <span className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full bg-white text-indigo-600 shadow-md ring-1 ring-indigo-100">
         <IconShield className="h-3.5 w-3.5" />
@@ -512,25 +529,6 @@ function IconShield({ className }: { className?: string }) {
         stroke="currentColor"
         strokeWidth="1.6"
         strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconCube({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <path
-        d="m12 2 8 4.5v11L12 22l-8-4.5v-11L12 2Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M12 2v20M4 6.5 12 11l8-4.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
         strokeLinejoin="round"
       />
     </svg>

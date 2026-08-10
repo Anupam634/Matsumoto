@@ -13,6 +13,7 @@ import {
   type KycStatusDto,
 } from '../../../lib/api';
 import { CountrySelect } from '../../../components/CountrySelect';
+import { LogoMark } from '../../../components/Logo';
 import { countryFlag, countryName } from '../../../lib/countries';
 
 const DOC_TYPES = ['PASSPORT', 'NATIONAL_ID', 'DRIVERS_LICENSE'] as const;
@@ -88,9 +89,7 @@ export default function KycClient() {
           >
             ← {t('backToDashboard')}
           </Link>
-          <span className="logo-badge" aria-hidden>
-            M
-          </span>
+          <LogoMark size={32} />
         </div>
       </header>
 
