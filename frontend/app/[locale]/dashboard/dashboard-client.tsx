@@ -151,6 +151,8 @@ export default function DashboardClient() {
             icon={<IconRocket />}
             label={t('boosters')}
             value={status.activeBoosters}
+            href={`/${params.locale}/boosters`}
+            cta={t('buyBoosters')}
           />
           <Stat
             i={3}
@@ -372,6 +374,8 @@ function Stat({
   text,
   badge,
   decimals = 0,
+  href,
+  cta,
 }: {
   i: number;
   icon: React.ReactNode;
@@ -380,13 +384,16 @@ function Stat({
   text?: string;
   badge?: string;
   decimals?: number;
+  /** Turns the card into a link — used to reach the booster shop. */
+  href?: string;
+  cta?: string;
 }) {
   const animated = useCountUp(value ?? 0);
-  return (
-    <div
-      className="card-soft card-soft-lift rise-in p-4"
-      style={{ '--i': i + 1 } as React.CSSProperties}
-    >
+  const className = 'card-soft card-soft-lift rise-in block p-4';
+  const style = { '--i': i + 1 } as React.CSSProperties;
+
+  const body = (
+    <>
       <div className="grid h-9 w-9 place-items-center rounded-full bg-indigo-50 text-indigo-600">
         {icon}
       </div>
@@ -403,6 +410,21 @@ function Stat({
           </span>
         )}
       </div>
+      {cta && (
+        <span className="mt-1 block text-xs font-semibold text-indigo-600">
+          {cta} →
+        </span>
+      )}
+    </>
+  );
+
+  return href ? (
+    <Link href={href} className={className} style={style}>
+      {body}
+    </Link>
+  ) : (
+    <div className={className} style={style}>
+      {body}
     </div>
   );
 }

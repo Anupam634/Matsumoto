@@ -121,7 +121,8 @@
     "cooldownShort": "남음",
     "pointsShort": "포인트",
     "working": "잠시만 기다려 주세요…",
-    "verifyCta": "인증하기"
+    "verifyCta": "인증하기",
+    "buyBoosters": "부스터 구매"
   },
   "auth": {
     "signIn": "로그인",
@@ -193,5 +194,32 @@
       "NATIONAL_ID": "주민등록증",
       "DRIVERS_LICENSE": "운전면허증"
     }
+  },
+  "boosters": {
+    "title": "부스터 패키지",
+    "subtitle": "부스터는 30일 동안 시간당 채굴 속도를 높이며 중첩됩니다 — 원하는 만큼 구매하세요.",
+    "backToDashboard": "대시보드로 돌아가기",
+    "activeTitle": "활성 부스터",
+    "expires": "만료",
+    "historyTitle": "최근 구매",
+    "resultingRate": "적용 후 적립률",
+    "days": "일",
+    "stackable": "중첩 가능",
+    "buy": "구매",
+    "working": "잠시만 기다려 주세요…",
+    "offline": "서버에 연결할 수 없습니다. 다시 시도해 주세요.",
+    "askWallet": "어느 BNB 체인 지갑에서 결제하시겠습니까?\n\n결제는 반드시 이 주소에서 이루어져야 하며, 그래야 다른 사람이 거래를 가로챌 수 없습니다.",
+    "paymentsDisabled": "부스터 구매는 아직 이용할 수 없습니다 — 서버에 수취 지갑이 설정되지 않았습니다.",
+    "payTitle": "결제 보내기",
+    "payBody": "입력하신 지갑에서 아래 금액을 정확히 보낸 뒤, 거래 해시를 붙여넣어 주세요.",
+    "amount": "금액",
+    "payTo": "수취 주소",
+    "payFrom": "보내는 주소",
+    "copy": "복사",
+    "txHash": "거래 해시",
+    "verify": "결제 확인",
+    "verifying": "확인 중…",
+    "close": "취소",
+    "payWarning": "결제는 BNB 체인에서 자동으로 검증되며 수동 승인이 없습니다. {confirmations}회 확인이 필요하므로, 확인 대기 메시지가 보이면 잠시 후 다시 시도하세요."
   }
 }

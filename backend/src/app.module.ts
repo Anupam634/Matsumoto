@@ -9,9 +9,10 @@ import { WithdrawalsModule } from './withdrawals/withdrawals.module';
 import { AdminModule } from './admin/admin.module';
 import { TasksModule } from './tasks/tasks.module';
 import { KycModule } from './kyc/kyc.module';
+import { BoostersModule } from './boosters/boosters.module';
 
 /**
- * Root module. Feature modules that are still stubs (boosters, referrals) get wired here as they are built out.
+ * Root module. Feature modules that are still stubs (referrals) get wired here as they are built out.
  */
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { KycModule } from './kyc/kyc.module';
     AdminModule,
     TasksModule,
     KycModule,
+    BoostersModule,
   ],
   providers: [PrismaService],
 })

@@ -121,7 +121,8 @@
     "cooldownShort": "in",
     "pointsShort": "pts",
     "working": "Please wait…",
-    "verifyCta": "Verify identity"
+    "verifyCta": "Verify identity",
+    "buyBoosters": "Buy boosters"
   },
   "auth": {
     "signIn": "Sign in",
@@ -193,5 +194,32 @@
       "NATIONAL_ID": "National ID",
       "DRIVERS_LICENSE": "Driver's licence"
     }
+  },
+  "boosters": {
+    "title": "Booster packages",
+    "subtitle": "Boosters raise your hourly mining rate for 30 days and stack — buy as many as you like.",
+    "backToDashboard": "Back to dashboard",
+    "activeTitle": "Your active boosters",
+    "expires": "expires",
+    "historyTitle": "Recent purchases",
+    "resultingRate": "Resulting rate",
+    "days": "days",
+    "stackable": "stackable",
+    "buy": "Buy",
+    "working": "Please wait…",
+    "offline": "Can't reach the server. Try again.",
+    "askWallet": "Which BNB Chain wallet will you pay from?\n\nThe payment must come from this address, so nobody else can claim your transaction.",
+    "paymentsDisabled": "Booster purchases aren't available yet — the payment wallet hasn't been configured on the server.",
+    "payTitle": "Send the payment",
+    "payBody": "Send this exact amount from the wallet you entered, then paste the transaction hash below.",
+    "amount": "Amount",
+    "payTo": "Pay to this address",
+    "payFrom": "Paying from",
+    "copy": "Copy",
+    "txHash": "Transaction hash",
+    "verify": "Verify payment",
+    "verifying": "Verifying…",
+    "close": "Cancel",
+    "payWarning": "Your payment is verified automatically on BNB Chain — no manual approval. It needs {confirmations} confirmations first, so if it says \"waiting for confirmations\", just try again in a minute."
   }
 }
