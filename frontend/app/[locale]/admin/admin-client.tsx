@@ -7,6 +7,7 @@
  */
 
 import { Fragment, useCallback, useEffect, useState } from 'react';
+import { LogoMark } from '../../../components/Logo';
 import {
   ApiError,
   adjustRate,
@@ -78,7 +79,7 @@ function LoginGate({ onDone }: { onDone: () => void }) {
     <div className="glow-field-light flex min-h-dvh items-center justify-center px-5">
       <form onSubmit={submit} className="card-soft w-full max-w-sm p-7">
         <div className="mb-6 flex items-center gap-3">
-          <span className="logo-badge">M</span>
+          <LogoMark size={32} />
           <div>
             <h1 className="font-bold">Admin panel</h1>
             <p className="text-xs text-slate-500">Operators only</p>
@@ -152,7 +153,7 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
       <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6">
           <span className="flex items-center gap-2 font-bold">
-            <span className="logo-badge">M</span> Admin panel
+            <LogoMark size={32} /> Admin panel
           </span>
           <button onClick={onSignOut} className="btn-outline-brand px-4 py-2 text-sm">
             Sign out

@@ -161,7 +161,6 @@
     },
     "poweredByBnb": "Powered by BNB Chain",
     "bnbRewards": "Rewards on BNB Chain",
-    "blockchainVerified": "Blockchain-verified",
     "chainIndicator": "BNB Chain"
   },
   "auth": {
@@ -263,6 +262,8 @@
     "verify": "Verify payment",
     "verifying": "Verifying…",
     "close": "Cancel",
-    "payWarning": "Your payment is verified automatically on BNB Chain — no manual approval. It needs {confirmations} confirmations first, so if it says \"waiting for confirmations\", just try again in a minute."
+    "payWarning": "Your payment is verified automatically on BNB Chain — no manual approval. It needs {confirmations} confirmations first, so if it says \"waiting for confirmations\", just try again in a minute.",
+    "poweredByBnb": "Powered by BNB Chain",
+    "chainName": "BNB Chain"
   }
 }

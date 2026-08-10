@@ -1,13 +1,12 @@
 'use client';
 
-import Image from 'next/image';
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Coin3D } from '../../../components/Coin3D';
 import { login, register, getToken, ApiError } from '../../../lib/api';
 import { CountrySelect } from '../../../components/CountrySelect';
+import { LogoLockup, LogoMark } from '../../../components/Logo';
 
 type Mode = 'login' | 'register';
 
@@ -105,19 +104,8 @@ function AuthForm() {
     <div className="flex min-h-dvh flex-col bg-white text-slate-900 lg:flex-row">
       {/* ───────────────── Brand panel — desktop only ───────────────── */}
       <aside className="glow-field-light relative hidden w-full flex-col justify-between overflow-hidden px-10 py-10 lg:flex lg:w-[46%] xl:w-1/2">
-        <Link
-          href={`/${params.locale}`}
-          className="inline-flex items-center gap-2 font-bold text-slate-900"
-        >
-          <Image
-            src="/logo.svg"
-            alt="Matsumoto"
-            width={40}
-            height={40}
-            className="rounded-lg"
-            priority
-          />
-          Matsumoto
+        <Link href={`/${params.locale}`} className="inline-flex">
+          <LogoLockup width={230} priority />
         </Link>
 
         <div className="max-w-md">
@@ -141,9 +129,6 @@ function AuthForm() {
           </div>
         </div>
 
-        <div className="mx-auto w-full max-w-xs">
-          <Coin3D />
-        </div>
       </aside>
 
       {/* ───────────────────────── Form panel ───────────────────────── */}
@@ -161,8 +146,8 @@ function AuthForm() {
           >
             ← {t('backHome')}
           </Link>
-          <span className="logo-badge lg:hidden" aria-hidden>
-            M
+          <span className="lg:hidden">
+            <LogoMark size={34} priority />
           </span>
         </div>
 

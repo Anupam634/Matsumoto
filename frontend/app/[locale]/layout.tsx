@@ -13,9 +13,9 @@ export const metadata = {
   description: 'Cloud mining rewards on BNB Chain',
   manifest: '/manifest.webmanifest',
   icons: {
-    icon: '/favicon.svg',
-    shortcut: '/favicon.svg',
-    apple: '/logo.svg',
+    icon: '/favicon.png',
+    shortcut: '/favicon.png',
+    apple: '/apple-icon.png',
   },
 };
 

@@ -160,8 +160,7 @@
       "ADMIN_ADJUST": "관리자 조정"
     },
     "poweredByBnb": "BNB Chain으로 구동됨",
-    "bnbRewards": "BNB Chain의 보상",
-    "blockchainVerified": "블록체인 검증됨",
+    "bnbRewards": "BNB Chain 보상",
     "chainIndicator": "BNB Chain"
   },
   "auth": {
@@ -263,6 +262,8 @@
     "verify": "결제 확인",
     "verifying": "확인 중…",
     "close": "취소",
-    "payWarning": "결제는 BNB 체인에서 자동으로 검증되며 수동 승인이 없습니다. {confirmations}회 확인이 필요하므로, 확인 대기 메시지가 보이면 잠시 후 다시 시도하세요."
+    "payWarning": "결제는 BNB 체인에서 자동으로 검증되며 수동 승인이 없습니다. {confirmations}회 확인이 필요하므로, 확인 대기 메시지가 보이면 잠시 후 다시 시도하세요.",
+    "poweredByBnb": "BNB Chain 기반",
+    "chainName": "BNB Chain"
   }
 }

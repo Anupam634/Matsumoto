@@ -161,7 +161,6 @@
     },
     "poweredByBnb": "由 BNB Chain 提供支持",
     "bnbRewards": "BNB Chain 上的奖励",
-    "blockchainVerified": "区块链验证",
     "chainIndicator": "BNB Chain"
   },
   "auth": {
@@ -263,6 +262,8 @@
     "verify": "验证付款",
     "verifying": "验证中…",
     "close": "取消",
-    "payWarning": "付款将在 BNB 链上自动验证，无需人工审核。需先获得 {confirmations} 个确认，若提示等待确认，请稍后重试。"
+    "payWarning": "付款将在 BNB 链上自动验证，无需人工审核。需先获得 {confirmations} 个确认，若提示等待确认，请稍后重试。",
+    "poweredByBnb": "由 BNB Chain 提供支持",
+    "chainName": "BNB Chain"
   }
 }

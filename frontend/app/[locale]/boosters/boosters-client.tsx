@@ -14,6 +14,8 @@ import {
   type BoosterPlanDto,
   type BoosterPurchaseDto,
 } from '../../../lib/api';
+import { LogoMark } from '../../../components/Logo';
+import { BnbBadge } from '../../../components/BnbLogo';
 
 export default function BoostersClient() {
   const t = useTranslations('boosters');
@@ -58,9 +60,7 @@ export default function BoostersClient() {
           >
             ← {t('backToDashboard')}
           </Link>
-          <span className="logo-badge" aria-hidden>
-            M
-          </span>
+          <LogoMark size={32} />
         </div>
       </header>
 
@@ -73,7 +73,7 @@ export default function BoostersClient() {
         </h1>
         <p className="mt-2 text-slate-400">{t('subtitle')}</p>
         <div className="mt-3">
-          <span className="bnb-badge">Powered by BNB Chain</span>
+          <BnbBadge label={t('poweredByBnb')} />
         </div>
 
         {error && (
@@ -215,9 +215,6 @@ function PlanCard({
       <div className="text-3xl font-extrabold text-indigo-300">
         ${plan.priceUsd}
       </div>
-      <div className="mt-1.5">
-        <span className="bnb-badge">BNB Chain</span>
-      </div>
       <div className="mt-3 text-xs uppercase tracking-wide text-slate-400">
         {t('resultingRate')}
       </div>
@@ -286,7 +283,7 @@ function PayModal({
       <div className="panel w-full max-w-md p-6">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold">{t('payTitle')}</h2>
-          <span className="bnb-badge">BNB Chain</span>
+          <BnbBadge label={t('chainName')} />
         </div>
         <p className="mt-1 text-sm text-slate-400">{t('payBody')}</p>
 

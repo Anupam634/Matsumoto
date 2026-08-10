@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -21,6 +20,8 @@ import {
   type Profile,
 } from '../../../lib/api';
 import TasksSection from './tasks-section';
+import { LogoMark } from '../../../components/Logo';
+import { BnbBadge, BnbLogo } from '../../../components/BnbLogo';
 
 /** How often the live accrual counter repaints. 10fps reads as smooth. */
 const TICK_MS = 100;
@@ -232,14 +233,7 @@ function TopBar({ locale, onSignOut }: { locale: string; onSignOut: () => void }
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <Link href={`/${locale}`} className="flex items-center gap-2.5">
-          <Image
-            src="/logo.svg"
-            alt="Matsumoto"
-            width={44}
-            height={44}
-            className="rounded-lg"
-            priority
-          />
+          <LogoMark size={40} priority />
           <span className="leading-none">
             <span className="block text-sm font-extrabold tracking-tight">
               Matsumoto
@@ -383,7 +377,7 @@ function HeroPanel({
             {t('heroBody')}
           </p>
           <div className="mt-2.5">
-            <span className="bnb-badge">{t('bnbRewards')}</span>
+            <BnbBadge label={t('bnbRewards')} />
           </div>
         </div>
         <MiningRig active={!ready} />
@@ -510,7 +504,10 @@ function BalancePanel({
           <span className="ml-1 text-xs text-slate-500">({t('atRate')})</span>
         </div>
         <div className="mt-2.5">
-          <span className="chain-indicator">{t('chainIndicator')}</span>
+          <span className="chain-indicator">
+            <BnbLogo className="h-3 w-3" />
+            {t('chainIndicator')}
+          </span>
         </div>
       </div>
 
