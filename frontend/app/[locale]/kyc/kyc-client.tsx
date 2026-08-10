@@ -12,6 +12,8 @@ import {
   type KycImage,
   type KycStatusDto,
 } from '../../../lib/api';
+import { CountrySelect } from '../../../components/CountrySelect';
+import { countryFlag, countryName } from '../../../lib/countries';
 
 const DOC_TYPES = ['PASSPORT', 'NATIONAL_ID', 'DRIVERS_LICENSE'] as const;
 
@@ -114,8 +116,8 @@ export default function KycClient() {
           </div>
         ) : (
           <>
-            <StatusCard state={state} />
-            {state.canSubmit && <SubmitForm onDone={load} />}
+            <StatusCard state={state} locale={params.locale} />
+            {state.canSubmit && <SubmitForm onDone={load} locale={params.locale} />}
           </>
         )}
       </main>
@@ -123,7 +125,7 @@ export default function KycClient() {
   );
 }
 
-function StatusCard({ state }: { state: KycStatusDto }) {
+function StatusCard({ state, locale }: { state: KycStatusDto; locale: string }) {
   const t = useTranslations('kyc');
   const tone =
     state.status === 'APPROVED'
@@ -168,7 +170,10 @@ function StatusCard({ state }: { state: KycStatusDto }) {
             <Field label={t('documentType')} value={t(`docType.${state.documentType}`)} />
           )}
           {state.countryCode && (
-            <Field label={t('country')} value={state.countryCode} />
+            <Field
+              label={t('country')}
+              value={`${countryFlag(state.countryCode)} ${countryName(state.countryCode, locale)}`}
+            />
           )}
         </dl>
       )}
@@ -185,7 +190,7 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SubmitForm({ onDone }: { onDone: () => void }) {
+function SubmitForm({ onDone, locale }: { onDone: () => void; locale: string }) {
   const t = useTranslations('kyc');
   const [fullName, setFullName] = useState('');
   const [documentType, setDocumentType] =
@@ -211,7 +216,7 @@ function SubmitForm({ onDone }: { onDone: () => void }) {
         fullName,
         documentType,
         documentNumber,
-        countryCode: countryCode.toUpperCase(),
+        countryCode,
         front,
         back: back ?? undefined,
         selfie,
@@ -279,21 +284,15 @@ function SubmitForm({ onDone }: { onDone: () => void }) {
           />
         </label>
 
-        <label className="block">
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            {t('countryIso')}
-          </span>
-          <input
-            className="input-field mt-1.5"
-            value={countryCode}
-            onChange={(e) => setCountryCode(e.target.value.toUpperCase())}
-            required
-            minLength={2}
-            maxLength={2}
-            placeholder="NP"
-            autoCapitalize="characters"
-          />
-        </label>
+        <CountrySelect
+          id="kyc-country"
+          locale={locale}
+          value={countryCode}
+          onChange={setCountryCode}
+          label={t('country')}
+          placeholder={t('countryPlaceholder')}
+          required
+        />
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">

@@ -1,3 +1,4 @@
+import { IsCountryCode } from '../common/is-country-code';
 import {
   IsEmail,
   IsOptional,
@@ -22,11 +23,13 @@ export class RegisterDto {
   @MaxLength(64)
   referralCode?: string;
 
-  /** ISO-3166 alpha-2, powers the admin per-country breakdown (SPEC §6). */
-  @IsOptional()
+  /**
+   * ISO-3166 alpha-2. Required at signup: the admin per-country breakdown
+   * (SPEC §6) is only meaningful if every account actually carries one.
+   */
   @IsString()
-  @Length(2, 2)
-  countryCode?: string;
+  @IsCountryCode()
+  countryCode!: string;
 
   /** Client-side device fingerprint, used by the anti-abuse guard (SPEC §7). */
   @IsOptional()
