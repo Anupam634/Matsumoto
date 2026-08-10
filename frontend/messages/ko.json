@@ -2,7 +2,8 @@
   "landing": {
     "nav": {
       "signIn": "로그인",
-      "getStarted": "시작하기"
+      "getStarted": "시작하기",
+      "dashboard": "대시보드로 이동"
     },
     "hero": {
       "badge": "BNB 체인 · 탭하여 적립",
