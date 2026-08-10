@@ -69,6 +69,37 @@ export class MiningService {
     };
   }
 
+  /**
+   * Lifetime earnings and recent activity for the dashboard.
+   *
+   * "Earned" counts only credits (mining, tasks, referrals, airdrops) — a
+   * withdrawal debit must not quietly reduce what the user was shown as
+   * having earned.
+   */
+  async history(userId: string, take = 12) {
+    const [credited, entries] = await Promise.all([
+      this.prisma.ledgerEntry.aggregate({
+        where: { userId, deltaMilli: { gt: 0 } },
+        _sum: { deltaMilli: true },
+      }),
+      this.prisma.ledgerEntry.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take,
+      }),
+    ]);
+
+    return {
+      lifetimeEarnedPoints: Number(credited._sum.deltaMilli ?? 0n) / 1000,
+      entries: entries.map((e) => ({
+        id: e.id,
+        reason: e.reason,
+        points: Number(e.deltaMilli) / 1000,
+        createdAt: e.createdAt,
+      })),
+    };
+  }
+
   /** Settle a "Mine" tap: credit accrued points, reset the 24h cooldown. */
   async claim(userId: string) {
     const { boosters, inviteCount, lastMineAt, rateAdjustMilli } =

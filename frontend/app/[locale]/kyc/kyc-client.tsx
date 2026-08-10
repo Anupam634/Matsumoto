@@ -76,15 +76,15 @@ export default function KycClient() {
   }, [load, router, params.locale]);
 
   return (
-    <div className="glow-field-light min-h-dvh text-slate-900">
+    <div className="app-shell min-h-dvh">
       <header
-        className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/80 backdrop-blur"
+        className="sticky top-0 z-20 border-b border-white/5 bg-[#05070f]/85 backdrop-blur"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3.5 sm:px-6">
           <Link
             href={`/${params.locale}/dashboard`}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-indigo-600"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 transition hover:text-indigo-300"
           >
             ← {t('backToDashboard')}
           </Link>
@@ -101,16 +101,16 @@ export default function KycClient() {
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
           {t('title')}
         </h1>
-        <p className="mt-2 text-slate-600">{t('why')}</p>
+        <p className="mt-2 text-slate-400">{t('why')}</p>
 
         {error && (
-          <p className="mt-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+          <p className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
             {error}
           </p>
         )}
 
         {!state ? (
-          <div className="card-soft mt-6 space-y-3 p-6">
+          <div className="panel mt-6 space-y-3 p-6">
             <div className="skeleton h-5 w-32" />
             <div className="skeleton h-24 w-full" />
           </div>
@@ -129,12 +129,12 @@ function StatusCard({ state, locale }: { state: KycStatusDto; locale: string }) 
   const t = useTranslations('kyc');
   const tone =
     state.status === 'APPROVED'
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      ? 'border-emerald-400/25 bg-emerald-500/10 text-emerald-300'
       : state.status === 'PENDING'
-        ? 'border-amber-200 bg-amber-50 text-amber-700'
+        ? 'border-amber-400/25 bg-amber-500/10 text-amber-200'
         : state.status === 'REJECTED'
-          ? 'border-red-200 bg-red-50 text-red-700'
-          : 'border-slate-200 bg-slate-50 text-slate-600';
+          ? 'border-red-500/30 bg-red-500/10 text-red-300'
+          : 'border-white/10 bg-white/[0.04] text-slate-300';
 
   return (
     <section className={`mt-6 rounded-2xl border p-5 ${tone}`}>
@@ -230,13 +230,13 @@ function SubmitForm({ onDone, locale }: { onDone: () => void; locale: string }) 
   }
 
   return (
-    <form onSubmit={submit} className="card-soft mt-4 p-6">
+    <form onSubmit={submit} className="panel mt-4 p-6">
       <h2 className="font-semibold">{t('formTitle')}</h2>
-      <p className="mt-1 text-sm text-slate-500">{t('formHint')}</p>
+      <p className="mt-1 text-sm text-slate-400">{t('formHint')}</p>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <label className="block sm:col-span-2">
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          <span className="field-label">
             {t('fullName')}
           </span>
           <input
@@ -251,7 +251,7 @@ function SubmitForm({ onDone, locale }: { onDone: () => void; locale: string }) 
         </label>
 
         <label className="block">
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          <span className="field-label">
             {t('documentType')}
           </span>
           <select
@@ -270,7 +270,7 @@ function SubmitForm({ onDone, locale }: { onDone: () => void; locale: string }) 
         </label>
 
         <label className="block">
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          <span className="field-label">
             {t('documentNumber')}
           </span>
           <input
@@ -302,12 +302,12 @@ function SubmitForm({ onDone, locale }: { onDone: () => void; locale: string }) 
       </div>
 
       {error && (
-        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+        <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
           {error}
         </p>
       )}
 
-      <p className="mt-4 text-xs text-slate-400">{t('privacy')}</p>
+      <p className="mt-4 text-xs text-slate-500">{t('privacy')}</p>
 
       <button type="submit" disabled={busy} className="btn-primary mt-4 w-full py-3">
         {busy ? t('submitting') : t('submit')}
@@ -347,19 +347,19 @@ function ImagePicker({
 
   return (
     <label className="block cursor-pointer">
-      <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+      <span className="field-label">
         {label}
-        {!required && <span className="ml-1 normal-case text-slate-400">({t('optional')})</span>}
+        {!required && <span className="ml-1 normal-case text-slate-500">({t('optional')})</span>}
       </span>
       <div
         className={`mt-1.5 grid h-28 place-items-center overflow-hidden rounded-xl border-2 border-dashed text-center text-xs ${
           value
-            ? 'border-indigo-200 bg-indigo-50/40'
-            : 'border-slate-200 bg-slate-50 text-slate-400'
+            ? 'border-indigo-400/40 bg-indigo-500/10'
+            : 'border-white/15 bg-white/[0.03] text-slate-500'
         }`}
       >
         {busy ? (
-          <span className="text-slate-400">…</span>
+          <span className="text-slate-500">…</span>
         ) : value ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

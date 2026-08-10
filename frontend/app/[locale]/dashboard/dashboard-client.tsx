@@ -7,10 +7,15 @@ import { useTranslations } from 'next-intl';
 import {
   ApiError,
   claimMining,
+  getBoosters,
+  getMiningHistory,
   getMiningStatus,
   getProfile,
   getToken,
   logout,
+  type BoosterPlanDto,
+  type LedgerEntryDto,
+  type MiningHistory,
   type MiningStatus,
   type Profile,
 } from '../../../lib/api';
@@ -25,31 +30,31 @@ export default function DashboardClient() {
   const t = useTranslations('dashboard');
   const router = useRouter();
   const params = useParams<{ locale: string }>();
+  const locale = params.locale;
 
   const [status, setStatus] = useState<MiningStatus | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [history, setHistory] = useState<MiningHistory | null>(null);
+  const [plans, setPlans] = useState<BoosterPlanDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [claiming, setClaiming] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [celebrate, setCelebrate] = useState<number | null>(null);
 
-  /** Session ended or was rejected — back to the sign-in form. */
   const toLogin = useCallback(() => {
     logout();
-    router.replace(`/${params.locale}/login`);
-  }, [router, params.locale]);
-
-  /** Deliberate sign-out — back to the public landing page. */
-  const signOut = useCallback(() => {
-    logout();
-    router.replace(`/${params.locale}`);
-  }, [router, params.locale]);
+    router.replace(`/${locale}/login`);
+  }, [router, locale]);
 
   const load = useCallback(async () => {
     try {
-      const [s, p] = await Promise.all([getMiningStatus(), getProfile()]);
+      const [s, p, h] = await Promise.all([
+        getMiningStatus(),
+        getProfile(),
+        getMiningHistory(),
+      ]);
       setStatus(s);
       setProfile(p);
+      setHistory(h);
       setError(null);
     } catch (err) {
       // 401/403 means the session is gone or the account was blocked.
@@ -63,13 +68,17 @@ export default function DashboardClient() {
 
   useEffect(() => {
     if (!getToken()) {
-      router.replace(`/${params.locale}/login`);
+      router.replace(`/${locale}/login`);
       return;
     }
     load();
-  }, [load, router, params.locale]);
+    // The plan rail is catalogue data — fetched once, and a failure here
+    // must not blank the dashboard.
+    getBoosters()
+      .then((b) => setPlans(b.plans))
+      .catch(() => setPlans([]));
+  }, [load, router, locale]);
 
-  // Re-sync with the server periodically — the local ticker only interpolates.
   useEffect(() => {
     const id = setInterval(load, REFRESH_MS);
     return () => clearInterval(id);
@@ -89,179 +98,321 @@ export default function DashboardClient() {
     }
   }
 
-  const referralLink =
-    typeof window !== 'undefined' && profile
-      ? `${window.location.origin}/${params.locale}/login?ref=${profile.referralCode}`
-      : '';
+  if (!status || !profile) return <Skeleton message={error} />;
 
-  async function copyReferral() {
-    if (!referralLink) return;
-    try {
-      await navigator.clipboard.writeText(referralLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* clipboard permission denied — the link is still selectable text */
-    }
-  }
-
-  if (!status || !profile) {
-    return <DashboardSkeleton message={error} />;
-  }
+  const ready = status.canClaim && !claiming;
 
   return (
-    <div className="glow-field-light min-h-dvh text-slate-900">
-      <Header onSignOut={signOut} locale={params.locale} title={t('title')} />
+    <div className="app-shell min-h-dvh">
+      <TopBar locale={locale} onSignOut={toLogin} />
 
       <main
-        className="mx-auto max-w-5xl px-4 pb-16 pt-6 sm:px-6"
-        style={{ paddingBottom: 'max(4rem, env(safe-area-inset-bottom))' }}
+        className="mx-auto max-w-6xl px-4 pb-32 pt-5 sm:px-6 lg:pb-16"
+        style={{ paddingBottom: 'max(8rem, env(safe-area-inset-bottom))' }}
       >
         {error && (
-          <p className="mb-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
-            <span aria-hidden>⚠</span>
+          <p className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
             {error}
           </p>
         )}
 
-        <MiningCard
-          status={status}
-          claiming={claiming}
-          celebrate={celebrate}
-          onMine={mine}
-        />
-
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          <Stat
-            i={0}
-            icon={<IconBolt />}
-            label={t('balance')}
-            value={profile.pointsBalance}
-            decimals={2}
+        {/* Hero + mining console. Two columns from lg. */}
+        <div className="grid gap-4 lg:grid-cols-[1.15fr_1fr]">
+          <HeroPanel
+            status={status}
+            claiming={claiming}
+            celebrate={celebrate}
+            onMine={mine}
+            ready={ready}
           />
-          <Stat
-            i={1}
-            icon={<IconTier />}
-            label={t('referralTier')}
-            text={`L${status.referralTier.level}`}
-            badge={`×${status.referralTier.multiplier}`}
-          />
-          <Stat
-            i={2}
-            icon={<IconRocket />}
-            label={t('boosters')}
-            value={status.activeBoosters}
-            href={`/${params.locale}/boosters`}
-            cta={t('buyBoosters')}
-          />
-          <Stat
-            i={3}
-            icon={<IconUsers />}
-            label={t('referrals')}
-            value={profile.referralCount}
+          <BalancePanel
+            profile={profile}
+            history={history}
+            status={status}
+            locale={locale}
           />
         </div>
 
-        <TasksSection onClaimed={load} />
+        {/* Stat grid */}
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <StatCard
+            i={0}
+            chip="#22c55e"
+            icon={<IconCoins />}
+            label={t('totalEarnings')}
+            value={history?.lifetimeEarnedPoints ?? 0}
+            decimals={2}
+            spark
+          />
+          <StatCard
+            i={1}
+            chip="#818cf8"
+            icon={<IconChip />}
+            label={t('hashRate')}
+            value={status.ratePerHour}
+            decimals={2}
+            suffix=" /h"
+          />
+          <StatCard
+            i={2}
+            chip="#a78bfa"
+            icon={<IconDoc />}
+            label={t('boosters')}
+            value={status.activeBoosters}
+            href={`/${locale}/boosters`}
+            cta={t('buyBoosters')}
+          />
+          <StatCard
+            i={3}
+            chip="#38bdf8"
+            icon={<IconUsers />}
+            label={t('referrals')}
+            value={profile.referralCount}
+            badge={`L${status.referralTier.level} ×${status.referralTier.multiplier}`}
+          />
+        </div>
 
-        <section
-          className="card-soft rise-in mt-4 p-5"
-          style={{ '--i': 6 } as React.CSSProperties}
-        >
-          <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            {t('referralLink')}
-          </div>
-          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-            <code className="flex-1 truncate rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-indigo-600">
-              {referralLink}
-            </code>
-            <button
-              onClick={copyReferral}
-              className="btn-outline-brand shrink-0 py-2.5 text-sm"
-            >
-              {copied ? `✓ ${t('copied')}` : t('copy')}
-            </button>
-          </div>
-          {profile.kycStatus !== 'APPROVED' && (
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 p-3">
-              <p className="flex items-start gap-2 text-xs text-amber-700">
-                <span aria-hidden>ⓘ</span>
-                {t('kycRequired', { status: profile.kycStatus })}
-              </p>
+        {/* Booster plans rail */}
+        {plans.length > 0 && (
+          <section className="panel mt-4 p-5">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <h2 className="font-bold">{t('plansTitle')}</h2>
+                <p className="text-sm text-slate-400">{t('plansSubtitle')}</p>
+              </div>
               <Link
-                href={`/${params.locale}/kyc`}
-                className="btn-outline-brand shrink-0 px-3 py-1.5 text-xs"
+                href={`/${locale}/boosters`}
+                className="shrink-0 text-sm font-semibold text-indigo-400 hover:text-indigo-300"
               >
-                {t('verifyCta')} →
+                {t('viewAll')} →
               </Link>
             </div>
-          )}
+            <div className="rail mt-4">
+              {plans.map((p, i) => (
+                <PlanCard
+                  key={p.id}
+                  plan={p}
+                  popular={i === 1}
+                  href={`/${locale}/boosters`}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Honest platform facts — every figure here is enforced in code. */}
+        <section className="panel mt-4 grid grid-cols-2 gap-4 p-5 lg:grid-cols-4">
+          <Feature chip="#818cf8" icon={<IconBolt />} title={t('f1t')} body={t('f1b')} />
+          <Feature chip="#22c55e" icon={<IconClock />} title={t('f2t')} body={t('f2b')} />
+          <Feature chip="#a78bfa" icon={<IconSwap />} title={t('f3t')} body={t('f3b')} />
+          <Feature chip="#38bdf8" icon={<IconShield />} title={t('f4t')} body={t('f4b')} />
         </section>
+
+        <TasksSection onClaimed={load} />
+
+        <RecentActivity entries={history?.entries ?? []} />
+
+        <ReferralPanel profile={profile} locale={locale} />
       </main>
+
+      <TabBar locale={locale} onMine={mine} ready={ready} claiming={claiming} />
     </div>
   );
 }
 
-/* ─────────────────────────── Mining hero ─────────────────────────── */
+/* ──────────────────────────── Chrome ──────────────────────────── */
 
-function MiningCard({
+function TopBar({ locale, onSignOut }: { locale: string; onSignOut: () => void }) {
+  const t = useTranslations('dashboard');
+  return (
+    <header
+      className="sticky top-0 z-30 border-b border-white/5 bg-[#05070f]/85 backdrop-blur"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+        <Link href={`/${locale}`} className="flex items-center gap-2.5">
+          <span className="logo-badge">M</span>
+          <span className="leading-none">
+            <span className="block text-sm font-extrabold tracking-tight">
+              Matsumoto
+            </span>
+            <span className="block text-[0.6rem] font-semibold uppercase tracking-[0.14em] text-slate-500">
+              {t('cloudMining')}
+            </span>
+          </span>
+        </Link>
+
+        {/* Desktop nav — the mobile equivalent is the bottom tab bar. */}
+        <nav className="hidden items-center gap-1 lg:flex">
+          <NavLink href={`/${locale}/dashboard`} active>
+            {t('navDashboard')}
+          </NavLink>
+          <NavLink href={`/${locale}/boosters`}>{t('navBoosters')}</NavLink>
+          <NavLink href={`/${locale}/kyc`}>{t('navProfile')}</NavLink>
+        </nav>
+
+        <button
+          onClick={onSignOut}
+          className="rounded-full border border-white/10 px-3.5 py-1.5 text-sm font-semibold text-slate-300 transition hover:border-indigo-400/50 hover:text-white"
+        >
+          {t('signOut')}
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function NavLink({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
+        active
+          ? 'bg-indigo-500/15 text-indigo-300'
+          : 'text-slate-400 hover:text-slate-200'
+      }`}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function TabBar({
+  locale,
+  onMine,
+  ready,
+  claiming,
+}: {
+  locale: string;
+  onMine: () => void;
+  ready: boolean;
+  claiming: boolean;
+}) {
+  const t = useTranslations('dashboard');
+  return (
+    <nav
+      className="tabbar fixed inset-x-0 bottom-0 z-30 lg:hidden"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
+      <div className="mx-auto grid max-w-md grid-cols-5 items-end px-2">
+        <Link href={`/${locale}/dashboard`} data-active="true">
+          <IconHome />
+          {t('navDashboard')}
+        </Link>
+        <Link href={`/${locale}/boosters`}>
+          <IconRocket />
+          {t('navBoosters')}
+        </Link>
+
+        <div className="grid place-items-center pb-1">
+          <button
+            onClick={onMine}
+            disabled={!ready}
+            aria-label={t('mineButton')}
+            className={`tab-fab -mt-7 ${ready ? 'pulse-ring' : ''}`}
+          >
+            {claiming ? <IconSpinner /> : <IconBolt />}
+          </button>
+        </div>
+
+        <Link href={`/${locale}/kyc`}>
+          <IconShield />
+          {t('navProfile')}
+        </Link>
+        <Link href={`/${locale}`}>
+          <IconGrid />
+          {t('navHome')}
+        </Link>
+      </div>
+    </nav>
+  );
+}
+
+/* ───────────────────────── Hero / console ─────────────────────── */
+
+function HeroPanel({
   status,
   claiming,
   celebrate,
   onMine,
+  ready,
 }: {
   status: MiningStatus;
   claiming: boolean;
   celebrate: number | null;
   onMine: () => void;
+  ready: boolean;
 }) {
   const t = useTranslations('dashboard');
   const pending = useLiveAccrual(status);
   const countdown = useCountdown(status.nextClaimAt);
-
   const progress =
     status.maxPendingPoints > 0
       ? Math.min(1, pending / status.maxPendingPoints)
       : 0;
-  const ready = status.canClaim && !claiming;
 
   return (
-    <section
-      className="card-soft sheen rise-in relative overflow-hidden p-6 sm:p-8"
-      style={{ '--i': 0 } as React.CSSProperties}
-    >
-      <div className="relative flex flex-col items-center gap-8 sm:flex-row sm:justify-between">
-        {/* Live accrual read-out */}
-        <div className="text-center sm:text-left">
+    <section className="panel relative overflow-hidden p-5 sm:p-7">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-indigo-600/25 blur-3xl"
+      />
+
+      <div className="relative flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+            {t('cloudMining')}
+          </h1>
+          <p className="mt-1.5 max-w-sm text-sm text-slate-400">
+            {t('heroBody')}
+          </p>
+        </div>
+        <MiningRig active={!ready} />
+      </div>
+
+      <div className="relative mt-6 flex flex-col items-center gap-6 sm:flex-row sm:items-end sm:justify-between">
+        <div className="relative text-center sm:text-left">
+          {/* Mobile celebration: the ring and its burst are desktop-only, so
+              the reward floats off the counter instead. */}
+          {celebrate !== null && (
+            <span className="float-up absolute left-1/2 top-6 z-10 -translate-x-1/2 whitespace-nowrap text-2xl font-extrabold text-emerald-400 sm:hidden">
+              +{celebrate.toFixed(2)}
+            </span>
+          )}
           <div className="flex items-center justify-center gap-2 sm:justify-start">
             {ready ? (
-              <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">
+              <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-bold text-emerald-400">
                 ✓ {t('ready')}
               </span>
             ) : (
               <>
                 <span className="live-dot" aria-hidden />
-                <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                   {t('accruing')}
                 </span>
               </>
             )}
           </div>
-
-          <div className="mt-3 flex items-baseline justify-center gap-2 sm:justify-start">
-            <span className="text-gradient-brand text-5xl font-extrabold tabular-nums tracking-tight sm:text-6xl">
-              {pending.toFixed(4)}
-            </span>
+          <div className="mt-2 text-4xl font-extrabold tabular-nums tracking-tight text-white sm:text-5xl">
+            {pending.toFixed(4)}
           </div>
-          <div className="mt-1 text-sm text-slate-500">{t('pending')}</div>
+          <div className="mt-1 text-sm text-slate-400">{t('pending')}</div>
 
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-700">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-400/25 bg-indigo-500/10 px-3 py-1.5 text-sm font-bold text-indigo-300">
               <IconBolt className="h-3.5 w-3.5" />
               {status.ratePerHour} /h
             </span>
             {!status.canClaim && countdown && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-slate-300">
                 <IconClock className="h-3.5 w-3.5" />
                 <span className="tabular-nums">{countdown}</span>
               </span>
@@ -269,36 +420,27 @@ function MiningCard({
           </div>
         </div>
 
-        {/* Ring + Mine button. Both live in the same grid cell so the button
-            is centred by `place-items-center` rather than a transform —
-            transforms get reset on :disabled and would knock it off-centre. */}
-        <div className="relative grid shrink-0 place-items-center">
+        {/* Ring + Mine button — hidden on mobile, where the tab-bar FAB
+            is the primary control and this would just duplicate it. */}
+        <div className="relative hidden shrink-0 place-items-center sm:grid">
           <div className="col-start-1 row-start-1">
             <ProgressRing progress={progress} />
           </div>
-
           {celebrate !== null && <Burst />}
           {celebrate !== null && (
-            <span className="float-up absolute left-1/2 top-0 z-10 whitespace-nowrap text-xl font-extrabold text-emerald-500">
+            <span className="float-up absolute left-1/2 top-0 z-10 whitespace-nowrap text-xl font-extrabold text-emerald-400">
               +{celebrate.toFixed(2)}
             </span>
           )}
-
           <button
             onClick={onMine}
-            disabled={!status.canClaim || claiming}
-            className={`btn-primary col-start-1 row-start-1 h-[8.5rem] w-[8.5rem] flex-col !rounded-full text-lg ${
+            disabled={!ready}
+            className={`btn-primary col-start-1 row-start-1 h-[7.5rem] w-[7.5rem] flex-col !rounded-full text-base ${
               ready ? 'pulse-ring' : ''
             }`}
           >
-            {claiming ? (
-              <IconSpinner />
-            ) : (
-              <>
-                <IconPick />
-                <span>{t('mineButton')}</span>
-              </>
-            )}
+            {claiming ? <IconSpinner /> : <IconPick />}
+            <span>{t('mineButton')}</span>
           </button>
         </div>
       </div>
@@ -306,45 +448,418 @@ function MiningCard({
   );
 }
 
-/** SVG donut showing how full the 24h accrual window is. */
-function ProgressRing({ progress }: { progress: number }) {
-  const R = 76;
-  const C = 2 * Math.PI * R;
+/** Three slabs that pulse while accrual is running — the "rig". */
+function MiningRig({ active }: { active: boolean }) {
   return (
-    <svg width="180" height="180" viewBox="0 0 180 180" aria-hidden>
-      <defs>
-        <linearGradient id="ringGradient" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#6366f1" />
-          <stop offset="55%" stopColor="#7c3aed" />
-          <stop offset="100%" stopColor="#2563eb" />
-        </linearGradient>
-      </defs>
-      <circle
-        className="ring-track"
-        cx="90"
-        cy="90"
-        r={R}
-        fill="none"
-        strokeWidth="8"
-      />
-      <circle
-        className="ring-progress"
-        cx="90"
-        cy="90"
-        r={R}
-        fill="none"
-        strokeWidth="8"
-        strokeDasharray={C}
-        strokeDashoffset={C * (1 - progress)}
-        transform="rotate(-90 90 90)"
+    <div className="rig shrink-0" aria-hidden>
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="rig-slab"
+          style={active ? undefined : { animation: 'none', filter: 'brightness(0.7)' }}
+        />
+      ))}
+      <span className="mt-1 h-1.5 w-14 rounded-full bg-indigo-500/30 blur-[2px]" />
+    </div>
+  );
+}
+
+function BalancePanel({
+  profile,
+  history,
+  status,
+  locale,
+}: {
+  profile: Profile;
+  history: MiningHistory | null;
+  status: MiningStatus;
+  locale: string;
+}) {
+  const t = useTranslations('dashboard');
+  const balance = useCountUp(profile.pointsBalance);
+  // SPEC §3: 3 points = 1 mainnet $Matsumoto.
+  const token = balance / 3;
+
+  return (
+    <section className="panel flex flex-col justify-between gap-5 p-5 sm:p-7">
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          {t('balance')}
+        </div>
+        <div className="mt-1.5 flex items-baseline gap-2">
+          <span className="text-3xl font-extrabold tabular-nums text-white sm:text-4xl">
+            {balance.toFixed(2)}
+          </span>
+          <span className="text-sm font-semibold text-slate-400">
+            {t('pointsShort')}
+          </span>
+        </div>
+        <div className="mt-1 text-sm text-slate-400">
+          ≈ {token.toFixed(4)} $Matsumoto
+          <span className="ml-1 text-xs text-slate-500">({t('atRate')})</span>
+        </div>
+      </div>
+
+      {profile.kycStatus !== 'APPROVED' ? (
+        <Link
+          href={`/${locale}/kyc`}
+          className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/25 bg-amber-500/10 p-3 text-xs text-amber-200 transition hover:border-amber-400/50"
+        >
+          <span>{t('kycRequired', { status: profile.kycStatus })}</span>
+          <span className="shrink-0 font-bold">{t('verifyCta')} →</span>
+        </Link>
+      ) : (
+        <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-xs text-emerald-300">
+          ✓ {t('kycVerified')}
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div className="rounded-xl bg-white/[0.03] p-3">
+          <div className="text-xs text-slate-400">{t('minWithdrawal')}</div>
+          <div className="mt-0.5 font-bold tabular-nums">100 {t('pointsShort')}</div>
+        </div>
+        <div className="rounded-xl bg-white/[0.03] p-3">
+          <div className="text-xs text-slate-400">{t('boosters')}</div>
+          <div className="mt-0.5 font-bold tabular-nums">
+            {status.activeBoosters}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────── Stat cards ───────────────────────── */
+
+function StatCard({
+  i,
+  chip,
+  icon,
+  label,
+  value,
+  decimals = 0,
+  suffix = '',
+  badge,
+  spark,
+  href,
+  cta,
+}: {
+  i: number;
+  chip: string;
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  decimals?: number;
+  suffix?: string;
+  badge?: string;
+  spark?: boolean;
+  href?: string;
+  cta?: string;
+}) {
+  const animated = useCountUp(value);
+  const body = (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        <span className="chip" style={{ '--chip': chip } as React.CSSProperties}>
+          {icon}
+        </span>
+        {spark && <Sparkline />}
+      </div>
+      <div className="mt-3 truncate text-xs font-medium uppercase tracking-wide text-slate-400">
+        {label}
+      </div>
+      <div className="mt-1 flex items-baseline gap-1.5">
+        <span className="text-xl font-extrabold tabular-nums sm:text-2xl">
+          {animated.toFixed(decimals)}
+          {suffix}
+        </span>
+        {badge && (
+          <span className="rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[0.65rem] font-bold text-violet-300">
+            {badge}
+          </span>
+        )}
+      </div>
+      {cta && (
+        <span className="mt-1 block text-xs font-bold text-indigo-400">
+          {cta} →
+        </span>
+      )}
+    </>
+  );
+
+  const cls = 'panel panel-lift rise-in block p-4';
+  const style = { '--i': i + 1 } as React.CSSProperties;
+
+  return href ? (
+    <Link href={href} className={cls} style={style}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cls} style={style}>
+      {body}
+    </div>
+  );
+}
+
+/** A small upward trend line. Decorative — it is not plotting real series
+    data, so it carries no axis or value and is hidden from screen readers. */
+function Sparkline() {
+  return (
+    <svg width="56" height="24" viewBox="0 0 56 24" fill="none" aria-hidden>
+      <path
+        d="M1 20 L9 16 L17 18 L25 11 L33 13 L41 6 L49 8 L55 2"
+        stroke="#22c55e"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
 }
 
-/** Radial confetti fired once when a claim lands. */
+/* ───────────────────────── Plans / features ───────────────────── */
+
+function PlanCard({
+  plan,
+  popular,
+  href,
+}: {
+  plan: BoosterPlanDto;
+  popular: boolean;
+  href: string;
+}) {
+  const t = useTranslations('dashboard');
+  return (
+    <Link
+      href={href}
+      className={`panel panel-lift relative overflow-hidden p-4 ${
+        popular ? 'border-indigo-400/50' : ''
+      }`}
+    >
+      {popular && <span className="ribbon">{t('popular')}</span>}
+      {/* Every card reserves the ribbon's height so the rows line up
+          whether or not a card carries one. */}
+      <div className="mt-4">
+        <div className="text-lg font-extrabold">${plan.priceUsd}</div>
+        <div className="mt-0.5 text-xs text-slate-400">
+          +{plan.rateBonusPerHour} /h
+        </div>
+      </div>
+      <div className="mt-4 space-y-2 text-sm">
+        <Row label={t('resultingRate')} value={`${plan.resultingRatePerHour} /h`} accent />
+        <Row label={t('duration')} value={`${plan.durationDays} ${t('days')}`} />
+      </div>
+      <span className="btn-primary mt-4 w-full py-2 text-sm">{t('getStarted')}</span>
+    </Link>
+  );
+}
+
+function Row({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-slate-400">{label}</span>
+      <span className={`font-bold ${accent ? 'text-emerald-400' : ''}`}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function Feature({
+  chip,
+  icon,
+  title,
+  body,
+}: {
+  chip: string;
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="text-center">
+      <span
+        className="chip mx-auto"
+        style={{ '--chip': chip } as React.CSSProperties}
+      >
+        {icon}
+      </span>
+      <div className="mt-2 text-sm font-bold">{title}</div>
+      <div className="mt-0.5 text-xs text-slate-400">{body}</div>
+    </div>
+  );
+}
+
+/* ──────────────────────── Recent activity ─────────────────────── */
+
+const REASON_CHIP: Record<string, string> = {
+  MINING: '#818cf8',
+  TASK_REWARD: '#22c55e',
+  REFERRAL_BONUS: '#38bdf8',
+  BOOSTER_PURCHASE: '#a78bfa',
+  WITHDRAWAL: '#f59e0b',
+  AIRDROP: '#ec4899',
+  ADMIN_ADJUST: '#94a3b8',
+};
+
+function RecentActivity({ entries }: { entries: LedgerEntryDto[] }) {
+  const t = useTranslations('dashboard');
+  if (!entries.length) return null;
+
+  return (
+    <section className="panel mt-4 p-5">
+      <h2 className="font-bold">{t('recentTitle')}</h2>
+      <ul className="mt-3 divide-y divide-white/5">
+        {entries.map((e) => (
+          <li key={e.id} className="flex items-center gap-3 py-2.5">
+            <span
+              className="chip !h-9 !w-9"
+              style={
+                { '--chip': REASON_CHIP[e.reason] ?? '#94a3b8' } as React.CSSProperties
+              }
+            >
+              <IconBolt className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-semibold">
+                {t(`reason.${e.reason}`)}
+              </div>
+              <div className="text-xs text-slate-500">
+                {new Date(e.createdAt).toLocaleString()}
+              </div>
+            </div>
+            <span
+              className={`shrink-0 text-sm font-bold tabular-nums ${
+                e.points >= 0 ? 'text-emerald-400' : 'text-amber-400'
+              }`}
+            >
+              {e.points >= 0 ? '+' : ''}
+              {e.points.toFixed(2)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function ReferralPanel({
+  profile,
+  locale,
+}: {
+  profile: Profile;
+  locale: string;
+}) {
+  const t = useTranslations('dashboard');
+  const [copied, setCopied] = useState(false);
+  const link =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/${locale}/login?ref=${profile.referralCode}`
+      : '';
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard blocked — the link is still selectable */
+    }
+  }
+
+  return (
+    <section className="panel mt-4 p-5">
+      <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {t('referralLink')}
+      </div>
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <code className="flex-1 truncate rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-indigo-300">
+          {link}
+        </code>
+        <button
+          onClick={copy}
+          className="shrink-0 rounded-full border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-indigo-400/50"
+        >
+          {copied ? `✓ ${t('copied')}` : t('copy')}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function Skeleton({ message }: { message: string | null }) {
+  return (
+    <div className="app-shell min-h-dvh px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-5 flex items-center justify-between">
+          <div className="skeleton h-9 w-40" />
+          <div className="skeleton h-9 w-24 !rounded-full" />
+        </div>
+        <div className="grid gap-4 lg:grid-cols-[1.15fr_1fr]">
+          <div className="skeleton h-64 w-full" />
+          <div className="skeleton h-64 w-full" />
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="skeleton h-32 w-full" />
+          ))}
+        </div>
+        {message && (
+          <p className="mt-6 text-center text-sm text-slate-400">{message}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────────────── Shared bits ───────────────────────── */
+
+function ProgressRing({ progress }: { progress: number }) {
+  const R = 66;
+  const C = 2 * Math.PI * R;
+  return (
+    <svg width="158" height="158" viewBox="0 0 158 158" aria-hidden>
+      <defs>
+        <linearGradient id="ringGradient" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#6366f1" />
+          <stop offset="55%" stopColor="#a78bfa" />
+          <stop offset="100%" stopColor="#38bdf8" />
+        </linearGradient>
+      </defs>
+      <circle
+        cx="79"
+        cy="79"
+        r={R}
+        fill="none"
+        strokeWidth="7"
+        stroke="rgba(255,255,255,0.08)"
+      />
+      <circle
+        className="ring-progress"
+        cx="79"
+        cy="79"
+        r={R}
+        fill="none"
+        strokeWidth="7"
+        strokeDasharray={C}
+        strokeDashoffset={C * (1 - progress)}
+        transform="rotate(-90 79 79)"
+      />
+    </svg>
+  );
+}
+
 function Burst() {
-  const colors = ['#6366f1', '#7c3aed', '#2563eb', '#22c55e', '#f59e0b'];
+  const colors = ['#6366f1', '#a78bfa', '#38bdf8', '#22c55e', '#f59e0b'];
   return (
     <div className="pointer-events-none absolute inset-0 z-10" aria-hidden>
       {Array.from({ length: 14 }).map((_, i) => (
@@ -364,147 +879,10 @@ function Burst() {
   );
 }
 
-/* ─────────────────────────── Stat cards ──────────────────────────── */
+/* ───────────────────────────── Hooks ──────────────────────────── */
 
-function Stat({
-  i,
-  icon,
-  label,
-  value,
-  text,
-  badge,
-  decimals = 0,
-  href,
-  cta,
-}: {
-  i: number;
-  icon: React.ReactNode;
-  label: string;
-  value?: number;
-  text?: string;
-  badge?: string;
-  decimals?: number;
-  /** Turns the card into a link — used to reach the booster shop. */
-  href?: string;
-  cta?: string;
-}) {
-  const animated = useCountUp(value ?? 0);
-  const className = 'card-soft card-soft-lift rise-in block p-4';
-  const style = { '--i': i + 1 } as React.CSSProperties;
-
-  const body = (
-    <>
-      <div className="grid h-9 w-9 place-items-center rounded-full bg-indigo-50 text-indigo-600">
-        {icon}
-      </div>
-      <div className="mt-3 truncate text-xs font-medium uppercase tracking-wide text-slate-500">
-        {label}
-      </div>
-      <div className="mt-1 flex items-baseline gap-1.5">
-        <span className="text-xl font-bold tabular-nums">
-          {text ?? animated.toFixed(decimals)}
-        </span>
-        {badge && (
-          <span className="rounded-full bg-violet-50 px-1.5 py-0.5 text-xs font-bold text-violet-600">
-            {badge}
-          </span>
-        )}
-      </div>
-      {cta && (
-        <span className="mt-1 block text-xs font-semibold text-indigo-600">
-          {cta} →
-        </span>
-      )}
-    </>
-  );
-
-  return href ? (
-    <Link href={href} className={className} style={style}>
-      {body}
-    </Link>
-  ) : (
-    <div className={className} style={style}>
-      {body}
-    </div>
-  );
-}
-
-/* ───────────────────────────── Chrome ────────────────────────────── */
-
-function Header({
-  onSignOut,
-  locale,
-  title,
-}: {
-  onSignOut: () => void;
-  locale: string;
-  title: string;
-}) {
-  const t = useTranslations('dashboard');
-  return (
-    <header
-      className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/80 backdrop-blur"
-      style={{ paddingTop: 'env(safe-area-inset-top)' }}
-    >
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
-        <Link href={`/${locale}`} className="flex items-center gap-2 font-bold">
-          <span className="logo-badge">M</span>
-          <span className="truncate">{title}</span>
-        </Link>
-        <button
-          onClick={onSignOut}
-          className="btn-outline-brand shrink-0 px-4 py-2 text-sm"
-        >
-          {t('signOut')}
-        </button>
-      </div>
-    </header>
-  );
-}
-
-function DashboardSkeleton({ message }: { message: string | null }) {
-  return (
-    <div className="glow-field-light min-h-dvh px-4 py-6 sm:px-6">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex items-center justify-between">
-          <div className="skeleton h-9 w-40" />
-          <div className="skeleton h-9 w-24 !rounded-full" />
-        </div>
-        <div className="card-soft flex flex-col items-center gap-8 p-8 sm:flex-row sm:justify-between">
-          <div className="w-full max-w-xs space-y-3">
-            <div className="skeleton h-4 w-24" />
-            <div className="skeleton h-12 w-full" />
-            <div className="skeleton h-8 w-32 !rounded-full" />
-          </div>
-          <div className="skeleton h-[9rem] w-[9rem] shrink-0 !rounded-full" />
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="card-soft space-y-3 p-4">
-              <div className="skeleton h-9 w-9 !rounded-full" />
-              <div className="skeleton h-3 w-16" />
-              <div className="skeleton h-6 w-20" />
-            </div>
-          ))}
-        </div>
-        {message && (
-          <p className="mt-6 text-center text-sm text-slate-500">{message}</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ───────────────────────────── Hooks ─────────────────────────────── */
-
-/**
- * Interpolates pending points between server polls, so the counter visibly
- * ticks up instead of sitting still for a minute. Clamped to the same 24h
- * ceiling the backend enforces, so it never overstates what a tap will pay.
- */
 function useLiveAccrual(status: MiningStatus): number {
   const [pending, setPending] = useState(status.pendingPoints);
-  // Re-anchor whenever a fresh reading lands.
   const anchor = useRef({ at: 0, base: status.pendingPoints });
 
   useEffect(() => {
@@ -525,7 +903,6 @@ function useLiveAccrual(status: MiningStatus): number {
   return pending;
 }
 
-/** Eased count-up so stat values roll rather than snap when they change. */
 function useCountUp(target: number, duration = 900): number {
   const [display, setDisplay] = useState(target);
   const from = useRef(target);
@@ -538,7 +915,6 @@ function useCountUp(target: number, duration = 900): number {
     let raf = 0;
     const step = (now: number) => {
       const p = Math.min(1, (now - start) / duration);
-      // easeOutCubic
       const eased = 1 - Math.pow(1 - p, 3);
       setDisplay(origin + (target - origin) * eased);
       if (p < 1) raf = requestAnimationFrame(step);
@@ -551,7 +927,6 @@ function useCountUp(target: number, duration = 900): number {
   return display;
 }
 
-/** "05h 12m 44s" until the cooldown lifts, or null once it has. */
 function useCountdown(iso: string | null): string | null {
   const [label, setLabel] = useState<string | null>(null);
 
@@ -563,10 +938,7 @@ function useCountdown(iso: string | null): string | null {
     const target = new Date(iso).getTime();
     const render = () => {
       const ms = target - Date.now();
-      if (ms <= 0) {
-        setLabel(null);
-        return;
-      }
+      if (ms <= 0) return setLabel(null);
       const s = Math.floor(ms / 1000);
       const pad = (n: number) => String(n).padStart(2, '0');
       setLabel(
@@ -581,81 +953,108 @@ function useCountdown(iso: string | null): string | null {
   return label;
 }
 
-/* ───────────────────────────── Icons ─────────────────────────────── */
+/* ───────────────────────────── Icons ──────────────────────────── */
 
-function IconBolt({ className = 'h-[18px] w-[18px]' }: { className?: string }) {
+const ico = 'h-[18px] w-[18px]';
+
+function IconBolt({ className = ico }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
       <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z" />
     </svg>
   );
 }
-
-function IconTier({ className = 'h-[18px] w-[18px]' }: { className?: string }) {
+function IconCoins({ className = ico }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
-      <path d="M12 2 2 8l10 6 10-6-10-6Zm0 10-10-6v2l10 6 10-6V6l-10 6Zm0 4-10-6v2l10 6 10-6v-2l-10 6Z" />
+      <ellipse cx="12" cy="6" rx="8" ry="3" />
+      <path d="M4 6v4c0 1.7 3.6 3 8 3s8-1.3 8-3V6c0 1.7-3.6 3-8 3s-8-1.3-8-3Z" />
+      <path d="M4 12v4c0 1.7 3.6 3 8 3s8-1.3 8-3v-4c0 1.7-3.6 3-8 3s-8-1.3-8-3Z" />
     </svg>
   );
 }
-
-function IconRocket({ className = 'h-[18px] w-[18px]' }: { className?: string }) {
+function IconChip({ className = ico }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
-      <path d="M12 2c3 2 5 6 5 10 0 1.5-.3 2.9-.8 4l-2.2-1c.5-1 .8-2 .8-3 0-3-1.5-6-2.8-7.5C10.7 5.9 9 8.7 9 12c0 1 .3 2 .8 3l-2.2 1c-.5-1.1-.8-2.5-.8-4 0-4 2-8 5-10Zm-3 15 1.5 3H8l-1-2 2-1Zm6 0 2 1-1 2h-2.5l1.5-3Z" />
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <rect x="6" y="6" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="9.5" y="9.5" width="5" height="5" rx="1" fill="currentColor" />
+      <path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
-
-function IconUsers({ className = 'h-[18px] w-[18px]' }: { className?: string }) {
+function IconDoc({ className = ico }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path d="M6 3h8l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M13 3v5h5M8 13h8M8 17h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+function IconUsers({ className = ico }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
       <path d="M9 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-3.3 0-8 1.7-8 5v2h16v-2c0-3.3-4.7-5-8-5Zm7.5-3.5A3.5 3.5 0 1 0 16.5 3a3.5 3.5 0 0 0 0 7Zm.6 2.1c1.2.6 2.9 2 2.9 3.9v3H23v-3c0-2.7-2.5-3.5-5.9-3.9Z" />
     </svg>
   );
 }
-
-function IconClock({ className = 'h-[18px] w-[18px]' }: { className?: string }) {
+function IconClock({ className = ico }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
       <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
-      <path
-        d="M12 7v5l3 2"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
+      <path d="M12 7v5l3 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
-
-function IconPick() {
+function IconSwap({ className = ico }: { className?: string }) {
   return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M14.5 3c2.5.4 5 2 6.5 4.2-1.6-.5-3-.4-4.3.2M9.5 3C7 3.4 4.5 5 3 7.2c1.6-.5 3-.4 4.3.2"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="m12 6 1.6 1.6L7.4 20.4a1.1 1.1 0 0 1-1.9-1L12 6Z"
-        fill="currentColor"
-      />
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path d="M4 8h13l-3-3M20 16H7l3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
-
-function IconSpinner() {
+function IconShield({ className = ico }: { className?: string }) {
   return (
-    <svg
-      width="28"
-      height="28"
-      viewBox="0 0 24 24"
-      fill="none"
-      className="animate-spin"
-      aria-hidden
-    >
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path d="m12 3 7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="m9 12 2 2 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function IconHome({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path d="m4 11 8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1v-8Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function IconGrid({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <rect x="4" y="4" width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+function IconRocket({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M12 2c3 2 5 6 5 10 0 1.5-.3 2.9-.8 4l-2.2-1c.5-1 .8-2 .8-3 0-3-1.5-6-2.8-7.5C10.7 5.9 9 8.7 9 12c0 1 .3 2 .8 3l-2.2 1c-.5-1.1-.8-2.5-.8-4 0-4 2-8 5-10Zm-3 15 1.5 3H8l-1-2 2-1Zm6 0 2 1-1 2h-2.5l1.5-3Z" />
+    </svg>
+  );
+}
+function IconPick({ className = 'h-6 w-6' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path d="M14.5 3c2.5.4 5 2 6.5 4.2-1.6-.5-3-.4-4.3.2M9.5 3C7 3.4 4.5 5 3 7.2c1.6-.5 3-.4 4.3.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="m12 6 1.6 1.6L7.4 20.4a1.1 1.1 0 0 1-1.9-1L12 6Z" fill="currentColor" />
+    </svg>
+  );
+}
+function IconSpinner({ className = 'h-6 w-6' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={`${className} animate-spin`} aria-hidden>
       <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity="0.25" />
       <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
     </svg>

@@ -281,3 +281,26 @@ export const submitBoosterPayment = (purchaseId: string, txHash: string) =>
     method: 'POST',
     body: JSON.stringify({ txHash }),
   });
+
+// ─────────────────── Mining history / earnings ──────────────
+
+export interface LedgerEntryDto {
+  id: string;
+  reason:
+    | 'MINING'
+    | 'TASK_REWARD'
+    | 'REFERRAL_BONUS'
+    | 'BOOSTER_PURCHASE'
+    | 'WITHDRAWAL'
+    | 'AIRDROP'
+    | 'ADMIN_ADJUST';
+  points: number;
+  createdAt: string;
+}
+
+export interface MiningHistory {
+  lifetimeEarnedPoints: number;
+  entries: LedgerEntryDto[];
+}
+
+export const getMiningHistory = () => apiFetch<MiningHistory>('/mining/history');

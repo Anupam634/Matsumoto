@@ -46,15 +46,15 @@ export default function BoostersClient() {
   }, [load, router, params.locale]);
 
   return (
-    <div className="glow-field-light min-h-dvh text-slate-900">
+    <div className="app-shell min-h-dvh">
       <header
-        className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/80 backdrop-blur"
+        className="sticky top-0 z-20 border-b border-white/5 bg-[#05070f]/85 backdrop-blur"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3.5 sm:px-6">
           <Link
             href={`/${params.locale}/dashboard`}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-indigo-600"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 transition hover:text-indigo-300"
           >
             ← {t('backToDashboard')}
           </Link>
@@ -71,10 +71,10 @@ export default function BoostersClient() {
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
           {t('title')}
         </h1>
-        <p className="mt-2 text-slate-600">{t('subtitle')}</p>
+        <p className="mt-2 text-slate-400">{t('subtitle')}</p>
 
         {error && (
-          <p className="mt-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+          <p className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
             {error}
           </p>
         )}
@@ -88,20 +88,20 @@ export default function BoostersClient() {
         ) : (
           <>
             {data.activeBoosters.length > 0 && (
-              <section className="card-soft mt-6 p-5">
-                <h2 className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              <section className="panel mt-6 p-5">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                   {t('activeTitle')}
                 </h2>
                 <ul className="mt-3 space-y-2">
                   {data.activeBoosters.map((b) => (
                     <li
                       key={b.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm"
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-sm"
                     >
-                      <span className="font-semibold text-emerald-700">
+                      <span className="font-semibold text-emerald-300">
                         ${b.priceUsd} · +{b.rateBonusPerHour}/h
                       </span>
-                      <span className="text-emerald-700/80">
+                      <span className="text-emerald-300/80">
                         {t('expires')} {new Date(b.expiresAt).toLocaleDateString()}
                       </span>
                     </li>
@@ -111,7 +111,7 @@ export default function BoostersClient() {
             )}
 
             {!data.payment.enabled && (
-              <p className="mt-6 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              <p className="mt-6 flex items-start gap-2 rounded-xl border border-amber-400/25 bg-amber-500/10 p-4 text-sm text-amber-200">
                 <span aria-hidden>ⓘ</span>
                 <span>
                   {t('paymentsDisabled')}
@@ -137,22 +137,22 @@ export default function BoostersClient() {
             </div>
 
             {data.purchases.length > 0 && (
-              <section className="card-soft mt-6 p-5">
-                <h2 className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              <section className="panel mt-6 p-5">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                   {t('historyTitle')}
                 </h2>
                 <ul className="mt-3 space-y-2 text-sm">
                   {data.purchases.map((p) => (
                     <li
                       key={p.id}
-                      className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2 last:border-0"
+                      className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-2 last:border-0"
                     >
                       <span>
                         {p.amount} {p.tokenSymbol}
                       </span>
                       <StatusBadge status={p.status} />
                       {p.failureReason && (
-                        <span className="w-full text-xs text-red-500">
+                        <span className="w-full text-xs text-red-400">
                           {p.failureReason}
                         </span>
                       )}
@@ -208,18 +208,18 @@ function PlanCard({
   }
 
   return (
-    <div className="card-soft card-soft-lift flex flex-col p-5 text-center">
-      <div className="text-3xl font-extrabold text-indigo-600">
+    <div className="panel panel-lift flex flex-col p-5 text-center">
+      <div className="text-3xl font-extrabold text-indigo-300">
         ${plan.priceUsd}
       </div>
-      <div className="mt-3 text-xs uppercase tracking-wide text-slate-500">
+      <div className="mt-3 text-xs uppercase tracking-wide text-slate-400">
         {t('resultingRate')}
       </div>
       <div className="text-xl font-bold">{plan.resultingRatePerHour} /h</div>
-      <div className="mt-1 text-sm text-emerald-600">
+      <div className="mt-1 text-sm text-emerald-400">
         +{plan.rateBonusPerHour}/h
       </div>
-      <div className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500">
+      <div className="mt-3 border-t border-white/10 pt-3 text-xs text-slate-400">
         {plan.durationDays} {t('days')} · {t('stackable')}
       </div>
       <button
@@ -276,18 +276,18 @@ function PayModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 p-4 backdrop-blur-sm">
-      <div className="card-soft w-full max-w-md p-6">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm">
+      <div className="panel w-full max-w-md p-6">
         <h2 className="text-lg font-bold">{t('payTitle')}</h2>
-        <p className="mt-1 text-sm text-slate-600">{t('payBody')}</p>
+        <p className="mt-1 text-sm text-slate-400">{t('payBody')}</p>
 
         <dl className="mt-4 space-y-3">
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               {t('amount')}
             </dt>
             <dd className="mt-1 flex items-center gap-2">
-              <code className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold">
+              <code className="flex-1 rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-sm font-bold">
                 {purchase.amount} {purchase.tokenSymbol}
               </code>
               <button
@@ -299,11 +299,11 @@ function PayModal({
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               {t('payTo')}
             </dt>
             <dd className="mt-1 flex items-center gap-2">
-              <code className="flex-1 break-all rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+              <code className="flex-1 break-all rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-xs">
                 {purchase.payToAddress}
               </code>
               <button
@@ -315,22 +315,22 @@ function PayModal({
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               {t('payFrom')}
             </dt>
-            <dd className="mt-1 break-all font-mono text-xs text-slate-600">
+            <dd className="mt-1 break-all font-mono text-xs text-slate-400">
               {purchase.fromAddress}
             </dd>
           </div>
         </dl>
 
-        <p className="mt-3 rounded-xl bg-indigo-50/70 p-3 text-xs text-slate-600">
+        <p className="mt-3 rounded-xl border border-indigo-400/20 bg-indigo-500/10 p-3 text-xs text-slate-300">
           {t('payWarning', { confirmations: minConfirmations })}
         </p>
 
         <form onSubmit={submit} className="mt-4">
           <label className="block">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               {t('txHash')}
             </span>
             <input
@@ -343,7 +343,7 @@ function PayModal({
           </label>
 
           {error && (
-            <p className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+            <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
               {error}
             </p>
           )}
@@ -373,10 +373,10 @@ function PayModal({
 function StatusBadge({ status }: { status: string }) {
   const tone =
     status === 'CONFIRMED'
-      ? 'bg-emerald-50 text-emerald-600'
+      ? 'bg-emerald-500/15 text-emerald-300'
       : status === 'AWAITING_PAYMENT'
-        ? 'bg-amber-50 text-amber-700'
-        : 'bg-red-50 text-red-600';
+        ? 'bg-amber-500/15 text-amber-300'
+        : 'bg-red-500/15 text-red-300';
   return (
     <span className={`rounded-full px-2 py-1 text-xs font-semibold ${tone}`}>
       {status.replace('_', ' ')}
