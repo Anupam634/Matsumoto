@@ -79,7 +79,7 @@ export default function TasksSection({
 
   if (!tasks) {
     return (
-      <section className="card-soft mt-4 p-5">
+      <section className="panel mt-4 p-5">
         <div className="skeleton h-4 w-24" />
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {[0, 1, 2].map((i) => (
@@ -92,18 +92,16 @@ export default function TasksSection({
 
   return (
     <section
-      className="card-soft rise-in mt-4 p-5"
+      className="panel rise-in mt-4 p-5"
       style={{ '--i': 5 } as React.CSSProperties}
     >
-      <div className="flex items-center justify-between">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-slate-500">
-          {t('tasksTitle')}
-        </h2>
-        <span className="text-xs text-slate-400">{t('tasksSubtitle')}</span>
+      <div className="flex items-end justify-between gap-3">
+        <h2 className="font-bold">{t('tasksTitle')}</h2>
+        <span className="text-sm text-slate-400">{t('tasksSubtitle')}</span>
       </div>
 
       {error && (
-        <p className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+        <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
           {error}
         </p>
       )}
@@ -112,10 +110,10 @@ export default function TasksSection({
         {tasks.map((task) => (
           <div
             key={task.id}
-            className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4"
+            className="relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] p-4"
           >
             {won?.id === task.id && (
-              <span className="float-up absolute left-1/2 top-2 z-10 whitespace-nowrap text-lg font-extrabold text-emerald-500">
+              <span className="float-up absolute left-1/2 top-2 z-10 whitespace-nowrap text-lg font-extrabold text-emerald-400">
                 +{won.points.toFixed(2)}
               </span>
             )}
@@ -125,7 +123,7 @@ export default function TasksSection({
                 <SpinWheel spinning={spinningId === task.id} />
               ) : (
                 <span
-                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-indigo-50 text-lg"
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-indigo-500/15 text-lg"
                   aria-hidden
                 >
                   {ICON[task.type]}
@@ -136,7 +134,7 @@ export default function TasksSection({
                 <div className="truncate font-semibold">
                   {taskLabels(LABEL_KEY[task.type])}
                 </div>
-                <div className="mt-0.5 text-sm font-medium text-indigo-600">
+                <div className="mt-0.5 text-sm font-semibold text-indigo-300">
                   +{task.rewardPoints} {t('pointsShort')}
                 </div>
               </div>

@@ -33,9 +33,9 @@ export function CountrySelect({
 
   return (
     <label className="block" htmlFor={id}>
-      <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
-        {label}
-      </span>
+      {/* Shared by the light signup page and the dark KYC form, so the
+          label colour comes from a class that follows the surface. */}
+      <span className="field-label">{label}</span>
       <select
         id={id}
         className="input-field mt-1.5"
