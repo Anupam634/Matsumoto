@@ -333,3 +333,39 @@ export const requestWithdrawal = (points: number, toAddress: string) =>
     method: 'POST',
     body: JSON.stringify({ points, toAddress }),
   });
+
+// ─────────────────────────── Support ────────────────────────
+
+export interface SupportMessageDto {
+  id: string;
+  /** False for the miner's own messages, true for an operator reply. */
+  fromAdmin: boolean;
+  body: string;
+  createdAt: string;
+}
+
+export interface SupportTicketDto {
+  id: string;
+  subject: string;
+  status: 'OPEN' | 'ANSWERED' | 'CLOSED';
+  createdAt: string;
+  updatedAt: string;
+  messages: SupportMessageDto[];
+}
+
+/** Server-side cap on tickets left unresolved — mirrored so the UI can explain it. */
+export const SUPPORT_MAX_OPEN = 3;
+
+export const getSupportTickets = () => apiFetch<SupportTicketDto[]>('/support');
+
+export const createSupportTicket = (subject: string, body: string) =>
+  apiFetch<SupportTicketDto>('/support', {
+    method: 'POST',
+    body: JSON.stringify({ subject, body }),
+  });
+
+export const replyToSupportTicket = (id: string, body: string) =>
+  apiFetch<SupportTicketDto>(`/support/${id}/reply`, {
+    method: 'POST',
+    body: JSON.stringify({ body }),
+  });

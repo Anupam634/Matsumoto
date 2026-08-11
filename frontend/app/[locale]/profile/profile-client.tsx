@@ -79,6 +79,7 @@ export default function ProfileClient() {
             <AccountCard profile={profile} locale={locale} />
             <IdentityCard profile={profile} locale={locale} />
             <ReferralCard profile={profile} locale={locale} />
+            <HelpCard locale={locale} />
 
             <button
               onClick={() => {
@@ -248,6 +249,41 @@ function ReferralCard({ profile, locale }: { profile: Profile; locale: string })
         >
           {copied ? '✓' : t('copy')}
         </button>
+      </div>
+    </section>
+  );
+}
+
+/* ────────────────────────────── Help ────────────────────────────── */
+
+function HelpCard({ locale }: { locale: string }) {
+  const t = useTranslations('profile');
+  return (
+    <section className="panel mt-4 p-5 sm:p-6">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {t('helpTitle')}
+      </h2>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <Link
+          href={`/${locale}/support`}
+          className="btn-primary w-full py-2.5 text-center text-sm"
+        >
+          {t('contactSupport')}
+        </Link>
+        <Link
+          href={`/${locale}/faq`}
+          className="btn-outline-brand w-full py-2.5 text-center text-sm"
+        >
+          {t('readFaq')}
+        </Link>
+      </div>
+      <div className="mt-3 flex justify-center gap-4 text-xs text-slate-500">
+        <Link href={`/${locale}/terms`} className="transition hover:text-slate-300">
+          {t('terms')}
+        </Link>
+        <Link href={`/${locale}/privacy`} className="transition hover:text-slate-300">
+          {t('privacy')}
+        </Link>
       </div>
     </section>
   );

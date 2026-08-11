@@ -91,7 +91,11 @@
     },
     "footer": {
       "disclaimer": "Matsumoto is a reward-simulation platform: \"mining\" is scheduled point accrual, not proof-of-work hardware. Points hold no value until they are converted and withdrawn as $Matsumoto on BNB Chain, subject to KYC and review.",
-      "copyright": "© Matsumoto Mining Platform"
+      "copyright": "© Matsumoto Mining Platform",
+      "faq": "FAQ",
+      "support": "Support",
+      "terms": "Terms",
+      "privacy": "Privacy"
     }
   },
   "dashboard": {
@@ -328,6 +332,159 @@
     "invited": "Invited",
     "tier": "Tier",
     "copy": "Copy",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "helpTitle": "Help",
+    "contactSupport": "Contact support",
+    "readFaq": "Read the FAQ",
+    "terms": "Terms",
+    "privacy": "Privacy"
+  },
+  "support": {
+    "title": "Support",
+    "subtitle": "Ask us anything about your account, mining, or a payment.",
+    "backToDashboard": "Back to dashboard",
+    "offline": "Can't reach the server. Try again.",
+    "tryFaq": "Most questions are answered already.",
+    "readFaq": "Read the FAQ",
+    "newTicket": "New ticket",
+    "atCap": "You have {max} tickets still open. Continue in one of those, or wait for a reply.",
+    "empty": "You haven't contacted support yet.",
+    "subject": "Subject",
+    "subjectPlaceholder": "Short summary of the problem",
+    "message": "Message",
+    "messagePlaceholder": "What happened? Include any transaction hash or dates that might help.",
+    "cancel": "Cancel",
+    "send": "Send",
+    "sending": "Sending…",
+    "reply": "Reply",
+    "replyPlaceholder": "Add to this conversation…",
+    "messageCount": "{n} messages",
+    "fromSupport": "Support",
+    "fromYou": "You",
+    "closedNote": "This ticket is closed. Open a new one if you still need help.",
+    "status": {
+      "OPEN": "Waiting for us",
+      "ANSWERED": "Answered",
+      "CLOSED": "Closed"
+    }
+  },
+  "faq": {
+    "title": "Frequently asked questions",
+    "backHome": "Back to home",
+    "intro": "How mining, boosters, verification and payouts actually work here.",
+    "q": {
+      "mining": {
+        "q": "What does “mining” mean on Matsumoto?",
+        "a": "It is scheduled reward accrual, not physical hardware. Your account earns Matsumoto Points at an hourly rate; no computer anywhere is solving hashes on your behalf.\n\nPoints are internal units. Only a withdrawal converts them to on-chain $Matsumoto."
+      },
+      "cooldown": {
+        "q": "Why can I only tap Mine once a day?",
+        "a": "Tapping Mine banks whatever has accrued and starts a 24-hour cooldown. Points keep accruing between taps, up to a ceiling of 24 hours' worth, so nothing is lost if you come back a little late — but accrual stops once you hit that ceiling."
+      },
+      "conversion": {
+        "q": "How many points is one $Matsumoto?",
+        "a": "Three points convert to one $Matsumoto. The rate is fixed in the platform and applied when you withdraw."
+      },
+      "minWithdrawal": {
+        "q": "What is the minimum withdrawal?",
+        "a": "100 points, and one withdrawal request per week. Your identity must be verified first."
+      },
+      "withdrawTime": {
+        "q": "How long does a withdrawal take?",
+        "a": "Points leave your balance the moment you request, so a pending request cannot be spent twice. An operator then reviews it before the on-chain transfer is sent.\n\nIf a request is rejected, the points are returned to your balance and the reason is shown on the withdrawal page."
+      },
+      "kyc": {
+        "q": "Why do you need my ID?",
+        "a": "Verification is required before your first withdrawal, so payouts go to real, distinct people rather than to hundreds of accounts run by one person.\n\nYou can mine, complete tasks and buy boosters without verifying. Only withdrawal is gated."
+      },
+      "boosters": {
+        "q": "How do boosters work?",
+        "a": "A booster adds to your hourly rate for 30 days, and they stack — buying two adds both bonuses. They are paid in USDT on BNB Chain, directly from your own wallet."
+      },
+      "boosterFailed": {
+        "q": "I paid for a booster but it didn't activate.",
+        "a": "Payments are verified automatically against the chain. A payment is rejected if it used the wrong token, went to the wrong address, came from an address other than the one you entered, was for less than the price, or has not yet reached the required number of confirmations.\n\n“Waiting for confirmations” resolves on its own — submit the same transaction hash again in a minute. For anything else, open a ticket with the hash."
+      },
+      "referrals": {
+        "q": "What do referrals give me?",
+        "a": "Inviting people raises a multiplier on your mining rate. The tier and multiplier currently applied are shown on your dashboard and profile."
+      },
+      "tasks": {
+        "q": "What are tasks?",
+        "a": "Small repeatable actions that credit points directly. Each has its own reward and cooldown, both shown on the card."
+      }
+    }
+  },
+  "terms": {
+    "title": "Terms of service",
+    "backHome": "Back to home",
+    "intro": "The rules for using Matsumoto. Plain language, no surprises.",
+    "updated": "These terms are a working draft and have not been reviewed by a lawyer.",
+    "q": {
+      "service": {
+        "q": "What this service is",
+        "a": "Matsumoto is a rewards platform. “Mining” here means scheduled reward accrual on your account. There is no physical mining hardware, and no guarantee of profit."
+      },
+      "eligibility": {
+        "q": "Who can use it",
+        "a": "You must be old enough to enter a contract where you live, and using the service must be legal there. One account per person. Accounts created to farm rewards may be limited or closed."
+      },
+      "points": {
+        "q": "Points",
+        "a": "Points are internal units with no value outside this platform until withdrawn. Rates, bonuses and conversion may be adjusted, and adjustments apply going forward, not retroactively."
+      },
+      "payouts": {
+        "q": "Payouts",
+        "a": "Withdrawals require verified identity, a minimum balance, and are limited to one request per week. Requests are reviewed before payment.\n\nOn-chain transfers are irreversible. You are responsible for the destination address you provide; funds sent to an address you mistyped cannot be recovered."
+      },
+      "conduct": {
+        "q": "What is not allowed",
+        "a": "Multiple or automated accounts, forged verification documents, and any attempt to manipulate accrual, referrals or payment verification. We may suspend an account and withhold a payout while investigating."
+      },
+      "liability": {
+        "q": "Limits",
+        "a": "The service is provided as-is. We are not liable for losses from network outages, chain congestion, third-party wallets, or your own loss of account or wallet access."
+      },
+      "changes": {
+        "q": "Changes",
+        "a": "These terms may change. Continued use after a change means you accept the updated version."
+      }
+    }
+  },
+  "privacy": {
+    "title": "Privacy policy",
+    "backHome": "Back to home",
+    "intro": "What we collect, why, and how long we keep it.",
+    "updated": "This policy is a working draft and has not been reviewed by a lawyer.",
+    "q": {
+      "collect": {
+        "q": "What we collect",
+        "a": "Your email address, the country you select, and a device fingerprint used to detect duplicate accounts. We also record your activity on the platform: accrual, taps, tasks, referrals, booster purchases and withdrawal requests."
+      },
+      "kycData": {
+        "q": "Verification documents",
+        "a": "If you verify your identity we collect your name, document type and number, country, photographs of that document, and a selfie.\n\nThis is the most sensitive data we hold. It is used only to decide whether to approve your verification and to satisfy the obligations that come with paying people out."
+      },
+      "use": {
+        "q": "How we use it",
+        "a": "To run your account, calculate rewards, detect abuse and duplicate accounts, review verification, and process withdrawals. We do not sell your data."
+      },
+      "share": {
+        "q": "Who else sees it",
+        "a": "The wallet address and amount of a withdrawal are written to a public blockchain and are permanently visible to anyone. Nothing else about you is published.\n\nWe use infrastructure providers to host the service, who process data on our behalf."
+      },
+      "retain": {
+        "q": "How long we keep it",
+        "a": "Account and transaction records are kept while your account exists and afterwards where records of payouts must be retained. Verification documents are kept for as long as required for that purpose and no longer."
+      },
+      "rights": {
+        "q": "Your choices",
+        "a": "You can ask what we hold about you, ask for corrections, or ask for deletion. Deletion requests are limited by records we are required to keep, and cannot remove anything already written to the blockchain."
+      },
+      "contact": {
+        "q": "Contact",
+        "a": "Open a support ticket from your profile and mark it as a privacy request."
+      }
+    }
   }
 }

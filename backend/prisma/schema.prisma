@@ -16,34 +16,35 @@ model User {
   email         String?  @unique
   walletAddress String?  @unique
   passwordHash  String?
-  countryCode   String?  // ISO-2, for admin per-country counts
+  countryCode   String? // ISO-2, for admin per-country counts
   isBlocked     Boolean  @default(false)
   createdAt     DateTime @default(now())
 
   // balances are stored as integer "milli-points" to avoid float drift
   // (1 point = 1000 units). Helpers convert to/from decimal.
-  pointsBalance BigInt   @default(0)
+  pointsBalance BigInt @default(0)
 
   // referral graph
-  referralCode  String   @unique @default(cuid())
-  referredById  String?
-  referredBy    User?    @relation("Referrals", fields: [referredById], references: [id])
-  referrals     User[]   @relation("Referrals")
+  referralCode String  @unique @default(cuid())
+  referredById String?
+  referredBy   User?   @relation("Referrals", fields: [referredById], references: [id])
+  referrals    User[]  @relation("Referrals")
 
   // last successful "Mine" tap — gates the 24h cooldown & accrual window
-  lastMineAt    DateTime?
+  lastMineAt DateTime?
 
   // Manual hash-rate adjustment from the admin panel (SPEC §6), in
   // milli-points/hour. Signed: negative throttles a suspected abuser.
-  rateAdjustMilli Int    @default(0)
+  rateAdjustMilli Int @default(0)
 
-  kyc           KycRecord?
-  boosters      Booster[]
-  taskClaims    TaskClaim[]
-  withdrawals   Withdrawal[]
+  kyc              KycRecord?
+  boosters         Booster[]
+  taskClaims       TaskClaim[]
+  withdrawals      Withdrawal[]
   boosterPurchases BoosterPurchase[]
-  ledger        LedgerEntry[]
-  devices       DeviceFingerprint[]
+  ledger           LedgerEntry[]
+  devices          DeviceFingerprint[]
+  supportTickets   SupportTicket[]
 
   @@index([referredById])
   @@index([countryCode])
@@ -68,8 +69,8 @@ model KycRecord {
   userId    String    @unique
   user      User      @relation(fields: [userId], references: [id])
   status    KycStatus @default(NONE)
-  provider  String?   // e.g. "sumsub"; "manual" for in-house review
-  reference String?   // provider-side applicant id
+  provider  String? // e.g. "sumsub"; "manual" for in-house review
+  reference String? // provider-side applicant id
   updatedAt DateTime  @updatedAt
 
   // ── Manual review (no third-party provider chosen yet, SPEC §9b.4) ──
@@ -105,15 +106,15 @@ model KycDocument {
 // ─────────────────────── Booster plans ───────────────────────
 // Catalogue of purchasable plans (seeded from SPEC.md table).
 model BoosterPlan {
-  id           String    @id @default(cuid())
-  priceUsd     Int       // 1, 5, 10, 50
+  id             String            @id @default(cuid())
+  priceUsd       Int // 1, 5, 10, 50
   // rate CONTRIBUTION added on top of base, in milli-points/hour.
   // $1 => resulting 2.9 from 0.9 base => +2.0/hr => 2000 milli.
   rateBonusMilli Int
-  durationDays Int       @default(30)
-  active       Boolean   @default(true)
-  boosters     Booster[]
-  purchases    BoosterPurchase[]
+  durationDays   Int               @default(30)
+  active         Boolean           @default(true)
+  boosters       Booster[]
+  purchases      BoosterPurchase[]
 }
 
 enum BoosterPurchaseStatus {
@@ -127,49 +128,49 @@ enum BoosterPurchaseStatus {
 // pays so the expected amount, recipient and payer wallet are all pinned;
 // the transaction is then verified against those pinned values.
 model BoosterPurchase {
-  id             String                @id @default(cuid())
-  userId         String
-  user           User                  @relation(fields: [userId], references: [id])
-  planId         String
-  plan           BoosterPlan           @relation(fields: [planId], references: [id])
-  status         BoosterPurchaseStatus @default(AWAITING_PAYMENT)
-  tokenSymbol    String
+  id              String                @id @default(cuid())
+  userId          String
+  user            User                  @relation(fields: [userId], references: [id])
+  planId          String
+  plan            BoosterPlan           @relation(fields: [planId], references: [id])
+  status          BoosterPurchaseStatus @default(AWAITING_PAYMENT)
+  tokenSymbol     String
   // Smallest-unit amount required, as a decimal string (bigint-safe).
-  expectedUnits  String
+  expectedUnits   String
   // Human-readable amount for the payment instructions, e.g. "5.0".
-  expectedAmount String
-  payToAddress   String
+  expectedAmount  String
+  payToAddress    String
   // Wallet the user declared they will pay from. Verification requires the
   // transaction's sender to match, so a stranger's tx hash cannot be claimed.
-  fromAddress    String
+  fromAddress     String
   // Only ever set on a CONFIRMED purchase, and unique — so one transaction
   // can fund exactly one booster. Deliberately NOT written on failure: a
   // rejected attempt must leave the payer free to re-submit the same real
   // payment against a corrected purchase.
-  txHash         String?               @unique
+  txHash          String?               @unique
   // Last hash the user tried, kept for support. Non-unique on purpose.
   attemptedTxHash String?
-  failureReason  String?
-  confirmedAt    DateTime?
-  createdAt      DateTime              @default(now())
-  expiresAt      DateTime
-  booster        Booster?
+  failureReason   String?
+  confirmedAt     DateTime?
+  createdAt       DateTime              @default(now())
+  expiresAt       DateTime
+  booster         Booster?
 
   @@index([userId])
   @@index([status])
 }
 
 model Booster {
-  id         String      @id @default(cuid())
+  id         String           @id @default(cuid())
   userId     String
-  user       User        @relation(fields: [userId], references: [id])
+  user       User             @relation(fields: [userId], references: [id])
   planId     String
-  plan       BoosterPlan @relation(fields: [planId], references: [id])
-  startedAt  DateTime    @default(now())
+  plan       BoosterPlan      @relation(fields: [planId], references: [id])
+  startedAt  DateTime         @default(now())
   expiresAt  DateTime
-  txHash     String?     // on-chain payment reference
-  createdAt  DateTime    @default(now())
-  purchaseId String?     @unique
+  txHash     String? // on-chain payment reference
+  createdAt  DateTime         @default(now())
+  purchaseId String?          @unique
   purchase   BoosterPurchase? @relation(fields: [purchaseId], references: [id])
 
   @@index([userId])
@@ -187,13 +188,13 @@ enum TaskType {
 }
 
 model Task {
-  id           String     @id @default(cuid())
-  type         TaskType
-  title        String
-  rewardMilli  Int        // point reward in milli-points
-  cooldownHours Int       @default(24)
-  active       Boolean    @default(true)
-  claims       TaskClaim[]
+  id            String      @id @default(cuid())
+  type          TaskType
+  title         String
+  rewardMilli   Int // point reward in milli-points
+  cooldownHours Int         @default(24)
+  active        Boolean     @default(true)
+  claims        TaskClaim[]
 }
 
 model TaskClaim {
@@ -210,24 +211,24 @@ model TaskClaim {
 
 // ─────────────────────── Withdrawals ─────────────────────────
 enum WithdrawalStatus {
-  PENDING     // awaiting admin approval
-  APPROVED    // approved, queued for payout
-  PAID        // on-chain tx confirmed
+  PENDING // awaiting admin approval
+  APPROVED // approved, queued for payout
+  PAID // on-chain tx confirmed
   REJECTED
 }
 
 model Withdrawal {
-  id            String           @id @default(cuid())
-  userId        String
-  user          User             @relation(fields: [userId], references: [id])
-  pointsAmount  BigInt           // milli-points debited
-  tokenAmount   String           // $Matsumoto (points/3), decimal string
-  toAddress     String
-  status        WithdrawalStatus @default(PENDING)
-  txHash        String?
-  adminNote     String?
-  requestedAt   DateTime         @default(now())
-  resolvedAt    DateTime?
+  id           String           @id @default(cuid())
+  userId       String
+  user         User             @relation(fields: [userId], references: [id])
+  pointsAmount BigInt // milli-points debited
+  tokenAmount  String // $Matsumoto (points/3), decimal string
+  toAddress    String
+  status       WithdrawalStatus @default(PENDING)
+  txHash       String?
+  adminNote    String?
+  requestedAt  DateTime         @default(now())
+  resolvedAt   DateTime?
 
   @@index([userId])
   @@index([status])
@@ -245,13 +246,13 @@ enum LedgerReason {
 }
 
 model LedgerEntry {
-  id        String       @id @default(cuid())
-  userId    String
-  user      User         @relation(fields: [userId], references: [id])
-  reason    LedgerReason
-  deltaMilli BigInt      // signed change to pointsBalance
-  meta      Json?
-  createdAt DateTime     @default(now())
+  id         String       @id @default(cuid())
+  userId     String
+  user       User         @relation(fields: [userId], references: [id])
+  reason     LedgerReason
+  deltaMilli BigInt // signed change to pointsBalance
+  meta       Json?
+  createdAt  DateTime     @default(now())
 
   @@index([userId, createdAt])
 }
@@ -276,4 +277,41 @@ model AdminUser {
   passwordHash String
   role         String   @default("admin")
   createdAt    DateTime @default(now())
+}
+
+// ────────────────────────── Support ──────────────────────────
+enum SupportStatus {
+  OPEN // waiting on an operator
+  ANSWERED // operator replied, waiting on the miner
+  CLOSED
+}
+
+// A support conversation. The thread lives in SupportMessage so both sides
+// can reply more than once; the ticket itself only tracks the subject and
+// where the conversation currently stands.
+model SupportTicket {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  subject   String
+  status    SupportStatus    @default(OPEN)
+  messages  SupportMessage[]
+  createdAt DateTime         @default(now())
+  // Bumped on every message so the operator queue can sort by staleness.
+  updatedAt DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([status, updatedAt])
+}
+
+model SupportMessage {
+  id        String        @id @default(cuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  // Distinguishes an operator reply from the miner's own message.
+  fromAdmin Boolean       @default(false)
+  body      String
+  createdAt DateTime      @default(now())
+
+  @@index([ticketId, createdAt])
 }

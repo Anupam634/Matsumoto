@@ -10,6 +10,7 @@ import { AdminModule } from './admin/admin.module';
 import { TasksModule } from './tasks/tasks.module';
 import { KycModule } from './kyc/kyc.module';
 import { BoostersModule } from './boosters/boosters.module';
+import { SupportModule } from './support/support.module';
 
 /**
  * Root module. Feature modules that are still stubs (referrals) get wired here as they are built out.
@@ -25,6 +26,7 @@ import { BoostersModule } from './boosters/boosters.module';
     AdminModule,
     TasksModule,
     KycModule,
+    SupportModule,
     BoostersModule,
   ],
   providers: [PrismaService],

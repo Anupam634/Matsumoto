@@ -19,6 +19,9 @@ import {
   getAdminToken,
   getStats,
   getKycDetail,
+  listSupport,
+  replySupport,
+  type AdminSupportTicket,
   getUserDetail,
   listKyc,
   listUsers,
@@ -34,7 +37,7 @@ import {
 } from '../../../lib/admin-api';
 import { countryFlag, countryName } from '../../../lib/countries';
 
-type Tab = 'miners' | 'withdrawals' | 'kyc';
+type Tab = 'miners' | 'withdrawals' | 'kyc' | 'support';
 
 export default function AdminClient() {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -217,6 +220,9 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
           <button data-active={tab === 'kyc'} onClick={() => setTab('kyc')}>
             KYC
           </button>
+          <button data-active={tab === 'support'} onClick={() => setTab('support')}>
+            Support
+          </button>
         </div>
 
         <div className="mt-4">
@@ -227,6 +233,7 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
             <WithdrawalsTab onChanged={loadStats} onUnauthorized={onSignOut} />
           )}
           {tab === 'kyc' && <KycTab onUnauthorized={onSignOut} />}
+          {tab === 'support' && <SupportTab onUnauthorized={onSignOut} />}
         </div>
       </main>
     </div>
@@ -767,6 +774,135 @@ function WithdrawalBadge({ status }: { status: string }) {
 }
 
 /* ─────────────────────────── KYC review ────────────────────── */
+
+function SupportTab({ onUnauthorized }: { onUnauthorized: () => void }) {
+  const [status, setStatus] = useState('OPEN');
+  const [rows, setRows] = useState<AdminSupportTicket[]>([]);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      setRows(await listSupport(status));
+      setError(null);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) return onUnauthorized();
+      setError(err instanceof ApiError ? err.message : 'Cannot reach the server.');
+    }
+  }, [status, onUnauthorized]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function send(id: string, close: boolean) {
+    if (draft.trim().length === 0) return;
+    setBusyId(id);
+    try {
+      await replySupport(id, draft.trim(), close ? 'CLOSED' : 'ANSWERED');
+      setDraft('');
+      setOpenId(null);
+      await load();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) return onUnauthorized();
+      setError(err instanceof ApiError ? err.message : 'Cannot reach the server.');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <div>
+      <div className="tab-switch inline-flex">
+        {['OPEN', 'ANSWERED', 'CLOSED', ''].map((s) => (
+          <button key={s || 'all'} data-active={status === s} onClick={() => setStatus(s)}>
+            {s || 'All'}
+          </button>
+        ))}
+      </div>
+
+      {error && <p className="admin-error mt-3">{error}</p>}
+
+      {rows.length === 0 ? (
+        <p className="mt-4 text-sm text-slate-500">No tickets here.</p>
+      ) : (
+        <ul className="mt-4 space-y-3">
+          {rows.map((row) => (
+            <li key={row.id} className="card-soft p-4">
+              <button
+                onClick={() => {
+                  setOpenId(openId === row.id ? null : row.id);
+                  setDraft('');
+                }}
+                className="flex w-full items-start justify-between gap-3 text-left"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold">{row.subject}</span>
+                  <span className="mt-0.5 block text-xs text-slate-500">
+                    {row.userEmail ?? 'no email'} · {row.messages.length} messages ·
+                    last activity {new Date(row.updatedAt).toLocaleString()}
+                  </span>
+                </span>
+                <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                  {row.status}
+                </span>
+              </button>
+
+              {openId === row.id && (
+                <div className="mt-3 border-t border-slate-200 pt-3">
+                  <ol className="space-y-2">
+                    {row.messages.map((m) => (
+                      <li
+                        key={m.id}
+                        className={`rounded-lg p-3 text-sm ${
+                          m.fromAdmin ? 'bg-indigo-50' : 'bg-slate-50'
+                        }`}
+                      >
+                        <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          {m.fromAdmin ? 'You' : 'Miner'} ·{' '}
+                          {new Date(m.createdAt).toLocaleString()}
+                        </div>
+                        <p className="whitespace-pre-wrap break-words text-slate-700">
+                          {m.body}
+                        </p>
+                      </li>
+                    ))}
+                  </ol>
+
+                  <textarea
+                    className="input-field mt-3 min-h-[5rem] resize-y"
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    maxLength={4000}
+                    placeholder="Your reply…"
+                  />
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      onClick={() => send(row.id, false)}
+                      disabled={busyId === row.id || draft.trim().length === 0}
+                      className="btn-primary px-4 py-2 text-sm"
+                    >
+                      {busyId === row.id ? 'Sending…' : 'Reply'}
+                    </button>
+                    <button
+                      onClick={() => send(row.id, true)}
+                      disabled={busyId === row.id || draft.trim().length === 0}
+                      className="btn-outline-brand px-4 py-2 text-sm"
+                    >
+                      Reply and close
+                    </button>
+                  </div>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function KycTab({ onUnauthorized }: { onUnauthorized: () => void }) {
   const [status, setStatus] = useState('PENDING');

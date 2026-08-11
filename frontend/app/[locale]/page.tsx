@@ -359,6 +359,20 @@ function Landing({ locale }: { locale: string }) {
       </section>
 
       <footer className="bg-slate-50 px-5 py-8 text-center text-xs text-slate-500">
+        <nav className="mb-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+          <Link href={`/${locale}/faq`} className="font-medium transition hover:text-indigo-600">
+            {t('footer.faq')}
+          </Link>
+          <Link href={`/${locale}/support`} className="font-medium transition hover:text-indigo-600">
+            {t('footer.support')}
+          </Link>
+          <Link href={`/${locale}/terms`} className="font-medium transition hover:text-indigo-600">
+            {t('footer.terms')}
+          </Link>
+          <Link href={`/${locale}/privacy`} className="font-medium transition hover:text-indigo-600">
+            {t('footer.privacy')}
+          </Link>
+        </nav>
         <p className="mx-auto max-w-2xl">{t('footer.disclaimer')}</p>
         <p className="mt-3">{t('footer.copyright')}</p>
       </footer>

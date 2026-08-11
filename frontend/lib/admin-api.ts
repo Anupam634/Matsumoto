@@ -202,3 +202,37 @@ export const decideKyc = (userId: string, approve: boolean, note?: string) =>
     method: 'POST',
     body: JSON.stringify({ approve, note }),
   });
+
+// ─────────────────────────── Support ────────────────────────
+
+export interface AdminSupportTicket {
+  id: string;
+  subject: string;
+  status: 'OPEN' | 'ANSWERED' | 'CLOSED';
+  createdAt: string;
+  updatedAt: string;
+  /** Who opened it — null for accounts registered without an email. */
+  userEmail: string | null;
+  messages: {
+    id: string;
+    fromAdmin: boolean;
+    body: string;
+    createdAt: string;
+  }[];
+}
+
+export const listSupport = (status: string) =>
+  adminFetch<AdminSupportTicket[]>(`/support${status ? `?status=${status}` : ''}`);
+
+export const replySupport = (
+  id: string,
+  body: string,
+  status: 'ANSWERED' | 'CLOSED' = 'ANSWERED',
+) =>
+  adminFetch<AdminSupportTicket>(`/support/${id}/reply`, {
+    method: 'POST',
+    body: JSON.stringify({ body, status }),
+  });
+
+export const closeSupport = (id: string) =>
+  adminFetch<AdminSupportTicket>(`/support/${id}/close`, { method: 'POST' });
