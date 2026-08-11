@@ -12,7 +12,9 @@
       "subtitle": "Register free, tap Mine once every 24 hours, and grow your rate with boosters and invites. Points convert to on-chain $Matsumoto and pay out to your BNB Chain wallet.",
       "ctaPrimary": "Create free account",
       "ctaSecondary": "I already have an account",
-      "honesty": "Mining here is scheduled reward accrual, not physical hardware. Points are internal units — only $Matsumoto withdrawals settle on-chain."
+      "honesty": "Mining here is scheduled reward accrual, not physical hardware. Points are internal units — only $Matsumoto withdrawals settle on-chain.",
+      "playVideo": "Play the intro video",
+      "pauseVideo": "Pause the intro video"
     },
     "figures": {
       "baseRate": "Base rate",

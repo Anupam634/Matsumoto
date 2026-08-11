@@ -7,8 +7,9 @@ import {
   NavAuth,
 } from '../../components/AuthAware';
 import { locales } from '../../i18n';
-import { LogoLockup, LogoMark } from '../../components/Logo';
+import { LogoMark } from '../../components/Logo';
 import { BnbLogo } from '../../components/BnbLogo';
+import { HeroVideo } from '../../components/HeroVideo';
 
 /** Booster catalogue — mirrors SPEC.md §2 and prisma/seed.ts. */
 const BOOSTERS = [
@@ -87,12 +88,12 @@ function Landing({ locale }: { locale: string }) {
       {/* ─────────────────────────── Nav ─────────────────────────── */}
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/85 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 p-5">
-          <span className="flex items-center gap-2 font-bold">
+          <span className="flex shrink-0 items-center gap-2 font-bold">
             <LogoMark size={36} priority />
-            Matsumoto
+            <span className="hidden xs:inline">Matsumoto</span>
           </span>
 
-          <nav className="flex items-center gap-4 text-sm">
+          <nav className="flex items-center gap-2 text-sm sm:gap-4">
             <div className="hidden gap-1 rounded-full border border-slate-200 p-1 sm:flex">
               {locales.map((l) => (
                 <Link
@@ -174,7 +175,7 @@ function Landing({ locale }: { locale: string }) {
             </div>
           </div>
 
-          <HeroArt />
+          <HeroVideo />
         </div>
       </section>
 
@@ -414,22 +415,6 @@ function Figure({ value, label }: { value: string; label: string }) {
 /** A small faceted "block" — stands in for a chain/block icon without
  *  reproducing any real network's logo. Same layered-gradient technique as
  *  the hero coin, just square. */
-/** Hero art — the brand mark, lit, instead of a generic placeholder coin. */
-function HeroArt() {
-  return (
-    <div className="relative grid place-items-center py-4">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute h-64 w-64 rounded-full bg-indigo-400/25 blur-3xl"
-      />
-      <div className="orbit absolute h-72 w-72 opacity-50" aria-hidden>
-        <span className="orbit-particle" />
-      </div>
-      <LogoLockup width={380} priority className="relative w-full max-w-[380px]" />
-    </div>
-  );
-}
-
 function ChainCube() {
   return (
     <div className="relative grid h-32 w-32 shrink-0 place-items-center">

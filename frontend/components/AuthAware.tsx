@@ -50,13 +50,13 @@ export function NavAuth({
     <>
       <Link
         href={`/${locale}/login`}
-        className="text-slate-600 hover:text-indigo-600"
+        className="whitespace-nowrap text-slate-600 hover:text-indigo-600"
       >
         {signInLabel}
       </Link>
       <Link
         href={`/${locale}/login?mode=register`}
-        className="btn-primary px-4 py-2 text-sm"
+        className="btn-primary whitespace-nowrap px-4 py-2 text-sm"
       >
         {getStartedLabel} →
       </Link>

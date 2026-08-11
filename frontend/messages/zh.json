@@ -12,7 +12,9 @@
       "subtitle": "免费注册，每 24 小时点击一次「挖矿」，通过加速包和邀请提升速率。积分可兑换为链上 $Matsumoto，并提现至您的 BNB 链钱包。",
       "ctaPrimary": "免费创建账户",
       "ctaSecondary": "我已有账户",
-      "honesty": "此处的「挖矿」是按计划累积奖励，并非实体矿机。积分为平台内部单位，只有 $Matsumoto 提现才会在链上结算。"
+      "honesty": "此处的「挖矿」是按计划累积奖励，并非实体矿机。积分为平台内部单位，只有 $Matsumoto 提现才会在链上结算。",
+      "playVideo": "播放介绍视频",
+      "pauseVideo": "暂停介绍视频"
     },
     "figures": {
       "baseRate": "基础速率",
