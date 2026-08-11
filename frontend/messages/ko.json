@@ -131,8 +131,7 @@
     "minWithdrawal": "최소 출금",
     "navDashboard": "마이닝",
     "navBoosters": "부스터",
-    "navProfile": "인증",
-    "navHome": "홈",
+    "navProfile": "프로필",
     "plansTitle": "부스터 패키지",
     "plansSubtitle": "30일 동안 시간당 적립률을 더합니다. 중첩 가능합니다.",
     "viewAll": "전체 보기",
@@ -161,7 +160,8 @@
     },
     "poweredByBnb": "BNB Chain으로 구동됨",
     "bnbRewards": "BNB Chain 보상",
-    "chainIndicator": "BNB Chain"
+    "chainIndicator": "BNB Chain",
+    "navWithdraw": "출금"
   },
   "auth": {
     "signIn": "로그인",
@@ -194,11 +194,35 @@
   },
   "withdraw": {
     "title": "출금",
-    "amount": "수량 (포인트)",
-    "address": "BNB 체인 주소",
-    "min": "최소 100 포인트",
-    "weekly": "주 1회 신청",
-    "submit": "출금 신청"
+    "subtitle": "포인트를 $Matsumoto로 변환해 BNB Chain 지갑으로 보냅니다.",
+    "paidOnChain": "BNB Chain으로 지급",
+    "backToDashboard": "대시보드로 돌아가기",
+    "offline": "서버에 연결할 수 없습니다. 다시 시도해 주세요.",
+    "available": "출금 가능",
+    "pointsShort": "pts",
+    "kycRequired": "첫 출금 전에 신원 확인이 필요합니다.",
+    "verifyCta": "확인하기",
+    "needMore": "출금하려면 최소 {min} 포인트가 필요합니다.",
+    "cooldown": "출금은 주 1회입니다. {date}에 다시 신청할 수 있습니다.",
+    "amount": "금액",
+    "minNote": "최소 {min} 포인트",
+    "useMax": "최대",
+    "toAddress": "받는 지갑",
+    "addressNote": "BNB Chain(BEP-20) 주소입니다. 지급은 되돌릴 수 없으니 꼭 확인하세요.",
+    "youReceive": "받는 금액",
+    "conversionNote": "3 pts = 1",
+    "submit": "출금 신청",
+    "submitting": "보내는 중…",
+    "submitted": "신청이 접수되었습니다. 관리자 검토 후 지급됩니다.",
+    "reviewNote": "신청 즉시 포인트가 보류됩니다. 거부되면 잔액으로 돌려드립니다.",
+    "historyTitle": "내 신청 내역",
+    "rejectedReason": "사유",
+    "status": {
+      "PENDING": "검토 대기",
+      "APPROVED": "승인됨",
+      "PAID": "지급 완료",
+      "REJECTED": "거부됨"
+    }
   },
   "kyc": {
     "title": "신원 인증",
@@ -265,5 +289,37 @@
     "payWarning": "결제는 BNB 체인에서 자동으로 검증되며 수동 승인이 없습니다. {confirmations}회 확인이 필요하므로, 확인 대기 메시지가 보이면 잠시 후 다시 시도하세요.",
     "poweredByBnb": "BNB Chain 기반",
     "chainName": "BNB Chain"
+  },
+  "profile": {
+    "title": "프로필",
+    "subtitle": "계정, 잔액 및 추천 정보입니다.",
+    "backToDashboard": "대시보드로 돌아가기",
+    "offline": "서버에 연결할 수 없습니다. 다시 시도해 주세요.",
+    "balance": "잔액",
+    "pointsShort": "pts",
+    "chainName": "BNB Chain",
+    "withdrawCta": "출금",
+    "withdrawNeedsKyc": "출금하려면 먼저 신원 확인이 필요합니다.",
+    "withdrawNeedsBalance": "출금하려면 최소 {min} 포인트가 필요합니다.",
+    "accountTitle": "계정",
+    "email": "이메일",
+    "country": "국가",
+    "memberSince": "가입일",
+    "userId": "사용자 ID",
+    "identityTitle": "신원 확인",
+    "viewKyc": "확인 내역 보기",
+    "completeKyc": "신원 확인 완료하기",
+    "kycStatus": {
+      "NONE": "아직 확인되지 않음 — 첫 출금 전에 필요합니다.",
+      "PENDING": "검토 중입니다. 결과가 나오면 여기에 표시됩니다.",
+      "APPROVED": "✓ 확인 완료 — 출금이 가능합니다.",
+      "REJECTED": "거부되었습니다. 사유를 확인하고 다시 제출해 주세요."
+    },
+    "referralTitle": "추천",
+    "referralCode": "내 코드",
+    "invited": "초대함",
+    "tier": "등급",
+    "copy": "복사",
+    "signOut": "로그아웃"
   }
 }

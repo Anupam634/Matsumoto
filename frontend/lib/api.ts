@@ -304,3 +304,32 @@ export interface MiningHistory {
 }
 
 export const getMiningHistory = () => apiFetch<MiningHistory>('/mining/history');
+
+// ───────────────────────── Withdrawals ──────────────────────
+
+export interface WithdrawalDto {
+  id: string;
+  /** Points debited, in whole points (the API divides milli-points by 1000). */
+  points: number;
+  /** $Matsumoto to be paid out — points ÷ 3, as a decimal string. */
+  tokenAmount: string;
+  toAddress: string;
+  status: 'PENDING' | 'APPROVED' | 'PAID' | 'REJECTED';
+  txHash: string | null;
+  /** Reviewer's note — the reason shown to the user when REJECTED. */
+  adminNote: string | null;
+  requestedAt: string;
+  resolvedAt: string | null;
+}
+
+/** Rules the server enforces on a request (SPEC §4) — mirrored for the UI. */
+export const WITHDRAWAL_MIN_POINTS = 100;
+export const WITHDRAWAL_COOLDOWN_DAYS = 7;
+
+export const getWithdrawals = () => apiFetch<WithdrawalDto[]>('/withdrawals');
+
+export const requestWithdrawal = (points: number, toAddress: string) =>
+  apiFetch<WithdrawalDto>('/withdrawals', {
+    method: 'POST',
+    body: JSON.stringify({ points, toAddress }),
+  });
