@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { LogoMark } from './Logo';
+import { LocaleSwitcher } from './LocaleSwitcher';
 
 /**
  * The sticky header shared by every secondary screen (boosters, KYC,
@@ -32,7 +33,10 @@ export function AppHeader({
         >
           ← {backLabel}
         </Link>
-        <LogoMark size={32} />
+        <span className="flex items-center gap-2.5">
+          <LocaleSwitcher locale={locale} />
+          <LogoMark size={32} />
+        </span>
       </div>
     </header>
   );

@@ -6,10 +6,10 @@ import {
   HideWhenAuthed,
   NavAuth,
 } from '../../components/AuthAware';
-import { locales } from '../../i18n';
 import { LogoMark } from '../../components/Logo';
 import { BnbLogo } from '../../components/BnbLogo';
 import { HeroVideo } from '../../components/HeroVideo';
+import { LocaleSwitcher } from '../../components/LocaleSwitcher';
 
 /** Booster catalogue — mirrors SPEC.md §2 and prisma/seed.ts. */
 const BOOSTERS = [
@@ -50,11 +50,6 @@ const TASK_ICONS: Record<(typeof TASK_KEYS)[number], string> = {
 /** The four hero strip steps, each paired with a short icon. */
 const STEP_KEYS = ['register', 'mine', 'boost', 'withdraw'] as const;
 
-const LOCALE_LABELS: Record<string, string> = {
-  en: 'EN',
-  zh: '中文',
-  ko: '한국어',
-};
 
 export default function LandingPage({
   params: { locale },
@@ -90,25 +85,11 @@ function Landing({ locale }: { locale: string }) {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 p-5">
           <span className="flex shrink-0 items-center gap-2 font-bold">
             <LogoMark size={36} priority />
-            <span className="hidden xs:inline">Matsumoto</span>
+            <span className="hidden sm:inline">Matsumoto</span>
           </span>
 
           <nav className="flex items-center gap-2 text-sm sm:gap-4">
-            <div className="hidden gap-1 rounded-full border border-slate-200 p-1 sm:flex">
-              {locales.map((l) => (
-                <Link
-                  key={l}
-                  href={`/${l}`}
-                  className={
-                    l === locale
-                      ? 'rounded-full bg-indigo-50 px-2.5 py-1 text-indigo-600'
-                      : 'rounded-full px-2.5 py-1 text-slate-500 hover:text-slate-700'
-                  }
-                >
-                  {LOCALE_LABELS[l]}
-                </Link>
-              ))}
-            </div>
+            <LocaleSwitcher locale={locale} />
             <NavAuth
               locale={locale}
               signInLabel={t('nav.signIn')}

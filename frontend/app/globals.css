@@ -955,3 +955,49 @@
   font-weight: 600;
   color: rgba(240, 185, 11, 0.85);
 }
+
+/* Language picker — a native select sitting invisibly over its own label,
+   so it stays narrow in a header but keeps the OS picker on mobile. */
+.locale-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 9999px;
+  border: 1px solid rgb(226 232 240);
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgb(71 85 105);
+  white-space: nowrap;
+}
+
+.locale-switch:focus-within {
+  border-color: rgb(129 140 248);
+  color: rgb(79 70 229);
+}
+
+.locale-switch select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  cursor: pointer;
+  opacity: 0;
+}
+
+/* Same control on the dark signed-in shell. */
+.app-shell .locale-switch {
+  border-color: rgb(255 255 255 / 0.1);
+  color: rgb(148 163 184);
+}
+
+.app-shell .locale-switch:focus-within {
+  border-color: rgb(129 140 248 / 0.5);
+  color: rgb(165 180 252);
+}
+
+/* The dropdown itself is OS-drawn; give it readable colours on dark. */
+.app-shell .locale-switch option {
+  background: #0b0e17;
+  color: #e2e8f0;
+}

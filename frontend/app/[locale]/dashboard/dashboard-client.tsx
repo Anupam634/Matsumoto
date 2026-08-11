@@ -21,6 +21,7 @@ import {
 } from '../../../lib/api';
 import TasksSection from './tasks-section';
 import { LogoMark } from '../../../components/Logo';
+import { LocaleSwitcher } from '../../../components/LocaleSwitcher';
 import { BnbBadge, BnbLogo } from '../../../components/BnbLogo';
 
 /** How often the live accrual counter repaints. 10fps reads as smooth. */
@@ -254,12 +255,15 @@ function TopBar({ locale, onSignOut }: { locale: string; onSignOut: () => void }
           <NavLink href={`/${locale}/profile`}>{t('navProfile')}</NavLink>
         </nav>
 
-        <button
-          onClick={onSignOut}
-          className="rounded-full border border-white/10 px-3.5 py-1.5 text-sm font-semibold text-slate-300 transition hover:border-indigo-400/50 hover:text-white"
-        >
-          {t('signOut')}
-        </button>
+        <div className="flex items-center gap-2">
+          <LocaleSwitcher locale={locale} />
+          <button
+            onClick={onSignOut}
+            className="rounded-full border border-white/10 px-3.5 py-1.5 text-sm font-semibold text-slate-300 transition hover:border-indigo-400/50 hover:text-white"
+          >
+            {t('signOut')}
+          </button>
+        </div>
       </div>
     </header>
   );

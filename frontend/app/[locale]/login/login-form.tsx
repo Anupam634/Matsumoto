@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { login, register, getToken, ApiError } from '../../../lib/api';
 import { CountrySelect } from '../../../components/CountrySelect';
 import { LogoLockup, LogoMark } from '../../../components/Logo';
+import { LocaleSwitcher } from '../../../components/LocaleSwitcher';
 
 type Mode = 'login' | 'register';
 
@@ -146,8 +147,11 @@ function AuthForm() {
           >
             ← {t('backHome')}
           </Link>
-          <span className="lg:hidden">
-            <LogoMark size={34} priority />
+          <span className="flex items-center gap-2.5">
+            <LocaleSwitcher locale={params.locale} />
+            <span className="lg:hidden">
+              <LogoMark size={34} priority />
+            </span>
           </span>
         </div>
 
