@@ -250,7 +250,8 @@ function TopBar({ locale, onSignOut }: { locale: string; onSignOut: () => void }
             {t('navDashboard')}
           </NavLink>
           <NavLink href={`/${locale}/boosters`}>{t('navBoosters')}</NavLink>
-          <NavLink href={`/${locale}/kyc`}>{t('navProfile')}</NavLink>
+          <NavLink href={`/${locale}/withdraw`}>{t('navWithdraw')}</NavLink>
+          <NavLink href={`/${locale}/profile`}>{t('navProfile')}</NavLink>
         </nav>
 
         <button
@@ -325,13 +326,13 @@ function TabBar({
           </button>
         </div>
 
-        <Link href={`/${locale}/kyc`}>
-          <IconShield />
-          {t('navProfile')}
+        <Link href={`/${locale}/withdraw`}>
+          <IconSwap />
+          {t('navWithdraw')}
         </Link>
-        <Link href={`/${locale}`}>
-          <IconGrid />
-          {t('navHome')}
+        <Link href={`/${locale}/profile`}>
+          <IconUser />
+          {t('navProfile')}
         </Link>
       </div>
     </nav>
@@ -1008,6 +1009,13 @@ function IconUsers({ className = ico }: { className?: string }) {
     </svg>
   );
 }
+function IconUser({ className = ico }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4 0-9 2-9 5.5V22h18v-2.5C21 16 16 14 12 14Z" />
+    </svg>
+  );
+}
 function IconClock({ className = ico }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
@@ -1035,16 +1043,6 @@ function IconHome({ className = 'h-5 w-5' }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
       <path d="m4 11 8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1v-8Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-    </svg>
-  );
-}
-function IconGrid({ className = 'h-5 w-5' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <rect x="4" y="4" width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
-      <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
-      <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
-      <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
     </svg>
   );
 }

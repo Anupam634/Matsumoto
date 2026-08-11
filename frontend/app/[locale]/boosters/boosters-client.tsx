@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
@@ -14,7 +13,7 @@ import {
   type BoosterPlanDto,
   type BoosterPurchaseDto,
 } from '../../../lib/api';
-import { LogoMark } from '../../../components/Logo';
+import { AppHeader } from '../../../components/AppHeader';
 import { BnbBadge } from '../../../components/BnbLogo';
 
 export default function BoostersClient() {
@@ -49,20 +48,7 @@ export default function BoostersClient() {
 
   return (
     <div className="app-shell min-h-dvh">
-      <header
-        className="sticky top-0 z-20 border-b border-white/5 bg-[#05070f]/85 backdrop-blur"
-        style={{ paddingTop: 'env(safe-area-inset-top)' }}
-      >
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3.5 sm:px-6">
-          <Link
-            href={`/${params.locale}/dashboard`}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 transition hover:text-indigo-300"
-          >
-            ← {t('backToDashboard')}
-          </Link>
-          <LogoMark size={32} />
-        </div>
-      </header>
+      <AppHeader locale={params.locale} backLabel={t('backToDashboard')} maxWidth="max-w-4xl" />
 
       <main
         className="mx-auto max-w-4xl px-4 pb-16 pt-6 sm:px-6"

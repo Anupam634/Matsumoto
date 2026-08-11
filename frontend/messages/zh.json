@@ -131,8 +131,7 @@
     "minWithdrawal": "最低提现",
     "navDashboard": "挖矿",
     "navBoosters": "加速包",
-    "navProfile": "身份",
-    "navHome": "首页",
+    "navProfile": "个人资料",
     "plansTitle": "加速包",
     "plansSubtitle": "30 天内提升每小时速率，可叠加。",
     "viewAll": "查看全部",
@@ -161,7 +160,8 @@
     },
     "poweredByBnb": "由 BNB Chain 提供支持",
     "bnbRewards": "BNB Chain 上的奖励",
-    "chainIndicator": "BNB Chain"
+    "chainIndicator": "BNB Chain",
+    "navWithdraw": "提现"
   },
   "auth": {
     "signIn": "登录",
@@ -194,11 +194,35 @@
   },
   "withdraw": {
     "title": "提现",
-    "amount": "数量（积分）",
-    "address": "BNB 链地址",
-    "min": "最低 100 积分",
-    "weekly": "每周 1 次申请",
-    "submit": "申请提现"
+    "subtitle": "将积分兑换为 $Matsumoto 并发送到 BNB Chain 钱包。",
+    "paidOnChain": "通过 BNB Chain 支付",
+    "backToDashboard": "返回仪表板",
+    "offline": "无法连接服务器，请重试。",
+    "available": "可提现",
+    "pointsShort": "积分",
+    "kycRequired": "首次提现前需要完成身份验证。",
+    "verifyCta": "去验证",
+    "needMore": "提现至少需要 {min} 积分。",
+    "cooldown": "每周只能提现一次，您可在 {date} 再次申请。",
+    "amount": "金额",
+    "minNote": "最低 {min} 积分",
+    "useMax": "全部",
+    "toAddress": "收款钱包",
+    "addressNote": "BNB Chain (BEP-20) 地址。请仔细核对 — 转账无法撤销。",
+    "youReceive": "您将收到",
+    "conversionNote": "3 积分 = 1",
+    "submit": "申请提现",
+    "submitting": "提交中…",
+    "submitted": "申请已提交。管理员审核后将发放。",
+    "reviewNote": "申请提交后积分会被冻结。若申请被拒绝，积分将退回您的余额。",
+    "historyTitle": "我的申请",
+    "rejectedReason": "原因",
+    "status": {
+      "PENDING": "待审核",
+      "APPROVED": "已批准",
+      "PAID": "已支付",
+      "REJECTED": "已拒绝"
+    }
   },
   "kyc": {
     "title": "身份验证",
@@ -265,5 +289,37 @@
     "payWarning": "付款将在 BNB 链上自动验证，无需人工审核。需先获得 {confirmations} 个确认，若提示等待确认，请稍后重试。",
     "poweredByBnb": "由 BNB Chain 提供支持",
     "chainName": "BNB Chain"
+  },
+  "profile": {
+    "title": "个人资料",
+    "subtitle": "您的账户、余额和推荐。",
+    "backToDashboard": "返回仪表板",
+    "offline": "无法连接服务器，请重试。",
+    "balance": "余额",
+    "pointsShort": "积分",
+    "chainName": "BNB Chain",
+    "withdrawCta": "提现",
+    "withdrawNeedsKyc": "提现前需要完成身份验证。",
+    "withdrawNeedsBalance": "提现至少需要 {min} 积分。",
+    "accountTitle": "账户",
+    "email": "邮箱",
+    "country": "国家/地区",
+    "memberSince": "注册时间",
+    "userId": "用户 ID",
+    "identityTitle": "身份验证",
+    "viewKyc": "查看验证",
+    "completeKyc": "完成验证",
+    "kycStatus": {
+      "NONE": "尚未验证 — 首次提现前必须完成。",
+      "PENDING": "审核中。审核完成后会在此更新。",
+      "APPROVED": "✓ 已验证 — 已解锁提现。",
+      "REJECTED": "已被拒绝。请打开验证查看原因并重新提交。"
+    },
+    "referralTitle": "推荐",
+    "referralCode": "您的邀请码",
+    "invited": "已邀请",
+    "tier": "等级",
+    "copy": "复制",
+    "signOut": "退出登录"
   }
 }

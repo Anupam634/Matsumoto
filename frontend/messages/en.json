@@ -131,8 +131,7 @@
     "minWithdrawal": "Min. withdrawal",
     "navDashboard": "Mining",
     "navBoosters": "Boosters",
-    "navProfile": "Identity",
-    "navHome": "Home",
+    "navProfile": "Profile",
     "plansTitle": "Booster packages",
     "plansSubtitle": "Add hourly rate for 30 days. Boosters stack.",
     "viewAll": "View all",
@@ -161,7 +160,8 @@
     },
     "poweredByBnb": "Powered by BNB Chain",
     "bnbRewards": "Rewards on BNB Chain",
-    "chainIndicator": "BNB Chain"
+    "chainIndicator": "BNB Chain",
+    "navWithdraw": "Withdraw"
   },
   "auth": {
     "signIn": "Sign in",
@@ -194,11 +194,35 @@
   },
   "withdraw": {
     "title": "Withdraw",
-    "amount": "Amount (points)",
-    "address": "BNB Chain address",
-    "min": "Minimum 100 points",
-    "weekly": "1 request per week",
-    "submit": "Request Withdrawal"
+    "subtitle": "Convert your points to $Matsumoto and send them to a BNB Chain wallet.",
+    "paidOnChain": "Paid on BNB Chain",
+    "backToDashboard": "Back to dashboard",
+    "offline": "Can't reach the server. Try again.",
+    "available": "Available to withdraw",
+    "pointsShort": "pts",
+    "kycRequired": "Identity verification is required before your first withdrawal.",
+    "verifyCta": "Verify",
+    "needMore": "You need at least {min} points before you can withdraw.",
+    "cooldown": "One withdrawal per week. You can request again on {date}.",
+    "amount": "Amount",
+    "minNote": "Minimum {min} points",
+    "useMax": "Use max",
+    "toAddress": "Destination wallet",
+    "addressNote": "A BNB Chain (BEP-20) address. Double-check it — payouts can't be reversed.",
+    "youReceive": "You receive",
+    "conversionNote": "3 pts = 1",
+    "submit": "Request withdrawal",
+    "submitting": "Sending…",
+    "submitted": "Request submitted. An admin reviews it before the payout is sent.",
+    "reviewNote": "Points are held as soon as you request. If a request is rejected they're returned to your balance.",
+    "historyTitle": "Your requests",
+    "rejectedReason": "Reason",
+    "status": {
+      "PENDING": "Pending review",
+      "APPROVED": "Approved",
+      "PAID": "Paid",
+      "REJECTED": "Rejected"
+    }
   },
   "kyc": {
     "title": "Identity verification",
@@ -265,5 +289,37 @@
     "payWarning": "Your payment is verified automatically on BNB Chain — no manual approval. It needs {confirmations} confirmations first, so if it says \"waiting for confirmations\", just try again in a minute.",
     "poweredByBnb": "Powered by BNB Chain",
     "chainName": "BNB Chain"
+  },
+  "profile": {
+    "title": "Profile",
+    "subtitle": "Your account, balance and referrals.",
+    "backToDashboard": "Back to dashboard",
+    "offline": "Can't reach the server. Try again.",
+    "balance": "Balance",
+    "pointsShort": "pts",
+    "chainName": "BNB Chain",
+    "withdrawCta": "Withdraw",
+    "withdrawNeedsKyc": "Identity verification is required before withdrawing.",
+    "withdrawNeedsBalance": "You need at least {min} points to withdraw.",
+    "accountTitle": "Account",
+    "email": "Email",
+    "country": "Country",
+    "memberSince": "Member since",
+    "userId": "User ID",
+    "identityTitle": "Identity",
+    "viewKyc": "View verification",
+    "completeKyc": "Complete verification",
+    "kycStatus": {
+      "NONE": "Not verified yet — required before your first withdrawal.",
+      "PENDING": "Under review. We'll update this once a reviewer decides.",
+      "APPROVED": "✓ Verified — withdrawals unlocked.",
+      "REJECTED": "Rejected. Open verification to see why and resubmit."
+    },
+    "referralTitle": "Referrals",
+    "referralCode": "Your code",
+    "invited": "Invited",
+    "tier": "Tier",
+    "copy": "Copy",
+    "signOut": "Sign out"
   }
 }
