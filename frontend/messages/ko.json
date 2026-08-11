@@ -274,7 +274,6 @@
     "buy": "구매",
     "working": "잠시만 기다려 주세요…",
     "offline": "서버에 연결할 수 없습니다. 다시 시도해 주세요.",
-    "askWallet": "어느 BNB 체인 지갑에서 결제하시겠습니까?\n\n결제는 반드시 이 주소에서 이루어져야 하며, 그래야 다른 사람이 거래를 가로챌 수 없습니다.",
     "paymentsDisabled": "부스터 구매는 아직 이용할 수 없습니다 — 서버에 수취 지갑이 설정되지 않았습니다.",
     "payTitle": "결제 보내기",
     "payBody": "입력하신 지갑에서 아래 금액을 정확히 보낸 뒤, 거래 해시를 붙여넣어 주세요.",
@@ -288,7 +287,14 @@
     "close": "취소",
     "payWarning": "결제는 BNB 체인에서 자동으로 검증되며 수동 승인이 없습니다. {confirmations}회 확인이 필요하므로, 확인 대기 메시지가 보이면 잠시 후 다시 시도하세요.",
     "poweredByBnb": "BNB Chain 기반",
-    "chainName": "BNB Chain"
+    "chainName": "BNB Chain",
+    "fromTitle": "어느 지갑에서 결제하시겠어요?",
+    "fromBody": "결제를 보낼 BNB Chain 지갑 주소를 입력하세요. 이 주소에서 전송되어야 다른 사람이 거래를 가로챌 수 없습니다.",
+    "fromLabel": "내 지갑 주소",
+    "fromInvalid": "BNB Chain 주소 형식이 아닙니다(0x + 40자).",
+    "continue": "계속",
+    "step": "2단계 중 {n}단계",
+    "scanNote": "지갑 앱에서 주소를 채우려면 스캔하세요 — 금액은 위 값을 직접 입력하세요."
   },
   "profile": {
     "title": "프로필",

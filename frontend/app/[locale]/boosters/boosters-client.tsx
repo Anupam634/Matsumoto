@@ -23,7 +23,7 @@ export default function BoostersClient() {
 
   const [data, setData] = useState<BoosterOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [intent, setIntent] = useState<BoosterPurchaseDto | null>(null);
+  const [checkout, setCheckout] = useState<BoosterPlanDto | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -119,8 +119,7 @@ export default function BoostersClient() {
                   key={p.id}
                   plan={p}
                   disabled={!data.payment.enabled}
-                  onBuy={setIntent}
-                  onError={setError}
+                  onBuy={() => setCheckout(p)}
                 />
               ))}
             </div>
@@ -154,13 +153,13 @@ export default function BoostersClient() {
         )}
       </main>
 
-      {intent && (
-        <PayModal
-          purchase={intent}
+      {checkout && (
+        <CheckoutModal
+          plan={checkout}
           minConfirmations={data?.payment.minConfirmations ?? 6}
-          onClose={() => setIntent(null)}
+          onClose={() => setCheckout(null)}
           onDone={async () => {
-            setIntent(null);
+            setCheckout(null);
             await load();
           }}
         />
@@ -173,28 +172,12 @@ function PlanCard({
   plan,
   disabled,
   onBuy,
-  onError,
 }: {
   plan: BoosterPlanDto;
   disabled: boolean;
-  onBuy: (p: BoosterPurchaseDto) => void;
-  onError: (m: string) => void;
+  onBuy: () => void;
 }) {
   const t = useTranslations('boosters');
-  const [busy, setBusy] = useState(false);
-
-  async function start() {
-    const addr = prompt(t('askWallet'));
-    if (!addr) return;
-    setBusy(true);
-    try {
-      onBuy(await createBoosterIntent(plan.id, addr.trim()));
-    } catch (err) {
-      onError(err instanceof ApiError ? err.message : t('offline'));
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <div className="panel panel-lift flex flex-col p-5 text-center">
@@ -212,18 +195,139 @@ function PlanCard({
         {plan.durationDays} {t('days')} · {t('stackable')}
       </div>
       <button
-        onClick={start}
-        disabled={disabled || busy}
+        onClick={onBuy}
+        disabled={disabled}
         className="btn-primary mt-4 w-full py-2.5 text-sm"
       >
-        {busy ? t('working') : t('buy')}
+        {t('buy')}
       </button>
     </div>
   );
 }
 
-/** Payment instructions + transaction-hash submission. */
-function PayModal({
+/** Loose shape check only — the server validates the address for real. */
+const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
+
+/**
+ * Booster checkout, in two steps.
+ *
+ * Step 1 binds the purchase to the wallet the miner will pay from, so a
+ * stranger who spots the transaction on-chain cannot claim it. Step 2 is the
+ * payment itself: exact amount, destination, and the hash to verify.
+ */
+function CheckoutModal({
+  plan,
+  minConfirmations,
+  onClose,
+  onDone,
+}: {
+  plan: BoosterPlanDto;
+  minConfirmations: number;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const t = useTranslations('boosters');
+  const [purchase, setPurchase] = useState<BoosterPurchaseDto | null>(null);
+  const [fromAddress, setFromAddress] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function createIntent(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      setPurchase(await createBoosterIntent(plan.id, fromAddress.trim()));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('offline'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    // Step 2 is taller than a phone viewport. Centring a tall child with grid
+    // or flex alone makes the overflow unreachable, so the scroll lives on the
+    // backdrop and the panel centres inside a min-h-full wrapper instead.
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/65 p-4 backdrop-blur-sm">
+      <div className="flex min-h-full items-center justify-center">
+        <div className="panel w-full max-w-md p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold">
+                {purchase ? t('payTitle') : t('fromTitle')}
+              </h2>
+              <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {t('step', { n: purchase ? 2 : 1 })} · ${plan.priceUsd} ·{' '}
+                {plan.durationDays} {t('days')}
+              </p>
+            </div>
+            <BnbBadge label={t('chainName')} />
+          </div>
+
+          {purchase ? (
+            <PayStep
+              purchase={purchase}
+              minConfirmations={minConfirmations}
+              onClose={onClose}
+              onDone={onDone}
+            />
+          ) : (
+            <form onSubmit={createIntent} className="mt-4">
+              <p className="text-sm text-slate-400">{t('fromBody')}</p>
+
+              <label className="mt-4 block">
+                <span className="field-label">{t('fromLabel')}</span>
+                <input
+                  className="input-field mt-1.5 font-mono text-xs"
+                  value={fromAddress}
+                  onChange={(e) => setFromAddress(e.target.value)}
+                  placeholder="0x…"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  autoFocus
+                />
+                {fromAddress.trim() !== '' &&
+                  !ADDRESS_RE.test(fromAddress.trim()) && (
+                    <span className="mt-1.5 block text-xs text-amber-300">
+                      {t('fromInvalid')}
+                    </span>
+                  )}
+              </label>
+
+              {error && (
+                <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+                  {error}
+                </p>
+              )}
+
+              <div className="mt-5 flex gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="btn-outline-brand flex-1 py-2.5 text-sm"
+                >
+                  {t('close')}
+                </button>
+                <button
+                  type="submit"
+                  disabled={busy || !ADDRESS_RE.test(fromAddress.trim())}
+                  className="btn-primary flex-1 py-2.5 text-sm"
+                >
+                  {busy ? t('working') : t('continue')}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Step 2: pay the exact amount, then hand over the hash to verify. */
+function PayStep({
   purchase,
   minConfirmations,
   onClose,
@@ -238,17 +342,25 @@ function PayModal({
   const [txHash, setTxHash] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState<'addr' | 'amt' | null>(null);
+  const [qr, setQr] = useState<string | null>(null);
 
-  async function copy(value: string, which: 'addr' | 'amt') {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(which);
-      setTimeout(() => setCopied(null), 1500);
-    } catch {
-      /* clipboard blocked — the value is still selectable */
-    }
-  }
+  // Pulled in on demand — the encoder is dead weight on every other screen.
+  useEffect(() => {
+    let alive = true;
+    import('qrcode')
+      .then((m) =>
+        m.toDataURL(purchase.payToAddress, {
+          margin: 1,
+          width: 320,
+          color: { dark: '#0b0e17', light: '#ffffff' },
+        }),
+      )
+      .then((url) => alive && setQr(url))
+      .catch(() => alive && setQr(null));
+    return () => {
+      alive = false;
+    };
+  }, [purchase.payToAddress]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -265,99 +377,134 @@ function PayModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm">
-      <div className="panel w-full max-w-md p-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold">{t('payTitle')}</h2>
-          <BnbBadge label={t('chainName')} />
+    <>
+      <p className="mt-3 text-sm text-slate-400">{t('payBody')}</p>
+
+      <dl className="mt-4 space-y-3">
+        <CopyRow label={t('amount')} value={purchase.amount} bold>
+          {purchase.amount} {purchase.tokenSymbol}
+        </CopyRow>
+        <CopyRow label={t('payTo')} value={purchase.payToAddress} mono>
+          {purchase.payToAddress}
+        </CopyRow>
+      </dl>
+
+      {qr && (
+        <div className="mt-4 flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={qr}
+            alt=""
+            width={144}
+            height={144}
+            className="rounded-lg"
+          />
+          <p className="text-center text-xs text-slate-400">{t('scanNote')}</p>
         </div>
-        <p className="mt-1 text-sm text-slate-400">{t('payBody')}</p>
+      )}
 
-        <dl className="mt-4 space-y-3">
-          <div>
-            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              {t('amount')}
-            </dt>
-            <dd className="mt-1 flex items-center gap-2">
-              <code className="flex-1 rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-sm font-bold">
-                {purchase.amount} {purchase.tokenSymbol}
-              </code>
-              <button
-                onClick={() => copy(purchase.amount, 'amt')}
-                className="btn-outline-brand px-3 py-2 text-xs"
-              >
-                {copied === 'amt' ? '✓' : t('copy')}
-              </button>
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              {t('payTo')}
-            </dt>
-            <dd className="mt-1 flex items-center gap-2">
-              <code className="flex-1 break-all rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-xs">
-                {purchase.payToAddress}
-              </code>
-              <button
-                onClick={() => copy(purchase.payToAddress, 'addr')}
-                className="btn-outline-brand shrink-0 px-3 py-2 text-xs"
-              >
-                {copied === 'addr' ? '✓' : t('copy')}
-              </button>
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              {t('payFrom')}
-            </dt>
-            <dd className="mt-1 break-all font-mono text-xs text-slate-400">
-              {purchase.fromAddress}
-            </dd>
-          </div>
-        </dl>
-
-        <p className="mt-3 rounded-xl border border-indigo-400/20 bg-indigo-500/10 p-3 text-xs text-slate-300">
-          {t('payWarning', { confirmations: minConfirmations })}
-        </p>
-
-        <form onSubmit={submit} className="mt-4">
-          <label className="block">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              {t('txHash')}
-            </span>
-            <input
-              className="input-field mt-1.5 font-mono text-xs"
-              value={txHash}
-              onChange={(e) => setTxHash(e.target.value)}
-              placeholder="0x…"
-              required
-            />
-          </label>
-
-          {error && (
-            <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
-              {error}
-            </p>
-          )}
-
-          <div className="mt-4 flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-outline-brand flex-1 py-2.5 text-sm"
-            >
-              {t('close')}
-            </button>
-            <button
-              type="submit"
-              disabled={busy}
-              className="btn-primary flex-1 py-2.5 text-sm"
-            >
-              {busy ? t('verifying') : t('verify')}
-            </button>
-          </div>
-        </form>
+      <div className="mt-3">
+        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          {t('payFrom')}
+        </dt>
+        <dd className="mt-1 break-all font-mono text-xs text-slate-400">
+          {purchase.fromAddress}
+        </dd>
       </div>
+
+      <p className="mt-3 rounded-xl border border-indigo-400/20 bg-indigo-500/10 p-3 text-xs text-slate-300">
+        {t('payWarning', { confirmations: minConfirmations })}
+      </p>
+
+      <form onSubmit={submit} className="mt-4">
+        <label className="block">
+          <span className="field-label">{t('txHash')}</span>
+          <input
+            className="input-field mt-1.5 font-mono text-xs"
+            value={txHash}
+            onChange={(e) => setTxHash(e.target.value)}
+            placeholder="0x…"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            required
+          />
+        </label>
+
+        {error && (
+          <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+            {error}
+          </p>
+        )}
+
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn-outline-brand flex-1 py-2.5 text-sm"
+          >
+            {t('close')}
+          </button>
+          <button
+            type="submit"
+            disabled={busy}
+            className="btn-primary flex-1 py-2.5 text-sm"
+          >
+            {busy ? t('verifying') : t('verify')}
+          </button>
+        </div>
+      </form>
+    </>
+  );
+}
+
+/** A value the miner has to reproduce exactly, so it ships with a copy button. */
+function CopyRow({
+  label,
+  value,
+  mono,
+  bold,
+  children,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  bold?: boolean;
+  children: React.ReactNode;
+}) {
+  const t = useTranslations('boosters');
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard blocked — the value is still selectable */
+    }
+  }
+
+  return (
+    <div>
+      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {label}
+      </dt>
+      <dd className="mt-1 flex items-center gap-2">
+        <code
+          className={`flex-1 break-all rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 ${
+            mono ? 'text-xs' : 'text-sm'
+          } ${bold ? 'font-bold' : ''}`}
+        >
+          {children}
+        </code>
+        <button
+          onClick={copy}
+          className="btn-outline-brand shrink-0 px-3 py-2 text-xs"
+        >
+          {copied ? '✓' : t('copy')}
+        </button>
+      </dd>
     </div>
   );
 }

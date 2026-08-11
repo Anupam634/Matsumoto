@@ -274,7 +274,6 @@
     "buy": "Buy",
     "working": "Please wait…",
     "offline": "Can't reach the server. Try again.",
-    "askWallet": "Which BNB Chain wallet will you pay from?\n\nThe payment must come from this address, so nobody else can claim your transaction.",
     "paymentsDisabled": "Booster purchases aren't available yet — the payment wallet hasn't been configured on the server.",
     "payTitle": "Send the payment",
     "payBody": "Send this exact amount from the wallet you entered, then paste the transaction hash below.",
@@ -288,7 +287,14 @@
     "close": "Cancel",
     "payWarning": "Your payment is verified automatically on BNB Chain — no manual approval. It needs {confirmations} confirmations first, so if it says \"waiting for confirmations\", just try again in a minute.",
     "poweredByBnb": "Powered by BNB Chain",
-    "chainName": "BNB Chain"
+    "chainName": "BNB Chain",
+    "fromTitle": "Which wallet will you pay from?",
+    "fromBody": "Enter the BNB Chain wallet you'll send the payment from. The transfer must come from this address, so nobody else can claim your transaction.",
+    "fromLabel": "Your wallet address",
+    "fromInvalid": "That doesn't look like a BNB Chain address (0x followed by 40 characters).",
+    "continue": "Continue",
+    "step": "Step {n} of 2",
+    "scanNote": "Scan to fill the address in your wallet app — enter the amount above manually."
   },
   "profile": {
     "title": "Profile",

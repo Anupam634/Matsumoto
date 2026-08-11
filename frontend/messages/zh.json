@@ -274,7 +274,6 @@
     "buy": "购买",
     "working": "请稍候…",
     "offline": "无法连接服务器，请重试。",
-    "askWallet": "您将使用哪个 BNB 链钱包付款？\n\n付款必须来自该地址，以防他人冒领您的交易。",
     "paymentsDisabled": "加速包暂不可购买 — 服务器尚未配置收款钱包。",
     "payTitle": "发送付款",
     "payBody": "请从您填写的钱包发送以下确切金额，然后在下方粘贴交易哈希。",
@@ -288,7 +287,14 @@
     "close": "取消",
     "payWarning": "付款将在 BNB 链上自动验证，无需人工审核。需先获得 {confirmations} 个确认，若提示等待确认，请稍后重试。",
     "poweredByBnb": "由 BNB Chain 提供支持",
-    "chainName": "BNB Chain"
+    "chainName": "BNB Chain",
+    "fromTitle": "您将从哪个钱包付款？",
+    "fromBody": "请输入您将用于付款的 BNB Chain 钱包地址。转账必须来自该地址，这样他人无法冒领您的交易。",
+    "fromLabel": "您的钱包地址",
+    "fromInvalid": "这不像是 BNB Chain 地址（0x 后跟 40 个字符）。",
+    "continue": "继续",
+    "step": "第 {n} 步，共 2 步",
+    "scanNote": "扫描以在钱包应用中填入地址 — 金额请按上方手动输入。"
   },
   "profile": {
     "title": "个人资料",

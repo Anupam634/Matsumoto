@@ -155,3 +155,36 @@ locally. Free tiers are enough for testing.
   the first request after a while will be slow (cold start), not broken.
 - Don't put a real `HOT_WALLET_PRIVATE_KEY` or mainnet contract address
   into a free-tier test deploy's environment variables.
+
+## Turning on booster payments
+
+Boosters are paid by direct transfer — the miner sends USDT from their own
+wallet to a receiving address, then submits the transaction hash, which the
+server verifies on-chain. There is no deposit step and the platform never
+custodies user funds.
+
+Until the receiving address and token contract are set, `GET /api/boosters`
+reports `payment.enabled: false` and the boosters page shows a "not
+configured" banner instead of letting anyone pay.
+
+Set these on the backend:
+
+```
+BOOSTER_PAY_TO_ADDRESS=      # wallet that receives booster payments
+BOOSTER_PAY_TOKEN_ADDRESS=   # USDT BEP-20 contract on the target network
+```
+
+The rest already default correctly for BSC and only need changing to
+override: `BOOSTER_PAY_TOKEN=USDT`, `BOOSTER_PAY_TOKEN_DECIMALS=18` (BSC
+USDT uses 18 decimals, unlike the 6 used on Ethereum),
+`BOOSTER_MIN_CONFIRMATIONS=6`, and `BOOSTER_RPC_URL`, which falls back to
+`BSC_RPC_URL`.
+
+**Verify the token contract address on BscScan before setting it.** A wrong
+contract means payments in a worthless token are accepted as real ones.
+
+Test on BSC testnet first: point `BSC_RPC_URL` at the testnet RPC and
+`BOOSTER_PAY_TOKEN_ADDRESS` at a testnet BEP-20, then run one real purchase
+end to end. `payment.rules.ts` rejects a wrong token, wrong recipient, wrong
+sender, underpayment, too few confirmations, a reverted transaction, and a
+stale one — each with its own reason, so a failed attempt tells you which.
