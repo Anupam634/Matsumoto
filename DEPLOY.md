@@ -68,13 +68,13 @@ you started in step 2.
 
 ### What's not wired up yet
 
-- **Seeding is required for tasks and boosters.** `prisma migrate deploy`
-  creates the tables but does not populate them, so the Tasks section
-  renders empty until you run this once per environment:
+- **Seeding is automatic.** `npm run start:prod` applies migrations and seeds
+  the four booster plans and six tasks from SPEC on every deploy. The seed is
+  idempotent, so it fills an empty catalogue once and does nothing thereafter.
+  To run it by hand against a local database:
   ```bash
-  cd backend && npx prisma db seed
+  cd backend && npm run seed
   ```
-  That inserts the four booster plans and the six tasks from SPEC.
 - **Boosters**: fully purchasable, paid on BNB Chain and verified
   automatically — no admin approval. Purchases stay **disabled until you
   configure a receiving wallet**, and the UI says so plainly rather than
@@ -119,25 +119,49 @@ locally. Free tiers are enough for testing.
 
 ### Backend + database — [Render](https://render.com)
 
+Migrations and catalogue seeding run from `npm run start:prod`, so they happen
+on every deploy no matter how the dashboard is configured. Nothing needs to be
+run by hand, and nothing breaks if a start command is later edited.
+
 1. Sign in to Render with GitHub, and give it access to this repo.
-2. **New → PostgreSQL** — free tier is fine. Copy the **Internal Database URL** once it's provisioned.
-3. **New → Redis** (Render calls it "Key Value") — free tier. Copy its internal URL.
-4. **New → Web Service** → pick this repo.
+2. **New → PostgreSQL** — free tier is fine. Copy the **Internal Database URL**.
+3. **New → Web Service** → pick this repo.
    - **Root directory**: `backend`
    - **Build command**: `npm install && npx prisma generate && npm run build`
-   - **Start command**: `npx prisma migrate deploy && npm run start:prod`
-     (run `npx prisma db seed` once from Render's shell afterwards, or the
-     tasks and booster catalogue will be empty — see the note above)
+   - **Start command**: `npm run start:prod`
+   - **Health check path**: `/api/health`
    - **Environment variables**: copy every key from `backend/.env.example`, with:
      - `DATABASE_URL` → the Postgres URL from step 2
-     - `REDIS_URL` → the Redis URL from step 3
      - `JWT_SECRET` → any long random string (`openssl rand -hex 32`)
      - `WALLET_MODE` → leave as `offchain` for testing — no real chain calls, no private key needed
-5. Deploy. Render gives you a URL like `https://matsumoto-api.onrender.com`. Confirm it's alive:
+
+   Redis is not required. `REDIS_URL` appears in `.env.example` and `ioredis`
+   is installed, but nothing in `src/` imports it yet, so there is no Redis
+   instance to provision.
+
+4. Deploy. Render gives you a URL like `https://matsumoto-api.onrender.com`.
+   Check it came up, and that the database is reachable from it:
    ```bash
-   curl https://matsumoto-api.onrender.com/api/auth/register -X POST \
-     -H "Content-Type: application/json" -d '{"email":"you@example.com","password":"testpass123"}'
+   curl https://matsumoto-api.onrender.com/api/health
+   # {"status":"ok","database":"ok"}   — 503 means it cannot reach Postgres
    ```
+
+Alternatively, **New → Blueprint** and point Render at `render.yaml` in the
+repo root, which carries all of the above. An existing service keeps its own
+dashboard settings when you adopt a blueprint, so compare the two afterwards.
+
+#### If a new feature 500s after a deploy
+
+Almost always an unapplied migration. Setting environment variables does not
+run migrations — Prisma never migrates on its own, something has to call
+`prisma migrate deploy`. That call now lives inside `start:prod`, so:
+
+- Confirm the start command is `npm run start:prod` and not `node dist/main`
+  or `nest start`, both of which skip migrations entirely.
+- Check the deploy log for `migrations have been applied` or `No pending
+  migrations`. If neither line appears, the migrate step never ran.
+- A failed migration stops the service from starting, so a running service
+  with a missing table means the step was skipped rather than that it failed.
 
 ### Frontend — [Vercel](https://vercel.com)
 

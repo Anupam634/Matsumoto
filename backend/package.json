@@ -6,13 +6,13 @@
     "build": "nest build",
     "start": "nest start",
     "start:dev": "nest start --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "prisma migrate deploy && prisma db seed && node dist/main",
     "prisma:generate": "prisma generate",
     "migrate": "prisma migrate dev",
     "test": "jest",
     "lint": "eslint \"src/**/*.ts\" --fix",
     "admin:create": "ts-node -P tsconfig.json prisma/create-admin.ts",
-    "seed": "ts-node -P tsconfig.json prisma/seed.ts"
+    "seed": "node prisma/seed.js"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.0",
@@ -56,6 +56,6 @@
     "testEnvironment": "node"
   },
   "prisma": {
-    "seed": "ts-node -P tsconfig.json prisma/seed.ts"
+    "seed": "node prisma/seed.js"
   }
 }
