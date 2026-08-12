@@ -196,7 +196,16 @@
     "repost": "Repost",
     "youtube": "Watch YouTube",
     "quiz": "Quiz",
-    "spin": "Spin Wheel"
+    "spin": "Spin",
+    "wheelTitle": "Spin the wheel",
+    "wheelBody": "Press the middle to spin. Where it stops is what you get.",
+    "wheelWon": "You won {points, plural, one {# point} other {# points}}",
+    "collect": "Collect",
+    "close": "Close",
+    "mute": "Mute sound",
+    "unmute": "Unmute sound",
+    "wheelAria": "Prize wheel with {n} segments",
+    "offline": "Can't reach the server. Try again."
   },
   "withdraw": {
     "title": "Withdraw",

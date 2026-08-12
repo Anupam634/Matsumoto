@@ -174,6 +174,8 @@ export interface TaskDto {
   canClaim: boolean;
   nextAvailableAt: string | null;
   lastClaimedAt: string | null;
+  /** Point value of each wheel segment, in order. Null for non-wheel tasks. */
+  wheelSegments: number[] | null;
 }
 
 export const getTasks = () => apiFetch<TaskDto[]>('/tasks');
@@ -183,6 +185,8 @@ export const claimTask = (id: string) =>
     earnedPoints: number;
     balancePoints: number;
     nextAvailableAt: string;
+    /** Which wheel segment the server drew. Null for non-wheel tasks. */
+    spinIndex: number | null;
   }>(`/tasks/${id}/claim`, { method: 'POST' });
 
 // ──────────────────────────── KYC ───────────────────────────

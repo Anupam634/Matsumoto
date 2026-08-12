@@ -196,7 +196,16 @@
     "repost": "리포스트",
     "youtube": "YouTube 시청",
     "quiz": "퀴즈",
-    "spin": "룰렛 돌리기"
+    "spin": "돌리기",
+    "wheelTitle": "룰렛 돌리기",
+    "wheelBody": "가운데를 눌러 돌리세요. 멈춘 자리가 획득 금액입니다.",
+    "wheelWon": "{points} 포인트 획득",
+    "collect": "받기",
+    "close": "닫기",
+    "mute": "소리 끄기",
+    "unmute": "소리 켜기",
+    "wheelAria": "{n}개 구간의 상품 룰렛",
+    "offline": "서버에 연결할 수 없습니다. 다시 시도해 주세요."
   },
   "withdraw": {
     "title": "출금",

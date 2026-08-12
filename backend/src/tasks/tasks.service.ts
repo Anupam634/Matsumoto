@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { pickSegmentIndex, segmentValuesMilli } from './spin';
 
 export interface TaskDto {
   id: string;
@@ -8,6 +9,8 @@ export interface TaskDto {
   rewardPoints: number;
   cooldownHours: number;
   canClaim: boolean;
+  /** Point value of each wheel segment, in order. Null for other tasks. */
+  wheelSegments: number[] | null;
   /** When the cooldown lifts, or null if claimable right now. */
   nextAvailableAt: Date | null;
   lastClaimedAt: Date | null;
@@ -56,6 +59,10 @@ export class TasksService {
         type: t.type,
         title: t.title,
         rewardPoints: t.rewardMilli / 1000,
+        wheelSegments:
+          t.type === 'SPIN_WHEEL'
+            ? segmentValuesMilli(t.rewardMilli).map((m) => m / 1000)
+            : null,
         cooldownHours: t.cooldownHours,
         canClaim,
         nextAvailableAt: canClaim ? null : readyAt,
@@ -86,7 +93,17 @@ export class TasksService {
       }
     }
 
-    const reward = BigInt(task.rewardMilli);
+    // The spin wheel draws its payout here, server-side, and reports which
+    // segment it drew so the client can stop the wheel on it. The wheel shows
+    // the outcome; it does not decide it.
+    const spinIndex =
+      task.type === 'SPIN_WHEEL' ? pickSegmentIndex() : null;
+    const rewardMilli =
+      spinIndex === null
+        ? task.rewardMilli
+        : segmentValuesMilli(task.rewardMilli)[spinIndex];
+
+    const reward = BigInt(rewardMilli);
     const [user] = await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: userId },
@@ -101,15 +118,17 @@ export class TasksService {
           userId,
           reason: 'TASK_REWARD',
           deltaMilli: reward,
-          meta: { taskId, type: task.type },
+          meta: { taskId, type: task.type, ...(spinIndex !== null && { spinIndex }) },
         },
       }),
     ]);
 
     return {
-      earnedPoints: task.rewardMilli / 1000,
+      earnedPoints: rewardMilli / 1000,
       balancePoints: Number(user.pointsBalance) / 1000,
       nextAvailableAt: new Date(Date.now() + task.cooldownHours * 3_600_000),
+      // Null for every task but the wheel.
+      spinIndex,
     };
   }
 }

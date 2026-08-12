@@ -196,7 +196,16 @@
     "repost": "转发",
     "youtube": "观看 YouTube",
     "quiz": "答题",
-    "spin": "转盘"
+    "spin": "开始",
+    "wheelTitle": "转动转盘",
+    "wheelBody": "按下中间开始转动，停在哪里就得到多少。",
+    "wheelWon": "您赢得 {points} 积分",
+    "collect": "领取",
+    "close": "关闭",
+    "mute": "静音",
+    "unmute": "取消静音",
+    "wheelAria": "有 {n} 个区段的奖品转盘",
+    "offline": "无法连接服务器，请重试。"
   },
   "withdraw": {
     "title": "提现",

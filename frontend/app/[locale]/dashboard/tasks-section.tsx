@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { SpinWheelModal } from '../../../components/SpinWheelModal';
 import { ApiError, claimTask, getTasks, type TaskDto } from '../../../lib/api';
 
 /** i18n key per task type — the labels already exist under `tasks.*`. */
@@ -34,7 +35,7 @@ export default function TasksSection({
 
   const [tasks, setTasks] = useState<TaskDto[] | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [spinningId, setSpinningId] = useState<string | null>(null);
+  const [wheelTask, setWheelTask] = useState<TaskDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [won, setWon] = useState<{ id: string; points: number } | null>(null);
 
@@ -52,19 +53,17 @@ export default function TasksSection({
   }, [load]);
 
   async function claim(task: TaskDto) {
+    // The wheel is its own screen: opening it is the whole action here, and
+    // the claim happens when the miner presses the hub.
+    if (task.type === 'SPIN_WHEEL' && task.wheelSegments) {
+      setWheelTask(task);
+      return;
+    }
+
     setBusyId(task.id);
     setError(null);
-
-    // The wheel gets a moment to spin before the reward lands, so the
-    // animation reads as the cause of the payout rather than an afterthought.
-    const isWheel = task.type === 'SPIN_WHEEL';
-    if (isWheel) setSpinningId(task.id);
-
     try {
-      const [res] = await Promise.all([
-        claimTask(task.id),
-        isWheel ? new Promise((r) => setTimeout(r, 2200)) : Promise.resolve(),
-      ]);
+      const res = await claimTask(task.id);
       setWon({ id: task.id, points: res.earnedPoints });
       setTimeout(() => setWon(null), 2000);
       await load();
@@ -73,8 +72,16 @@ export default function TasksSection({
       setError(err instanceof ApiError ? err.message : t('offline'));
     } finally {
       setBusyId(null);
-      setSpinningId(null);
     }
+  }
+
+  /** Runs the real claim for the wheel and hands back where it must stop. */
+  async function spinFor(task: TaskDto) {
+    const res = await claimTask(task.id);
+    // The list and balance refresh behind the modal while it is still
+    // spinning, so closing it reveals an already-settled dashboard.
+    void load().then(onClaimed);
+    return { index: res.spinIndex ?? 0, earned: res.earnedPoints };
   }
 
   if (!tasks) {
@@ -110,6 +117,7 @@ export default function TasksSection({
         {tasks.map((task) => (
           <div
             key={task.id}
+            data-task={task.type}
             className="relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] p-4"
           >
             {won?.id === task.id && (
@@ -120,7 +128,7 @@ export default function TasksSection({
 
             <div className="flex items-start gap-3">
               {task.type === 'SPIN_WHEEL' ? (
-                <SpinWheel spinning={spinningId === task.id} />
+                <SpinWheel spinning={false} />
               ) : (
                 <span
                   className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-indigo-500/15 text-lg"
@@ -135,7 +143,10 @@ export default function TasksSection({
                   {taskLabels(LABEL_KEY[task.type])}
                 </div>
                 <div className="mt-0.5 text-sm font-semibold text-indigo-300">
-                  +{task.rewardPoints} {t('pointsShort')}
+                  {task.wheelSegments
+                    ? `${Math.min(...task.wheelSegments)}–${Math.max(...task.wheelSegments)}`
+                    : `+${task.rewardPoints}`}{' '}
+                  {t('pointsShort')}
                 </div>
               </div>
             </div>
@@ -154,6 +165,14 @@ export default function TasksSection({
           </div>
         ))}
       </div>
+
+      {wheelTask?.wheelSegments && (
+        <SpinWheelModal
+          segments={wheelTask.wheelSegments}
+          onSpin={() => spinFor(wheelTask)}
+          onClose={() => setWheelTask(null)}
+        />
+      )}
     </section>
   );
 }
