@@ -135,6 +135,17 @@ run by hand, and nothing breaks if a start command is later edited.
      - `JWT_SECRET` → any long random string (`openssl rand -hex 32`)
      - `WALLET_MODE` → leave as `offchain` for testing — no real chain calls, no private key needed
 
+   To reach the admin panel, also set:
+     - `ADMIN_EMAIL` → the login you want, e.g. `ops@yourdomain.com`
+     - `ADMIN_PASSWORD` → at least 12 characters
+
+   The account is created on boot. There is no admin self-signup, and the
+   free tier has no shell to run `npm run admin:create` from, so without
+   these two variables a fresh deployment cannot get into its own admin
+   panel. `ADMIN_PASSWORD` is the source of truth — to rotate or recover a
+   forgotten password, change it and redeploy. Sign in at
+   `https://your-frontend/en/admin`.
+
    Redis is not required. `REDIS_URL` appears in `.env.example` and `ioredis`
    is installed, but nothing in `src/` imports it yet, so there is no Redis
    instance to provision.

@@ -24,7 +24,12 @@ services:
       # prompt for them at deploy time instead of expecting a value here.
       - key: JWT_SECRET
         sync: false
-      - key: ADMIN_TOKEN
+      # The first admin panel login, created at boot. Without these a fresh
+      # deployment has no way into its own admin panel: there is no admin
+      # self-signup and the free tier has no shell to run the CLI from.
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
         sync: false
       - key: HOT_WALLET_PRIVATE_KEY
         sync: false

@@ -11,7 +11,7 @@
     "migrate": "prisma migrate dev",
     "test": "jest",
     "lint": "eslint \"src/**/*.ts\" --fix",
-    "admin:create": "ts-node -P tsconfig.json prisma/create-admin.ts",
+    "admin:create": "node prisma/create-admin.js",
     "seed": "node prisma/seed.js"
   },
   "dependencies": {

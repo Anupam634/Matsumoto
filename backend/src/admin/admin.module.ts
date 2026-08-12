@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AdminService } from './admin.service';
+import { AdminBootstrapService } from './admin-bootstrap.service';
 import { AdminController, AdminSecureController } from './admin.controller';
 import { AdminAuthGuard } from './admin.guard';
 import { PrismaService } from '../prisma.service';
@@ -14,6 +15,6 @@ import { WithdrawalsModule } from '../withdrawals/withdrawals.module';
 @Module({
   imports: [AuthModule, WithdrawalsModule],
   controllers: [AdminController, AdminSecureController],
-  providers: [AdminService, AdminAuthGuard, PrismaService],
+  providers: [AdminService, AdminAuthGuard, PrismaService, AdminBootstrapService],
 })
 export class AdminModule {}
