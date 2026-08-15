@@ -1,38 +1,109 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Coin3D } from './Coin3D';
 import { useMiningFX } from '../lib/use-mining-fx';
+import { getToken, getMiningStatus, claimMining, type MiningStatus } from '../lib/api';
 
 export function InteractiveMinerVisualizer() {
   const t = useTranslations('landing.simulator');
+  const router = useRouter();
+  const params = useParams<{ locale: string }>();
+  const locale = params?.locale || 'en';
+
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [liveStatus, setLiveStatus] = useState<MiningStatus | null>(null);
   const [isMining, setIsMining] = useState(false);
-  const [simulatedPoints, setSimulatedPoints] = useState(0.0);
+  const [points, setPoints] = useState(0.0);
   const [temp, setTemp] = useState(48);
   const [hashPower, setHashPower] = useState(0.9);
   const [tapEffect, setTapEffect] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const anchorRef = useRef({ at: 0, base: 0 });
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const { playMiningStrike, playClaimReward } = useMiningFX();
 
+  // 1. Check for logged in user session and load live backend mining status
+  const loadLiveSession = useCallback(async () => {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const status = await getMiningStatus();
+      setIsAuthed(true);
+      setLiveStatus(status);
+      setHashPower(status.ratePerHour);
+      setPoints(status.pendingPoints);
+      anchorRef.current = { at: Date.now(), base: status.pendingPoints };
+      // User is actively mining if they have not claimed or have pending points
+      setIsMining(!status.canClaim || status.pendingPoints > 0);
+    } catch {
+      // Ignore token auth failures on landing page and fallback to simulator
+      setIsAuthed(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLiveSession();
+  }, [loadLiveSession]);
+
+  // 2. Real-time High-Precision Accrual Ticker
   useEffect(() => {
     if (isMining) {
-      intervalRef.current = setInterval(() => {
-        setSimulatedPoints((prev) => +(prev + 0.00045).toFixed(5));
-        setTemp((prev) => 52 + Math.floor(Math.sin(Date.now() / 2000) * 4));
-      }, 100);
+      if (isAuthed && liveStatus) {
+        // Live server-anchored accrual calculation
+        const perMs = liveStatus.ratePerHour / 3_600_000;
+        const cap = liveStatus.maxPendingPoints || 21.6;
+        intervalRef.current = setInterval(() => {
+          const { at, base } = anchorRef.current;
+          const current = Math.min(cap, base + (Date.now() - at) * perMs);
+          setPoints(current);
+          setTemp(50 + Math.floor(Math.sin(Date.now() / 2500) * 3));
+        }, 100);
+      } else {
+        // Simulator accrual calculation for visitors
+        intervalRef.current = setInterval(() => {
+          setPoints((prev) => +(prev + 0.00045).toFixed(5));
+          setTemp((prev) => 52 + Math.floor(Math.sin(Date.now() / 2000) * 4));
+        }, 100);
+      }
     } else {
       if (intervalRef.current) clearInterval(intervalRef.current);
     }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isMining]);
+  }, [isMining, isAuthed, liveStatus]);
 
-  const handleToggleMine = () => {
+  // 3. Handle Mine / Claim / View Action
+  const handleToggleMine = async () => {
     setTapEffect(true);
     setTimeout(() => setTapEffect(false), 350);
 
+    if (isAuthed && liveStatus) {
+      if (liveStatus.canClaim) {
+        // Authoritative live claim action directly from landing visualizer
+        setBusy(true);
+        playMiningStrike();
+        try {
+          await claimMining();
+          playClaimReward();
+          await loadLiveSession();
+        } catch {
+          router.push(`/${locale}/dashboard`);
+        } finally {
+          setBusy(false);
+        }
+      } else {
+        // Accruing session: route to dashboard terminal
+        router.push(`/${locale}/dashboard`);
+      }
+      return;
+    }
+
+    // Unauthenticated Interactive Visitor Simulator
     if (!isMining) {
       playMiningStrike();
       setIsMining(true);
@@ -63,7 +134,7 @@ export function InteractiveMinerVisualizer() {
 
           <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 text-[11px] font-bold text-emerald-400 backdrop-blur-md">
             <span className="pulse-dot h-2 w-2 rounded-full bg-emerald-400" />
-            <span>{t('networkStatus')}</span>
+            <span>{isAuthed && isMining ? 'NODE ONLINE' : t('networkStatus')}</span>
           </div>
         </div>
 
@@ -76,7 +147,7 @@ export function InteractiveMinerVisualizer() {
           {/* Hashrate Floating Badge */}
           <div className="absolute top-2 right-2 rounded-xl bg-slate-900/80 border border-amber-500/40 px-3.5 py-2 text-right shadow-xl backdrop-blur-xl">
             <div className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
-              {t('baseSpeed')}
+              {isAuthed ? 'BASE HASHRATE' : t('baseSpeed')}
             </div>
             <div className="font-mono text-sm font-black text-amber-400">
               {isMining ? `${hashPower.toFixed(2)} MATSU/h` : '0.00 MATSU/h'}
@@ -90,31 +161,50 @@ export function InteractiveMinerVisualizer() {
             {t('pointsAccumulated')}
           </div>
           <div className="mt-1 font-mono text-3xl font-black text-amber-400 tracking-tight sm:text-4xl">
-            {simulatedPoints.toFixed(5)}{' '}
+            {points.toFixed(5)}{' '}
             <span className="text-sm font-extrabold text-amber-200">PTS</span>
           </div>
           <div className="mt-1.5 flex items-center justify-center gap-2 text-xs text-slate-400">
             <span className="font-mono text-cyan-400 font-semibold">
-              ≈ {(simulatedPoints / 3).toFixed(5)} $MATSU
+              ≈ {(points / 3).toFixed(5)} $MATSU
             </span>
             <span>•</span>
             <span className="text-emerald-400 font-semibold">3:1 Fixed Conversion</span>
           </div>
         </div>
 
-        {/* Interactive Tap Button */}
+        {/* Interactive Action Button */}
         <div className="relative mt-4">
           {tapEffect && <div className="mine-shockwave" />}
           <button
             type="button"
+            disabled={busy}
             onClick={handleToggleMine}
             className={`btn-gold relative w-full overflow-hidden rounded-2xl py-4 text-center text-sm uppercase tracking-wider transition-all duration-300 shadow-xl ${
               tapEffect ? 'scale-95' : 'hover:scale-[1.01]'
             } ${isMining ? 'ring-2 ring-emerald-400/80 shadow-[0_0_30px_rgba(16,185,129,0.4)]' : ''}`}
           >
             <div className="flex items-center justify-center gap-2.5 font-black text-slate-950">
-              <span className="text-xl">{isMining ? '⛏️' : '⚡'}</span>
-              <span>{isMining ? t('miningActive') : t('tapToMine')}</span>
+              {busy ? (
+                <span>Claiming…</span>
+              ) : isAuthed ? (
+                liveStatus?.canClaim ? (
+                  <>
+                    <span className="text-xl">⚡</span>
+                    <span>Claim Accrued PTS →</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xl">⛏️</span>
+                    <span>Live Mining Active • Open Terminal →</span>
+                  </>
+                )
+              ) : (
+                <>
+                  <span className="text-xl">{isMining ? '⛏️' : '⚡'}</span>
+                  <span>{isMining ? t('miningActive') : t('tapToMine')}</span>
+                </>
+              )}
             </div>
           </button>
         </div>
