@@ -141,14 +141,9 @@ function AuthForm() {
       </aside>
 
       {/* ───────────────────────── Form panel ───────────────────────── */}
-      <main
-        className="flex flex-1 flex-col px-5 pb-10 pt-6 sm:px-10 sm:pt-8 lg:justify-center lg:px-16 lg:py-10 xl:px-24"
-        style={{
-          paddingTop: 'max(1.5rem, env(safe-area-inset-top))',
-          paddingBottom: 'max(2rem, env(safe-area-inset-bottom))',
-        }}
-      >
-        <div className="mb-8 flex items-center justify-between lg:mb-10">
+      <div className="flex flex-1 flex-col min-h-dvh">
+        {/* Pinned Top Navigation Bar */}
+        <header className="sticky top-0 z-20 w-full flex items-center justify-between border-b border-white/[0.06] bg-slate-950/70 px-5 py-4 backdrop-blur-xl sm:px-10 lg:px-16 xl:px-24">
           <Link
             href={`/${params.locale}`}
             className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 transition hover:text-amber-400"
@@ -159,21 +154,28 @@ function AuthForm() {
             <ThemeToggle />
             <LocaleSwitcher locale={params.locale} />
             <span className="lg:hidden">
-              <LogoMark size={36} priority />
+              <LogoMark size={32} priority />
             </span>
           </div>
-        </div>
+        </header>
 
-        <div className="mx-auto w-full max-w-md lg:mx-0">
-          <div className="card border-slate-800/90 bg-slate-900/80 p-6 sm:p-8 shadow-2xl backdrop-blur-2xl">
-            <h1 className="text-2xl font-black tracking-tight sm:text-3xl text-slate-100">
-              {mode === 'login' ? t('signIn') : t('createAccount')}
-            </h1>
-            <p className="mt-1.5 text-xs text-slate-400">
-              {mode === 'login'
-                ? 'Access your cloud mining terminal & daily yield.'
-                : 'Start earning Matsumoto Points with zero hardware cost.'}
-            </p>
+        {/* Centered Form Body */}
+        <main
+          className="flex flex-1 items-center justify-center px-5 py-8 sm:px-10 lg:px-16 xl:px-24"
+          style={{
+            paddingBottom: 'max(2rem, env(safe-area-inset-bottom))',
+          }}
+        >
+          <div className="mx-auto w-full max-w-md">
+            <div className="card border-slate-800/90 bg-slate-900/80 p-6 sm:p-8 shadow-2xl backdrop-blur-2xl">
+              <h1 className="text-2xl font-black tracking-tight sm:text-3xl text-slate-100">
+                {mode === 'login' ? t('signIn') : t('createAccount')}
+              </h1>
+              <p className="mt-1.5 text-xs text-slate-400">
+                {mode === 'login'
+                  ? 'Access your cloud mining terminal & daily yield.'
+                  : 'Start earning Matsumoto Points with zero hardware cost.'}
+              </p>
 
             {/* Mode Switch Tabs */}
             <div className="mt-6 grid w-full grid-cols-2 rounded-xl border border-slate-800 bg-slate-950/80 p-1">
@@ -288,6 +290,7 @@ function AuthForm() {
         </p>
       </main>
     </div>
+  </div>
   );
 }
 
