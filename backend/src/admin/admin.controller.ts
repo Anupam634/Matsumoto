@@ -130,4 +130,47 @@ export class AdminSecureController {
       ? this.withdrawals.approve(id, dto.note)
       : this.withdrawals.reject(id, dto.note ?? 'Rejected by admin.');
   }
+
+  // ───────────────────── Real Database Reports ────────────────────
+
+  @Get('reports/summary')
+  reportsSummary() {
+    return this.admin.getReportsSummary();
+  }
+
+  @Get('reports/users/csv')
+  async exportUsers() {
+    const csv = await this.admin.exportUsersCsv();
+    return { csv, filename: `matsumoto_users_${Date.now()}.csv` };
+  }
+
+  @Get('reports/mining/csv')
+  async exportMining() {
+    const csv = await this.admin.exportMiningCsv();
+    return { csv, filename: `matsumoto_mining_ledger_${Date.now()}.csv` };
+  }
+
+  @Get('reports/withdrawals/csv')
+  async exportWithdrawals() {
+    const csv = await this.admin.exportWithdrawalsCsv();
+    return { csv, filename: `matsumoto_withdrawals_${Date.now()}.csv` };
+  }
+
+  @Get('reports/referrals/csv')
+  async exportReferrals() {
+    const csv = await this.admin.exportReferralsCsv();
+    return { csv, filename: `matsumoto_referrals_${Date.now()}.csv` };
+  }
+
+  @Get('reports/kyc/csv')
+  async exportKyc() {
+    const csv = await this.admin.exportKycCsv();
+    return { csv, filename: `matsumoto_kyc_${Date.now()}.csv` };
+  }
+
+  @Get('reports/revenue/csv')
+  async exportRevenue() {
+    const csv = await this.admin.exportRevenueCsv();
+    return { csv, filename: `matsumoto_revenue_${Date.now()}.csv` };
+  }
 }

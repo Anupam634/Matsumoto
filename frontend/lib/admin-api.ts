@@ -296,3 +296,34 @@ export const deleteAdminTask = (id: string) =>
   adminFetch<{ success: boolean }>(`/tasks/${id}/delete`, {
     method: 'POST',
   });
+
+// ─────────────────────────── Real Database Reports ───────────
+
+export interface AdminReportsSummary {
+  usersCount: number;
+  miningEntriesCount: number;
+  withdrawalsCount: number;
+  referralsCount: number;
+  kycCount: number;
+  revenueCount: number;
+}
+
+export const getReportsSummary = () =>
+  adminFetch<AdminReportsSummary>('/reports/summary');
+
+export const downloadReportCsv = async (
+  type: 'users' | 'mining' | 'withdrawals' | 'referrals' | 'kyc' | 'revenue',
+) => {
+  const data = await adminFetch<{ csv: string; filename: string }>(
+    `/reports/${type}/csv`,
+  );
+  const blob = new Blob([data.csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', data.filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};

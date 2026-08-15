@@ -431,4 +431,227 @@ export class AdminService {
       resolvedAt: w.resolvedAt,
     }));
   }
+
+  // ──────────────────────── Real Reports & CSV ───────────────────────
+
+  async getReportsSummary() {
+    const [usersCount, ledgerCount, withdrawalsCount, kycCount, boostersCount] =
+      await Promise.all([
+        this.prisma.user.count(),
+        this.prisma.ledgerEntry.count(),
+        this.prisma.withdrawal.count(),
+        this.prisma.kycRecord.count(),
+        this.prisma.boosterPurchase.count(),
+      ]);
+
+    const referralsCount = await this.prisma.user.count({
+      where: { referredById: { not: null } },
+    });
+
+    return {
+      usersCount,
+      miningEntriesCount: ledgerCount,
+      withdrawalsCount,
+      referralsCount,
+      kycCount,
+      revenueCount: boostersCount,
+    };
+  }
+
+  async exportUsersCsv(): Promise<string> {
+    const users = await this.prisma.user.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { kyc: true, _count: { select: { referrals: true } } },
+    });
+
+    const headers = [
+      'User ID',
+      'Email',
+      'Country',
+      'Points Balance',
+      'Referrals Count',
+      'KYC Status',
+      'Is Suspended',
+      'Registered At',
+      'Last Mined At',
+    ];
+
+    const rows = users.map((u) => [
+      `"${u.id}"`,
+      `"${u.email ?? 'Wallet'}"`,
+      `"${u.countryCode ?? 'Global'}"`,
+      (Number(u.pointsBalance) / 1000).toFixed(2),
+      u._count.referrals,
+      `"${u.kyc?.status ?? 'NONE'}"`,
+      u.isBlocked ? 'YES' : 'NO',
+      `"${u.createdAt.toISOString()}"`,
+      `"${u.lastMineAt ? u.lastMineAt.toISOString() : 'Never'}"`,
+    ]);
+
+    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  }
+
+  async exportMiningCsv(): Promise<string> {
+    const entries = await this.prisma.ledgerEntry.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 5000,
+      include: { user: { select: { email: true } } },
+    });
+
+    const headers = [
+      'Ledger ID',
+      'User ID',
+      'User Email',
+      'Reason / Event',
+      'Points Delta',
+      'Timestamp',
+    ];
+
+    const rows = entries.map((e) => [
+      `"${e.id}"`,
+      `"${e.userId}"`,
+      `"${e.user?.email ?? 'Wallet'}"`,
+      `"${e.reason}"`,
+      (Number(e.deltaMilli) / 1000).toFixed(2),
+      `"${e.createdAt.toISOString()}"`,
+    ]);
+
+    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  }
+
+  async exportWithdrawalsCsv(): Promise<string> {
+    const withdrawals = await this.prisma.withdrawal.findMany({
+      orderBy: { requestedAt: 'desc' },
+      include: { user: { select: { email: true } } },
+    });
+
+    const headers = [
+      'Withdrawal ID',
+      'User ID',
+      'User Email',
+      'Points Deducted',
+      'Token Payout Amount',
+      'Target BEP-20 Wallet',
+      'Transaction Hash',
+      'Status',
+      'Requested At',
+      'Resolved At',
+      'Admin Note',
+    ];
+
+    const rows = withdrawals.map((w) => [
+      `"${w.id}"`,
+      `"${w.userId}"`,
+      `"${w.user?.email ?? 'Wallet'}"`,
+      (Number(w.pointsAmount) / 1000).toFixed(2),
+      `"${w.tokenAmount}"`,
+      `"${w.toAddress}"`,
+      `"${w.txHash ?? 'N/A'}"`,
+      `"${w.status}"`,
+      `"${w.requestedAt.toISOString()}"`,
+      `"${w.resolvedAt ? w.resolvedAt.toISOString() : 'Pending'}"`,
+      `"${(w.adminNote ?? '').replace(/"/g, '""')}"`,
+    ]);
+
+    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  }
+
+  async exportReferralsCsv(): Promise<string> {
+    const users = await this.prisma.user.findMany({
+      where: { referredById: { not: null } },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        referredBy: { select: { id: true, email: true } },
+      },
+    });
+
+    const headers = [
+      'Miner User ID',
+      'Miner Email',
+      'Invited By User ID',
+      'Inviter Email',
+      'Joined At',
+    ];
+
+    const rows = users.map((u) => [
+      `"${u.id}"`,
+      `"${u.email ?? 'Wallet'}"`,
+      `"${u.referredBy?.id ?? ''}"`,
+      `"${u.referredBy?.email ?? 'Unknown'}"`,
+      `"${u.createdAt.toISOString()}"`,
+    ]);
+
+    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  }
+
+  async exportKycCsv(): Promise<string> {
+    const kycRecords = await this.prisma.kycRecord.findMany({
+      orderBy: { updatedAt: 'desc' },
+      include: { user: { select: { email: true } } },
+    });
+
+    const headers = [
+      'KYC Record ID',
+      'User ID',
+      'User Email',
+      'Full Name',
+      'Document Type',
+      'Document Number',
+      'Status',
+      'Submitted At',
+      'Reviewed At',
+      'Reviewer Note',
+    ];
+
+    const rows = kycRecords.map((k) => [
+      `"${k.id}"`,
+      `"${k.userId}"`,
+      `"${k.user?.email ?? 'Wallet'}"`,
+      `"${k.fullName ?? 'N/A'}"`,
+      `"${k.documentType ?? 'N/A'}"`,
+      `"${k.documentNumber ?? 'N/A'}"`,
+      `"${k.status}"`,
+      `"${k.submittedAt ? k.submittedAt.toISOString() : 'N/A'}"`,
+      `"${k.reviewedAt ? k.reviewedAt.toISOString() : 'N/A'}"`,
+      `"${(k.reviewerNote ?? '').replace(/"/g, '""')}"`,
+    ]);
+
+    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  }
+
+  async exportRevenueCsv(): Promise<string> {
+    const purchases = await this.prisma.boosterPurchase.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { email: true } },
+        plan: true,
+      },
+    });
+
+    const headers = [
+      'Purchase ID',
+      'User ID',
+      'User Email',
+      'Plan Name',
+      'Price USD',
+      'Status',
+      'Transaction Hash',
+      'Created At',
+      'Confirmed At',
+    ];
+
+    const rows = purchases.map((p) => [
+      `"${p.id}"`,
+      `"${p.userId}"`,
+      `"${p.user?.email ?? 'Wallet'}"`,
+      `"${p.plan?.priceUsd ? '$' + p.plan.priceUsd : 'Custom'}"`,
+      p.plan?.priceUsd ?? 0,
+      `"${p.status}"`,
+      `"${p.txHash ?? 'N/A'}"`,
+      `"${p.createdAt.toISOString()}"`,
+      `"${p.confirmedAt ? p.confirmedAt.toISOString() : 'N/A'}"`,
+    ]);
+
+    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  }
 }
