@@ -25,6 +25,7 @@ import { LocaleSwitcher } from '../../../components/LocaleSwitcher';
 import { ThemeToggle } from '../../../components/ThemeToggle';
 import { MobileTabBar } from '../../../components/MobileTabBar';
 import { BnbBadge, BnbLogo } from '../../../components/BnbLogo';
+import { useMiningFX } from '../../../lib/use-mining-fx';
 
 /** How often the live accrual counter repaints. 10fps reads as smooth. */
 const TICK_MS = 100;
@@ -36,6 +37,7 @@ export default function DashboardClient() {
   const router = useRouter();
   const params = useParams<{ locale: string }>();
   const locale = params.locale;
+  const { playMiningStrike, playClaimReward } = useMiningFX();
 
   const [status, setStatus] = useState<MiningStatus | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -90,9 +92,11 @@ export default function DashboardClient() {
   }, [load]);
 
   async function mine() {
+    playMiningStrike();
     setClaiming(true);
     try {
       const res = await claimMining();
+      playClaimReward();
       setCelebrate(res.earnedPoints);
       setTimeout(() => setCelebrate(null), 1700);
       await load();
@@ -433,27 +437,31 @@ function HeroPanel({
           </div>
         </div>
 
-        {/* Ring + Mine button — hidden on mobile, where the tab-bar FAB
-            is the primary control and this would just duplicate it. */}
-        <div className="relative hidden shrink-0 place-items-center sm:grid">
+        {/* Ring + Mine button with Shockwave and Burst Effects */}
+        <div className="relative shrink-0 place-items-center grid my-2 sm:my-0">
           <div className="col-start-1 row-start-1">
             <ProgressRing progress={progress} />
           </div>
           {celebrate !== null && <Burst />}
+          {celebrate !== null && <div className="col-start-1 row-start-1 mine-shockwave" />}
           {celebrate !== null && (
-            <span className="float-up absolute left-1/2 top-0 z-10 whitespace-nowrap text-xl font-extrabold text-emerald-400">
-              +{celebrate.toFixed(2)}
+            <span className="float-up absolute left-1/2 -top-4 z-20 whitespace-nowrap rounded-full bg-emerald-500/20 border border-emerald-400/40 px-3 py-1 text-xl font-extrabold text-emerald-400 backdrop-blur-md">
+              +{celebrate.toFixed(2)} PTS
             </span>
           )}
           <button
             onClick={onMine}
             disabled={!ready}
-            className={`btn-primary col-start-1 row-start-1 h-[7.5rem] w-[7.5rem] flex-col !rounded-full text-base ${
-              ready ? 'pulse-ring' : ''
+            className={`btn-gold col-start-1 row-start-1 h-[7.5rem] w-[7.5rem] flex flex-col items-center justify-center !rounded-full text-xs font-black uppercase tracking-wider transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:grayscale ${
+              ready ? 'pulse-ring shadow-[0_0_40px_rgba(245,158,11,0.6)]' : 'shadow-lg'
             }`}
           >
-            {claiming ? <IconSpinner /> : <IconPick />}
-            <span>{t('mineButton')}</span>
+            {claiming ? (
+              <IconSpinner />
+            ) : (
+              <span className="text-2xl drop-shadow-sm">⚡</span>
+            )}
+            <span className="mt-1">{t('mineButton')}</span>
           </button>
         </div>
       </div>

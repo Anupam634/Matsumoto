@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useMiningFX } from '../lib/use-mining-fx';
 
 export function MobileTabBar({
   locale,
@@ -17,6 +19,15 @@ export function MobileTabBar({
 }) {
   const t = useTranslations('dashboard');
   const pathname = usePathname() || '';
+  const [clicked, setClicked] = useState(false);
+  const { playMiningStrike } = useMiningFX();
+
+  const handleMineClick = () => {
+    playMiningStrike();
+    setClicked(true);
+    setTimeout(() => setClicked(false), 800);
+    onMine?.();
+  };
 
   const isDashboard = pathname.endsWith(`/${locale}/dashboard`) || pathname.endsWith(`/${locale}`);
   const isBoosters = pathname.includes('/boosters');
@@ -69,11 +80,12 @@ export function MobileTabBar({
         </Link>
 
         {/* 3. Center Mining Action Button (FAB) */}
-        <div className="flex flex-col items-center justify-center -mt-6">
+        <div className="relative flex flex-col items-center justify-center -mt-6">
+          {clicked && <div className="mine-shockwave" />}
           {onMine ? (
             <button
               type="button"
-              onClick={onMine}
+              onClick={handleMineClick}
               disabled={!ready}
               aria-label={t('mineButton')}
               className={`relative grid h-14 w-14 place-items-center rounded-full bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-300 text-slate-950 shadow-xl shadow-amber-500/40 ring-4 ring-slate-950 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:grayscale ${
@@ -89,6 +101,7 @@ export function MobileTabBar({
           ) : (
             <Link
               href={`/${locale}/dashboard`}
+              onClick={playMiningStrike}
               aria-label={t('mineButton')}
               className="relative grid h-14 w-14 place-items-center rounded-full bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-300 text-slate-950 shadow-xl shadow-amber-500/40 ring-4 ring-slate-950 transition-all duration-200 active:scale-95"
             >

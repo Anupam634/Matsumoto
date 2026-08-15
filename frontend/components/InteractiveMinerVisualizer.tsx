@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Coin3D } from './Coin3D';
+import { useMiningFX } from '../lib/use-mining-fx';
 
 export function InteractiveMinerVisualizer() {
   const t = useTranslations('landing.simulator');
@@ -12,6 +13,7 @@ export function InteractiveMinerVisualizer() {
   const [hashPower, setHashPower] = useState(0.9);
   const [tapEffect, setTapEffect] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { playMiningStrike, playClaimReward } = useMiningFX();
 
   useEffect(() => {
     if (isMining) {
@@ -29,12 +31,14 @@ export function InteractiveMinerVisualizer() {
 
   const handleToggleMine = () => {
     setTapEffect(true);
-    setTimeout(() => setTapEffect(false), 300);
+    setTimeout(() => setTapEffect(false), 350);
 
     if (!isMining) {
+      playMiningStrike();
       setIsMining(true);
       setHashPower(0.9);
     } else {
+      playClaimReward();
       setIsMining(false);
     }
   };
@@ -99,18 +103,21 @@ export function InteractiveMinerVisualizer() {
         </div>
 
         {/* Interactive Tap Button */}
-        <button
-          type="button"
-          onClick={handleToggleMine}
-          className={`btn-gold relative mt-4 w-full overflow-hidden rounded-2xl py-4 text-center text-sm uppercase tracking-wider transition-all duration-300 shadow-xl ${
-            tapEffect ? 'scale-95' : 'hover:scale-[1.01]'
-          } ${isMining ? 'ring-2 ring-emerald-400/80' : ''}`}
-        >
-          <div className="flex items-center justify-center gap-2.5 font-black text-slate-950">
-            <span className="text-xl">{isMining ? '⛏️' : '⚡'}</span>
-            <span>{isMining ? t('miningActive') : t('tapToMine')}</span>
-          </div>
-        </button>
+        <div className="relative mt-4">
+          {tapEffect && <div className="mine-shockwave" />}
+          <button
+            type="button"
+            onClick={handleToggleMine}
+            className={`btn-gold relative w-full overflow-hidden rounded-2xl py-4 text-center text-sm uppercase tracking-wider transition-all duration-300 shadow-xl ${
+              tapEffect ? 'scale-95' : 'hover:scale-[1.01]'
+            } ${isMining ? 'ring-2 ring-emerald-400/80 shadow-[0_0_30px_rgba(16,185,129,0.4)]' : ''}`}
+          >
+            <div className="flex items-center justify-center gap-2.5 font-black text-slate-950">
+              <span className="text-xl">{isMining ? '⛏️' : '⚡'}</span>
+              <span>{isMining ? t('miningActive') : t('tapToMine')}</span>
+            </div>
+          </button>
+        </div>
 
         {/* Hardware Status Telemetry Strip */}
         <div className="mt-4 grid grid-cols-3 gap-2 text-[11px] font-mono text-slate-400">
