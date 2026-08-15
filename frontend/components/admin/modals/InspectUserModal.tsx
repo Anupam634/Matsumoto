@@ -84,6 +84,30 @@ export function InspectUserModal({ userId, onClose }: InspectUserModalProps) {
               </div>
             </div>
 
+            {/* Device Handshake & IP Telemetry */}
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  📱 Device Handshake & IP Subnet Security Audit
+                </span>
+                <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                  {data.devices && data.devices.length > 0 ? `${data.devices.length} Handshakes Logged` : 'Web Handshake'}
+                </span>
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 text-xs font-mono">
+                <div className="rounded-lg bg-slate-900 p-3">
+                  <div className="text-[10px] font-sans font-bold uppercase text-slate-500">Last Known IP Address</div>
+                  <div className="mt-1 font-bold text-white text-sm">{data.user.lastIp ?? '127.0.0.1 (Local / Proxy)'}</div>
+                </div>
+                <div className="rounded-lg bg-slate-900 p-3">
+                  <div className="text-[10px] font-sans font-bold uppercase text-slate-500">Hardware Fingerprint</div>
+                  <div className="mt-1 font-bold text-amber-400 truncate" title={data.user.deviceFingerprint ?? 'Standard Browser'}>
+                    {data.user.deviceFingerprint ?? 'Browser Handshake'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">

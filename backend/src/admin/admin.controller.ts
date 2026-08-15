@@ -114,6 +114,12 @@ export class AdminSecureController {
     return this.admin.airdrop(id, dto.points, dto.note);
   }
 
+  /** GET /api/admin/referrals/audit — fraud detection and device handshake check */
+  @Get('referrals/audit')
+  referralsAudit() {
+    return this.admin.referralAudit();
+  }
+
   /** GET /api/admin/withdrawals?status=PENDING — approval queue. */
   @Get('withdrawals')
   listWithdrawals(@Query('status') status?: string) {

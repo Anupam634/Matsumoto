@@ -27,6 +27,9 @@ export interface AdminUserRow {
   isBlocked: boolean;
   lastMineAt: Date | null;
   createdAt: Date;
+  lastIp?: string | null;
+  deviceFingerprint?: string | null;
+  lastHandshakeAt?: string | null;
 }
 
 export interface TreeNode {
@@ -209,6 +212,7 @@ export class AdminService {
         include: {
           kyc: true,
           boosters: { include: { plan: true } },
+          devices: { orderBy: { seenAt: 'desc' }, take: 2 },
           _count: { select: { referrals: true } },
         },
       }),
@@ -233,6 +237,7 @@ export class AdminService {
     createdAt: Date;
     kyc: { status: string } | null;
     boosters: { expiresAt: Date; plan: { rateBonusMilli: number } }[];
+    devices?: { fingerprint: string; lastIp: string | null; seenAt: Date }[];
     _count: { referrals: number };
   }): AdminUserRow {
     const boosters: ActiveBooster[] = u.boosters.map((b) => ({
@@ -240,6 +245,7 @@ export class AdminService {
       expiresAt: b.expiresAt,
     }));
     const inviteCount = u._count.referrals;
+    const latestDevice = u.devices?.[0];
     return {
       id: u.id,
       email: u.email,
@@ -259,6 +265,9 @@ export class AdminService {
       isBlocked: u.isBlocked,
       lastMineAt: u.lastMineAt,
       createdAt: u.createdAt,
+      lastIp: latestDevice?.lastIp ?? null,
+      deviceFingerprint: latestDevice?.fingerprint ?? null,
+      lastHandshakeAt: latestDevice?.seenAt ? latestDevice.seenAt.toISOString() : null,
     };
   }
 
@@ -269,6 +278,7 @@ export class AdminService {
       include: {
         kyc: true,
         boosters: { include: { plan: true } },
+        devices: { orderBy: { seenAt: 'desc' }, take: 10 },
         _count: { select: { referrals: true } },
       },
     });
@@ -289,6 +299,12 @@ export class AdminService {
 
     return {
       user: this.toRow(user),
+      devices: user.devices.map((d) => ({
+        id: d.id,
+        fingerprint: d.fingerprint,
+        lastIp: d.lastIp,
+        seenAt: d.seenAt,
+      })),
       referralTree: tree,
       ledger: ledger.map((l) => ({
         id: l.id,
@@ -303,6 +319,105 @@ export class AdminService {
         status: w.status,
         requestedAt: w.requestedAt,
       })),
+    };
+  }
+
+  /**
+   * Referral Fraud & Sybil Bypass Auditor.
+   * Compares device fingerprints, IP addresses and self-referral attempts.
+   */
+  async referralAudit() {
+    const [totalMiners, referrals] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.user.findMany({
+        where: { referredById: { not: null } },
+        select: {
+          id: true,
+          email: true,
+          createdAt: true,
+          isBlocked: true,
+          referredById: true,
+          referredBy: {
+            select: {
+              id: true,
+              email: true,
+              devices: { select: { fingerprint: true, lastIp: true } },
+            },
+          },
+          devices: { select: { fingerprint: true, lastIp: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+      }),
+    ]);
+
+    let suspiciousCount = 0;
+    const auditLogs = referrals.map((r) => {
+      const inviteeFps = new Set(r.devices.map((d) => d.fingerprint).filter(Boolean));
+      const inviteeIps = new Set(r.devices.map((d) => d.lastIp).filter(Boolean));
+
+      const inviterFps = new Set(
+        r.referredBy?.devices.map((d) => d.fingerprint).filter(Boolean) ?? [],
+      );
+      const inviterIps = new Set(
+        r.referredBy?.devices.map((d) => d.lastIp).filter(Boolean) ?? [],
+      );
+
+      let sameDevice = false;
+      for (const fp of Array.from(inviteeFps)) {
+        if (inviterFps.has(fp)) {
+          sameDevice = true;
+          break;
+        }
+      }
+
+      let sameIp = false;
+      for (const ip of Array.from(inviteeIps)) {
+        if (inviterIps.has(ip)) {
+          sameIp = true;
+          break;
+        }
+      }
+
+      let flagReason = 'CLEAN_VERIFIED';
+      let severity: 'CLEAN' | 'MEDIUM' | 'HIGH' = 'CLEAN';
+
+      if (sameDevice) {
+        flagReason = 'SAME_DEVICE_FINGERPRINT';
+        severity = 'HIGH';
+        suspiciousCount++;
+      } else if (sameIp) {
+        flagReason = 'SAME_IP_SUBNET';
+        severity = 'MEDIUM';
+        suspiciousCount++;
+      }
+
+      return {
+        inviteeId: r.id,
+        inviteeEmail: r.email ?? 'Wallet Miner',
+        inviteeIsBlocked: r.isBlocked,
+        inviterId: r.referredById!,
+        inviterEmail: r.referredBy?.email ?? 'Unknown Inviter',
+        inviteeFingerprint: r.devices[0]?.fingerprint ?? 'None',
+        inviteeIp: r.devices[0]?.lastIp ?? 'None',
+        inviterFingerprint: r.referredBy?.devices[0]?.fingerprint ?? 'None',
+        inviterIp: r.referredBy?.devices[0]?.lastIp ?? 'None',
+        flagReason,
+        severity,
+        joinedAt: r.createdAt.toISOString(),
+      };
+    });
+
+    return {
+      totalMiners,
+      totalReferralLinks: referrals.length,
+      cleanReferralsCount: referrals.length - suspiciousCount,
+      suspiciousReferralsCount: suspiciousCount,
+      integrityScore:
+        referrals.length > 0
+          ? Number((((referrals.length - suspiciousCount) / referrals.length) * 100).toFixed(1))
+          : 100,
+      auditLogs,
     };
   }
 

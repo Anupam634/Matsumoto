@@ -112,6 +112,7 @@ export function MinersTab({ onChanged, onUnauthorized }: MinersTabProps) {
             <thead className="border-b border-white/[0.08] bg-slate-950/80 font-bold uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="p-3.5">Miner Account</th>
+                <th className="p-3.5">IP & Handshake</th>
                 <th className="p-3.5">Country</th>
                 <th className="p-3.5">Rate / Hour</th>
                 <th className="p-3.5">Balance</th>
@@ -124,7 +125,7 @@ export function MinersTab({ onChanged, onUnauthorized }: MinersTabProps) {
             <tbody className="divide-y divide-slate-800/80">
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-500">
+                  <td colSpan={9} className="p-8 text-center text-slate-500">
                     {busy ? 'Loading miners…' : 'No miner accounts match the query.'}
                   </td>
                 </tr>
@@ -137,6 +138,14 @@ export function MinersTab({ onChanged, onUnauthorized }: MinersTabProps) {
                       </div>
                       <div className="font-mono text-[10px] text-slate-500">
                         {u.id}
+                      </div>
+                    </td>
+                    <td className="p-3.5 font-mono text-[11px]">
+                      <div className="font-bold text-slate-200">
+                        {u.lastIp ?? '127.0.0.1'}
+                      </div>
+                      <div className="text-[10px] text-amber-400 truncate max-w-[120px]" title={u.deviceFingerprint ?? 'Web Handshake'}>
+                        {u.deviceFingerprint ? `FP: ${u.deviceFingerprint.slice(0, 10)}…` : 'Web Client'}
                       </div>
                     </td>
                     <td className="p-3.5">

@@ -95,6 +95,9 @@ export interface AdminUserRow {
   isBlocked: boolean;
   lastMineAt: string | null;
   createdAt: string;
+  lastIp?: string | null;
+  deviceFingerprint?: string | null;
+  lastHandshakeAt?: string | null;
 }
 
 export interface TreeNode {
@@ -108,6 +111,12 @@ export interface TreeNode {
 
 export interface AdminUserDetail {
   user: AdminUserRow;
+  devices?: {
+    id: string;
+    fingerprint: string;
+    lastIp: string | null;
+    seenAt: string;
+  }[];
   referralTree: TreeNode[];
   ledger: { id: string; reason: string; points: number; createdAt: string }[];
   withdrawals: {
@@ -118,6 +127,33 @@ export interface AdminUserDetail {
     requestedAt: string;
   }[];
 }
+
+export interface ReferralAuditLog {
+  inviteeId: string;
+  inviteeEmail: string;
+  inviteeIsBlocked: boolean;
+  inviterId: string;
+  inviterEmail: string;
+  inviteeFingerprint: string;
+  inviteeIp: string;
+  inviterFingerprint: string;
+  inviterIp: string;
+  flagReason: 'SAME_DEVICE_FINGERPRINT' | 'SAME_IP_SUBNET' | 'CLEAN_VERIFIED';
+  severity: 'CLEAN' | 'MEDIUM' | 'HIGH';
+  joinedAt: string;
+}
+
+export interface ReferralAuditResult {
+  totalMiners: number;
+  totalReferralLinks: number;
+  cleanReferralsCount: number;
+  suspiciousReferralsCount: number;
+  integrityScore: number;
+  auditLogs: ReferralAuditLog[];
+}
+
+export const getReferralAudit = () =>
+  adminFetch<ReferralAuditResult>('/referrals/audit');
 
 export interface AdminWithdrawal {
   id: string;
