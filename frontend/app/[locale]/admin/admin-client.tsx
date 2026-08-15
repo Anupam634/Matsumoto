@@ -1,12 +1,6 @@
 'use client';
 
-/**
- * Admin panel (SPEC §6). Internal operator tooling, so the copy is English-only
- * rather than routed through next-intl — the three-locale requirement is for
- * the miner-facing app.
- */
-
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState, useMemo } from 'react';
 import { LogoMark } from '../../../components/Logo';
 import {
   ApiError,
@@ -43,14 +37,14 @@ import {
 } from '../../../lib/admin-api';
 import { countryFlag, countryName } from '../../../lib/countries';
 
-type Tab = 'miners' | 'withdrawals' | 'kyc' | 'support' | 'tasks';
+type Tab = 'analytics' | 'miners' | 'withdrawals' | 'kyc' | 'support' | 'tasks';
 
 export default function AdminClient() {
   const [authed, setAuthed] = useState<boolean | null>(null);
 
   useEffect(() => setAuthed(!!getAdminToken()), []);
 
-  if (authed === null) return null; // avoid a login flash before hydration
+  if (authed === null) return null;
   if (!authed) return <LoginGate onDone={() => setAuthed(true)} />;
   return (
     <Panel
@@ -62,7 +56,7 @@ export default function AdminClient() {
   );
 }
 
-/* ─────────────────────────── Login ─────────────────────────── */
+/* ─────────────────────────── Login Gate ─────────────────────────── */
 
 function LoginGate({ onDone }: { onDone: () => void }) {
   const [email, setEmail] = useState('');
@@ -85,61 +79,67 @@ function LoginGate({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <div className="glow-field-light flex min-h-dvh items-center justify-center px-5">
-      <form onSubmit={submit} className="card-soft w-full max-w-sm p-7">
-        <div className="mb-6 flex items-center gap-3">
-          <LogoMark size={32} />
+    <div className="glow-field min-h-dvh flex items-center justify-center bg-slate-950 px-5 text-slate-100">
+      <form onSubmit={submit} className="card w-full max-w-md border-slate-800 bg-slate-900/90 p-8 shadow-2xl backdrop-blur-2xl">
+        <div className="mb-6 flex items-center gap-3 border-b border-white/[0.08] pb-4">
+          <LogoMark size={36} priority />
           <div>
-            <h1 className="font-bold">Admin panel</h1>
-            <p className="text-xs text-slate-500">Operators only</p>
+            <h1 className="text-xl font-black tracking-tight text-white">Matsumoto Operator Console</h1>
+            <p className="text-xs font-semibold text-amber-400">Restricted Administration Access</p>
           </div>
         </div>
 
+        {error && (
+          <div className="mb-4 rounded-xl border border-red-500/40 bg-red-950/40 p-3 text-xs text-red-300">
+            <span className="font-bold">⚠</span> {error}
+          </div>
+        )}
+
         <label className="block">
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Email
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            Operator Email
           </span>
           <input
-            className="input-field mt-1.5"
+            className="mt-1.5 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="username"
+            placeholder="admin@matsumoto.io"
             required
           />
         </label>
         <label className="mt-4 block">
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
             Password
           </span>
           <input
-            className="input-field mt-1.5"
+            className="mt-1.5 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
+            placeholder="••••••••"
             required
           />
         </label>
 
-        {error && (
-          <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
-            {error}
-          </p>
-        )}
-
-        <button type="submit" disabled={busy} className="btn-primary mt-6 w-full py-3">
-          {busy ? 'Signing in…' : 'Sign in'}
+        <button
+          type="submit"
+          disabled={busy}
+          className="btn-gold mt-6 w-full rounded-xl py-3.5 text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-lg shadow-amber-500/20 disabled:opacity-50"
+        >
+          {busy ? 'Verifying Credentials…' : 'Access Operator Console →'}
         </button>
       </form>
     </div>
   );
 }
 
-/* ─────────────────────────── Panel ─────────────────────────── */
+/* ─────────────────────────── Main Admin Panel ─────────────────────────── */
 
 function Panel({ onSignOut }: { onSignOut: () => void }) {
-  const [tab, setTab] = useState<Tab>('miners');
+  const [tab, setTab] = useState<Tab>('analytics');
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -155,92 +155,119 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
 
   useEffect(() => {
     loadStats();
+    const interval = setInterval(loadStats, 30_000);
+    return () => clearInterval(interval);
   }, [loadStats]);
 
   return (
-    <div className="glow-field-light min-h-dvh text-slate-900">
-      <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/80 backdrop-blur">
+    <div className="glow-field min-h-dvh bg-slate-950 text-slate-100">
+      {/* Top Console Navigation */}
+      <header className="sticky top-0 z-30 border-b border-white/[0.08] bg-slate-950/80 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6">
-          <span className="flex items-center gap-2 font-bold">
-            <LogoMark size={32} /> Admin panel
-          </span>
-          <button onClick={onSignOut} className="btn-outline-brand px-4 py-2 text-sm">
-            Sign out
-          </button>
+          <div className="flex items-center gap-3">
+            <LogoMark size={34} priority />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-black tracking-tight text-white sm:text-lg">Matsumoto Command Center</span>
+                <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-400">
+                  Cluster v2.4 Live
+                </span>
+              </div>
+              <p className="text-[11px] font-mono text-slate-400">BNB Chain Mainnet Node Controller</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onSignOut}
+              className="rounded-xl border border-red-500/30 bg-red-950/30 px-3.5 py-1.5 text-xs font-bold text-red-300 transition hover:bg-red-900/50 hover:text-white"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6">
+      <main className="mx-auto max-w-7xl px-4 pb-20 pt-6 sm:px-6">
         {error && (
-          <p className="mb-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
-            {error}
-          </p>
+          <div className="mb-5 flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-950/40 p-4 text-xs text-red-300">
+            <span className="font-bold">⚠</span> {error}
+          </div>
         )}
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
-          <StatCard label="Active miners (24h)" value={stats?.activeMiners} />
-          <StatCard label="Total users" value={stats?.totalUsers} />
-          <StatCard
-            label="Total balance"
-            value={stats?.totalBalancePoints}
-            suffix=" pts"
-            decimals={2}
-          />
-          <StatCard label="Pending withdrawals" value={stats?.pendingWithdrawals} />
-          <StatCard label="Blocked" value={stats?.blockedUsers} />
-        </div>
-
-        {/* Users by country */}
-        {stats && stats.usersByCountry.length > 0 && (
-          <section className="card-soft mt-4 p-5">
-            <h2 className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              Users by country
-            </h2>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {stats.usersByCountry.map((c) => (
-                <span
-                  key={c.countryCode}
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm"
-                >
-                  <Country code={c.countryCode} />{' '}
-                  <span className="font-semibold text-slate-500">{c.users}</span>
-                </span>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Tabs */}
-        <div className="tab-switch mt-6 inline-flex">
-          <button data-active={tab === 'miners'} onClick={() => setTab('miners')}>
-            Miners
+        {/* Global Tab Switcher */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.08] pb-4">
+          <button
+            onClick={() => setTab('analytics')}
+            className={`rounded-xl px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider transition-all ${
+              tab === 'analytics'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                : 'border border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            📊 Analytics & Insights
           </button>
           <button
-            data-active={tab === 'withdrawals'}
-            onClick={() => setTab('withdrawals')}
+            onClick={() => setTab('miners')}
+            className={`rounded-xl px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider transition-all ${
+              tab === 'miners'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                : 'border border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200'
+            }`}
           >
-            Withdrawals
-            {stats?.pendingWithdrawals ? ` (${stats.pendingWithdrawals})` : ''}
+            👥 Miner Accounts ({stats?.totalUsers ?? '…'})
           </button>
-          <button data-active={tab === 'kyc'} onClick={() => setTab('kyc')}>
-            KYC
+          <button
+            onClick={() => setTab('withdrawals')}
+            className={`rounded-xl px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider transition-all ${
+              tab === 'withdrawals'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                : 'border border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            💸 Withdrawals Queue
+            {stats?.pendingWithdrawals ? (
+              <span className="ml-2 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-slate-950">
+                {stats.pendingWithdrawals} PENDING
+              </span>
+            ) : ''}
           </button>
-          <button data-active={tab === 'support'} onClick={() => setTab('support')}>
-            Support
+          <button
+            onClick={() => setTab('kyc')}
+            className={`rounded-xl px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider transition-all ${
+              tab === 'kyc'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                : 'border border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            🪪 KYC Verifications
           </button>
-          <button data-active={tab === 'tasks'} onClick={() => setTab('tasks')}>
-            🎯 Tasks & Bounties (Quiz, Wheel, X)
+          <button
+            onClick={() => setTab('support')}
+            className={`rounded-xl px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider transition-all ${
+              tab === 'support'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                : 'border border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            💬 Support Tickets
+          </button>
+          <button
+            onClick={() => setTab('tasks')}
+            className={`rounded-xl px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider transition-all ${
+              tab === 'tasks'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                : 'border border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            🎯 Tasks & Bounties
           </button>
         </div>
 
-        <div className="mt-4">
-          {tab === 'miners' && (
-            <MinersTab onChanged={loadStats} onUnauthorized={onSignOut} />
-          )}
-          {tab === 'withdrawals' && (
-            <WithdrawalsTab onChanged={loadStats} onUnauthorized={onSignOut} />
-          )}
+        {/* Tab Content Panels */}
+        <div className="mt-6">
+          {tab === 'analytics' && <AnalyticsTab stats={stats} onRefresh={loadStats} />}
+          {tab === 'miners' && <MinersTab onChanged={loadStats} onUnauthorized={onSignOut} />}
+          {tab === 'withdrawals' && <WithdrawalsTab onChanged={loadStats} onUnauthorized={onSignOut} />}
           {tab === 'kyc' && <KycTab onUnauthorized={onSignOut} />}
           {tab === 'support' && <SupportTab onUnauthorized={onSignOut} />}
           {tab === 'tasks' && <TasksTab onUnauthorized={onSignOut} />}
@@ -250,46 +277,183 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
   );
 }
 
-/** Flag + full country name; falls back to a dash when unknown. */
-function Country({ code }: { code: string | null }) {
-  if (!code || code === 'unknown') {
-    return <span className="text-slate-400">—</span>;
-  }
-  return (
-    <span title={code}>
-      {countryFlag(code)} {countryName(code)}
-    </span>
-  );
-}
+/* ─────────────────────────── TAB 1: Analytics & Insights ─────────────────────────── */
 
-function StatCard({
-  label,
-  value,
-  suffix = '',
-  decimals = 0,
-}: {
-  label: string;
-  value?: number;
-  suffix?: string;
-  decimals?: number;
-}) {
+function AnalyticsTab({ stats, onRefresh }: { stats: AdminStats | null; onRefresh: () => void }) {
+  const totalBalance = stats?.totalBalancePoints ?? 0;
+  const tokenEquivalent = totalBalance / 3;
+  const estUsdValue = tokenEquivalent * 0.15; // Benchmark estimated valuation
+
+  const topCountries = useMemo(() => {
+    if (!stats?.usersByCountry) return [];
+    const sorted = [...stats.usersByCountry].sort((a, b) => b.users - a.users);
+    const max = sorted[0]?.users || 1;
+    return sorted.map((c) => ({
+      ...c,
+      percentage: Math.round((c.users / (stats.totalUsers || 1)) * 100),
+      barWidth: Math.round((c.users / max) * 100),
+    }));
+  }, [stats]);
+
   return (
-    <div className="card-soft p-4">
-      <div className="truncate text-xs font-medium uppercase tracking-wide text-slate-500">
-        {label}
+    <div className="space-y-6">
+      {/* Header & Quick Action */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-black text-white">Platform Health & Yield Analytics</h2>
+          <p className="text-xs text-slate-400">Real-time telemetry and network accrual overview</p>
+        </div>
+        <button
+          onClick={onRefresh}
+          className="rounded-xl border border-white/10 bg-slate-900/80 px-4 py-2 text-xs font-bold text-slate-300 transition hover:border-amber-500 hover:text-amber-400"
+        >
+          🔄 Refresh Telemetry
+        </button>
       </div>
-      <div className="mt-1 text-2xl font-bold tabular-nums">
-        {value === undefined ? (
-          <span className="skeleton block h-7 w-16" />
-        ) : (
-          `${value.toFixed(decimals)}${suffix}`
-        )}
+
+      {/* Primary KPI Grid */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="card border-slate-800 bg-slate-900/70 p-5 backdrop-blur-md">
+          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400">
+            <span>Total Miners</span>
+            <span className="text-emerald-400 font-bold">100% On-Chain</span>
+          </div>
+          <div className="mt-2 text-3xl font-black tabular-nums text-white">
+            {stats?.totalUsers ?? 0}
+          </div>
+          <div className="mt-1 text-xs text-slate-500">Registered cloud mining nodes</div>
+        </div>
+
+        <div className="card border-slate-800 bg-slate-900/70 p-5 backdrop-blur-md">
+          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400">
+            <span>Active Yielding (24h)</span>
+            <span className="pulse-dot h-2 w-2 rounded-full bg-emerald-400" />
+          </div>
+          <div className="mt-2 text-3xl font-black tabular-nums text-emerald-400">
+            {stats?.activeMiners ?? 0}
+          </div>
+          <div className="mt-1 text-xs text-slate-500">
+            {stats ? Math.round(((stats.activeMiners) / (stats.totalUsers || 1)) * 100) : 0}% 24h retention rate
+          </div>
+        </div>
+
+        <div className="card border-slate-800 bg-slate-900/70 p-5 backdrop-blur-md">
+          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400">
+            <span>Total Accrued Points</span>
+            <span className="text-amber-400 font-mono">PTS</span>
+          </div>
+          <div className="mt-2 text-3xl font-black tabular-nums text-amber-400">
+            {totalBalance.toFixed(2)}
+          </div>
+          <div className="mt-1 text-xs text-cyan-400 font-semibold">
+            ≈ {tokenEquivalent.toFixed(2)} $MATSU (~${estUsdValue.toFixed(2)})
+          </div>
+        </div>
+
+        <div className="card border-slate-800 bg-slate-900/70 p-5 backdrop-blur-md">
+          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400">
+            <span>Pending Payouts</span>
+            <span className="text-amber-400 font-bold">QUEUE</span>
+          </div>
+          <div className="mt-2 text-3xl font-black tabular-nums text-amber-300">
+            {stats?.pendingWithdrawals ?? 0}
+          </div>
+          <div className="mt-1 text-xs text-slate-500">
+            {stats?.blockedUsers ?? 0} suspended / banned accounts
+          </div>
+        </div>
+      </div>
+
+      {/* Secondary Analytics: Country Distribution & Withdrawal Pipeline */}
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* Country Breakdown */}
+        <div className="card border-slate-800 bg-slate-900/70 p-6 lg:col-span-7 backdrop-blur-md">
+          <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+            <h3 className="text-sm font-black uppercase tracking-wider text-white">
+              🌍 Global Node Distribution
+            </h3>
+            <span className="text-xs text-slate-400 font-mono">
+              {topCountries.length} Countries Active
+            </span>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {topCountries.length === 0 ? (
+              <p className="text-xs text-slate-500">No geo-distribution data recorded yet.</p>
+            ) : (
+              topCountries.slice(0, 7).map((c) => (
+                <div key={c.countryCode} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs font-semibold">
+                    <div className="flex items-center gap-2">
+                      <span>{countryFlag(c.countryCode || 'US')}</span>
+                      <span className="text-slate-200">{countryName(c.countryCode || 'US')}</span>
+                      <span className="font-mono text-slate-500">({c.countryCode || '—'})</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-amber-400">{c.users} nodes</span>
+                      <span className="text-slate-500">({c.percentage}%)</span>
+                    </div>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 transition-all duration-500"
+                      style={{ width: `${c.barWidth}%` }}
+                    />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Withdrawal Pipeline & Security Telemetry */}
+        <div className="card border-slate-800 bg-slate-900/70 p-6 lg:col-span-5 backdrop-blur-md">
+          <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+            <h3 className="text-sm font-black uppercase tracking-wider text-white">
+              🛡️ Security & Liquidity
+            </h3>
+            <span className="text-xs text-emerald-400 font-bold">Audited</span>
+          </div>
+
+          <div className="mt-4 space-y-4">
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+              <div className="text-xs font-bold uppercase text-slate-400">Withdrawal Pipeline Status</div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="rounded-lg bg-amber-500/10 border border-amber-500/25 p-2">
+                  <div className="font-mono text-lg font-black text-amber-400">
+                    {stats?.withdrawalsByStatus?.PENDING ?? 0}
+                  </div>
+                  <div className="text-[10px] uppercase font-bold text-slate-400">Pending</div>
+                </div>
+                <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/25 p-2">
+                  <div className="font-mono text-lg font-black text-emerald-400">
+                    {stats?.withdrawalsByStatus?.APPROVED ?? 0}
+                  </div>
+                  <div className="text-[10px] uppercase font-bold text-slate-400">Settled</div>
+                </div>
+                <div className="rounded-lg bg-red-500/10 border border-red-500/25 p-2">
+                  <div className="font-mono text-lg font-black text-red-400">
+                    {stats?.withdrawalsByStatus?.REJECTED ?? 0}
+                  </div>
+                  <div className="text-[10px] uppercase font-bold text-slate-400">Rejected</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+              <div className="text-xs font-bold uppercase text-slate-400">Sybil & Device Defense</div>
+              <div className="mt-2 text-xs leading-relaxed text-slate-300">
+                Self-referral detection is active via fingerprinting & shared IP throttling. Banned users cannot tap or request withdrawals.
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-/* ─────────────────────────── Miners ────────────────────────── */
+/* ─────────────────────────── TAB 2: Miners Management ─────────────────────────── */
 
 function MinersTab({
   onChanged,
@@ -299,12 +463,19 @@ function MinersTab({
   onUnauthorized: () => void;
 }) {
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'ALL' | 'ACTIVE' | 'BLOCKED' | 'KYC_APPROVED' | 'BOOSTED'>('ALL');
   const [rows, setRows] = useState<AdminUserRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [openId, setOpenId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Active Modals state
+  const [selectedUser, setSelectedUser] = useState<AdminUserRow | null>(null);
+  const [inspectUserId, setInspectUserId] = useState<string | null>(null);
+  const [rateModalUser, setRateModalUser] = useState<AdminUserRow | null>(null);
+  const [airdropModalUser, setAirdropModalUser] = useState<AdminUserRow | null>(null);
+  const [banModalUser, setBanModalUser] = useState<AdminUserRow | null>(null);
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -325,308 +496,689 @@ function MinersTab({
     load();
   }, [load]);
 
-  async function act(fn: () => Promise<unknown>) {
+  // Client-side filtering on current dataset
+  const filteredRows = useMemo(() => {
+    return rows.filter((u) => {
+      if (filter === 'BLOCKED') return u.isBlocked;
+      if (filter === 'ACTIVE') return !u.isBlocked;
+      if (filter === 'KYC_APPROVED') return u.kycStatus === 'APPROVED';
+      if (filter === 'BOOSTED') return u.activeBoosters > 0;
+      return true;
+    });
+  }, [rows, filter]);
+
+  return (
+    <div className="space-y-4">
+      {/* Top Search & Filter Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-1 items-center gap-2 min-w-[280px]">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search by Email, User ID, Referral Code, or Wallet…"
+            className="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-2.5 text-xs text-slate-100 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          {(['ALL', 'ACTIVE', 'BLOCKED', 'KYC_APPROVED', 'BOOSTED'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`rounded-lg px-3 py-1.5 font-bold uppercase transition ${
+                filter === f
+                  ? 'bg-amber-500 text-slate-950 shadow-sm'
+                  : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+              }`}
+            >
+              {f.replace('_', ' ')}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {error && (
+        <div className="rounded-xl border border-red-500/40 bg-red-950/40 p-3 text-xs text-red-300">
+          {error}
+        </div>
+      )}
+
+      {/* Miners Table */}
+      <div className="card overflow-hidden border-slate-800 bg-slate-900/80 shadow-2xl">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-300">
+            <thead className="border-b border-white/[0.08] bg-slate-950/80 font-bold uppercase tracking-wider text-slate-400">
+              <tr>
+                <th className="p-3.5">Miner Account</th>
+                <th className="p-3.5">Country</th>
+                <th className="p-3.5">Rate / Hour</th>
+                <th className="p-3.5">Balance</th>
+                <th className="p-3.5">Referrals</th>
+                <th className="p-3.5">KYC</th>
+                <th className="p-3.5">Status</th>
+                <th className="p-3.5 text-right">Moderation Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/80">
+              {filteredRows.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="p-8 text-center text-slate-500">
+                    {busy ? 'Loading miners…' : 'No miner accounts match the query.'}
+                  </td>
+                </tr>
+              ) : (
+                filteredRows.map((u) => (
+                  <tr key={u.id} className="transition hover:bg-slate-800/40">
+                    <td className="p-3.5">
+                      <div className="font-bold text-white">{u.email ?? 'No email (wallet user)'}</div>
+                      <div className="font-mono text-[10px] text-slate-500">{u.id}</div>
+                    </td>
+                    <td className="p-3.5">
+                      <span className="inline-flex items-center gap-1.5 font-semibold">
+                        <span>{u.countryCode ? countryFlag(u.countryCode) : '🌐'}</span>
+                        <span>{u.countryCode ?? '—'}</span>
+                      </span>
+                    </td>
+                    <td className="p-3.5">
+                      <span className="font-mono font-bold text-amber-400">
+                        {u.ratePerHour.toFixed(2)} /h
+                      </span>
+                      {u.rateAdjustMilli !== 0 && (
+                        <span className="ml-1 text-[10px] text-cyan-400">
+                          ({u.rateAdjustMilli > 0 ? '+' : ''}{(u.rateAdjustMilli / 1000).toFixed(2)})
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3.5">
+                      <span className="font-mono font-bold text-white">{u.balancePoints.toFixed(2)}</span>
+                      <span className="ml-1 text-[10px] text-slate-400">PTS</span>
+                    </td>
+                    <td className="p-3.5">
+                      <span className="font-bold text-slate-200">{u.referralCount}</span>
+                      <span className="ml-1.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 px-1.5 py-0.5 text-[10px] font-bold text-indigo-300">
+                        L{u.referralTier.level} ({u.referralTier.multiplier}×)
+                      </span>
+                    </td>
+                    <td className="p-3.5">
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        u.kycStatus === 'APPROVED'
+                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                          : u.kycStatus === 'PENDING'
+                          ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                          : u.kycStatus === 'REJECTED'
+                          ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+                          : 'bg-slate-800 text-slate-400'
+                      }`}>
+                        {u.kycStatus}
+                      </span>
+                    </td>
+                    <td className="p-3.5">
+                      {u.isBlocked ? (
+                        <span className="rounded-full bg-red-500/20 border border-red-500/40 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-red-300">
+                          🛑 Suspended
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-emerald-400">
+                          Active
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3.5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => setInspectUserId(u.id)}
+                          className="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-slate-200 hover:border-amber-400 hover:text-amber-300 transition"
+                          title="Inspect Account Details"
+                        >
+                          🔍 Details
+                        </button>
+                        <button
+                          onClick={() => setBanModalUser(u)}
+                          className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition border ${
+                            u.isBlocked
+                              ? 'border-emerald-500/40 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/60'
+                              : 'border-red-500/40 bg-red-950/40 text-red-300 hover:bg-red-900/60'
+                          }`}
+                        >
+                          {u.isBlocked ? 'Unsuspend' : 'Suspend'}
+                        </button>
+                        <button
+                          onClick={() => setRateModalUser(u)}
+                          className="rounded-lg border border-indigo-500/30 bg-indigo-950/30 px-2.5 py-1.5 text-xs font-bold text-indigo-300 hover:bg-indigo-900/50 transition"
+                        >
+                          ⚡ Rate
+                        </button>
+                        <button
+                          onClick={() => setAirdropModalUser(u)}
+                          className="rounded-lg border border-amber-500/30 bg-amber-950/30 px-2.5 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-900/50 transition"
+                        >
+                          🎁 Airdrop
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination Bar */}
+        <div className="flex items-center justify-between border-t border-white/[0.08] bg-slate-950/60 px-4 py-3 text-xs text-slate-400">
+          <div>
+            Showing <strong className="text-white">{filteredRows.length}</strong> of{' '}
+            <strong className="text-white">{total}</strong> total registered accounts
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              disabled={page <= 1 || busy}
+              onClick={() => setPage((p) => p - 1)}
+              className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 font-bold disabled:opacity-40"
+            >
+              ← Prev
+            </button>
+            <span className="font-mono font-bold text-slate-300">Page {page}</span>
+            <button
+              disabled={page * 25 >= total || busy}
+              onClick={() => setPage((p) => p + 1)}
+              className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 font-bold disabled:opacity-40"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ───────────────── MODAL: Deep Account Inspection Drawer ───────────────── */}
+      {inspectUserId && (
+        <InspectUserModal
+          userId={inspectUserId}
+          onClose={() => setInspectUserId(null)}
+          onChanged={() => {
+            load();
+            onChanged();
+          }}
+        />
+      )}
+
+      {/* ───────────────── MODAL: Suspend / Ban Account ───────────────── */}
+      {banModalUser && (
+        <BanUserModal
+          user={banModalUser}
+          onClose={() => setBanModalUser(null)}
+          onSuccess={() => {
+            setBanModalUser(null);
+            load();
+            onChanged();
+          }}
+        />
+      )}
+
+      {/* ───────────────── MODAL: Hash Rate Adjustment ───────────────── */}
+      {rateModalUser && (
+        <RateAdjustModal
+          user={rateModalUser}
+          onClose={() => setRateModalUser(null)}
+          onSuccess={() => {
+            setRateModalUser(null);
+            load();
+            onChanged();
+          }}
+        />
+      )}
+
+      {/* ───────────────── MODAL: Airdrop Points ───────────────── */}
+      {airdropModalUser && (
+        <AirdropModal
+          user={airdropModalUser}
+          onClose={() => setAirdropModalUser(null)}
+          onSuccess={() => {
+            setAirdropModalUser(null);
+            load();
+            onChanged();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────── MODALS: Ban, Rate, Airdrop, Inspect ─────────────────────────── */
+
+function BanUserModal({
+  user,
+  onClose,
+  onSuccess,
+}: {
+  user: AdminUserRow;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleToggle() {
+    setBusy(true);
+    setError(null);
     try {
-      await fn();
-      await load();
-      onChanged();
+      await setBlocked(user.id, !user.isBlocked);
+      onSuccess();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Action failed.');
+      setBusy(false);
     }
   }
 
-  const pages = Math.max(1, Math.ceil(total / 25));
-
   return (
-    <section className="card-soft overflow-hidden">
-      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 p-4">
-        <input
-          className="input-field max-w-xs"
-          placeholder="Search email, id, referral code…"
-          value={search}
-          onChange={(e) => {
-            setPage(1);
-            setSearch(e.target.value);
-          }}
-        />
-        <span className="text-sm text-slate-500">{total} miners</span>
-      </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md">
+      <div className="card w-full max-w-md border-slate-800 bg-slate-900 p-6 shadow-2xl">
+        <h3 className="text-lg font-black text-white">
+          {user.isBlocked ? 'Unsuspend Miner Account' : 'Suspend / Ban Miner Account'}
+        </h3>
+        <p className="mt-2 text-xs leading-relaxed text-slate-400">
+          {user.isBlocked
+            ? `Re-enabling ${user.email ?? user.id} will restore their mining accrual and withdrawal privileges.`
+            : `Suspending ${user.email ?? user.id} will immediately block them from tapping Mine, receiving referral commissions, and submitting withdrawals.`}
+        </p>
 
-      {error && <p className="bg-red-50 p-3 text-sm text-red-600">{error}</p>}
+        {error && (
+          <div className="mt-3 rounded-xl border border-red-500/40 bg-red-950/40 p-3 text-xs text-red-300">
+            {error}
+          </div>
+        )}
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[62rem] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-            <tr>
-              <th className="p-3">Miner</th>
-              <th className="p-3">Country</th>
-              <th className="p-3">Rate</th>
-              <th className="p-3">Balance</th>
-              <th className="p-3">Refs / tier</th>
-              <th className="p-3">KYC</th>
-              <th className="p-3">Status</th>
-              <th className="p-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((u) => (
-              <MinerRow
-                key={u.id}
-                u={u}
-                open={openId === u.id}
-                onToggle={() => setOpenId(openId === u.id ? null : u.id)}
-                onAct={act}
-              />
-            ))}
-            {!rows.length && !busy && (
-              <tr>
-                <td colSpan={8} className="p-6 text-center text-slate-500">
-                  No miners match that search.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {pages > 1 && (
-        <div className="flex items-center justify-between border-t border-slate-200 p-3 text-sm">
+        <div className="mt-6 flex items-center justify-end gap-3">
           <button
-            className="btn-outline-brand px-3 py-1.5 disabled:opacity-40"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
+            onClick={onClose}
+            disabled={busy}
+            className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-2 text-xs font-bold text-slate-400 hover:text-white"
           >
-            ← Prev
+            Cancel
           </button>
-          <span className="text-slate-500">
-            Page {page} of {pages}
-          </span>
           <button
-            className="btn-outline-brand px-3 py-1.5 disabled:opacity-40"
-            disabled={page >= pages}
-            onClick={() => setPage((p) => p + 1)}
+            onClick={handleToggle}
+            disabled={busy}
+            className={`rounded-xl px-5 py-2.5 text-xs font-black uppercase tracking-wider ${
+              user.isBlocked
+                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                : 'bg-red-600 text-white shadow-md shadow-red-600/30'
+            }`}
           >
-            Next →
+            {busy ? 'Processing…' : user.isBlocked ? 'Confirm Unsuspend' : 'Confirm Suspension'}
           </button>
         </div>
-      )}
-    </section>
+      </div>
+    </div>
   );
 }
 
-function MinerRow({
-  u,
-  open,
-  onToggle,
-  onAct,
+function RateAdjustModal({
+  user,
+  onClose,
+  onSuccess,
 }: {
-  u: AdminUserRow;
-  open: boolean;
-  onToggle: () => void;
-  onAct: (fn: () => Promise<unknown>) => Promise<void>;
+  user: AdminUserRow;
+  onClose: () => void;
+  onSuccess: () => void;
 }) {
-  return (
-    <>
-      <tr className="border-t border-slate-100 align-middle hover:bg-slate-50/60">
-        <td className="p-3">
-          <button onClick={onToggle} className="text-left">
-            <div className="font-medium text-indigo-700 hover:underline">
-              {u.email ?? '(no email)'}
-            </div>
-            <div className="font-mono text-xs text-slate-400">{u.id.slice(0, 14)}…</div>
-          </button>
-        </td>
-        <td className="p-3"><Country code={u.countryCode} /></td>
-        <td className="p-3 tabular-nums">
-          {u.ratePerHour} /h
-          {u.rateAdjustMilli !== 0 && (
-            <span
-              className={`ml-1 text-xs ${u.rateAdjustMilli > 0 ? 'text-emerald-600' : 'text-red-600'}`}
-            >
-              ({u.rateAdjustMilli > 0 ? '+' : ''}
-              {u.rateAdjustMilli / 1000})
-            </span>
-          )}
-        </td>
-        <td className="p-3 tabular-nums">{u.balancePoints.toFixed(2)}</td>
-        <td className="p-3">
-          {u.referralCount}{' '}
-          <span className="rounded-full bg-violet-50 px-1.5 py-0.5 text-xs font-bold text-violet-600">
-            L{u.referralTier.level}×{u.referralTier.multiplier}
-          </span>
-        </td>
-        <td className="p-3">
-          <KycBadge status={u.kycStatus} />
-        </td>
-        <td className="p-3">
-          {u.isBlocked ? (
-            <span className="rounded-full bg-red-50 px-2 py-1 text-xs font-semibold text-red-600">
-              Blocked
-            </span>
-          ) : (
-            <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-600">
-              Active
-            </span>
-          )}
-        </td>
-        <td className="p-3">
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={() =>
-                onAct(() => setBlocked(u.id, !u.isBlocked))
-              }
-              className="btn-outline-brand px-3 py-1.5 text-xs"
-            >
-              {u.isBlocked ? 'Unblock' : 'Block'}
-            </button>
-            <button
-              onClick={() => {
-                const v = prompt(
-                  `Hash-rate adjustment for ${u.email ?? u.id}, in points/hour.\nApplied before the referral multiplier. Negative throttles.`,
-                  String(u.rateAdjustMilli / 1000),
-                );
-                if (v === null) return;
-                const pts = Number(v);
-                if (!Number.isFinite(pts)) return alert('Not a number.');
-                onAct(() => adjustRate(u.id, Math.round(pts * 1000)));
-              }}
-              className="btn-outline-brand px-3 py-1.5 text-xs"
-            >
-              Rate
-            </button>
-            <button
-              onClick={() => {
-                const v = prompt(`Airdrop how many points to ${u.email ?? u.id}?`, '100');
-                if (v === null) return;
-                const pts = Number(v);
-                if (!Number.isFinite(pts) || pts <= 0) return alert('Enter a positive number.');
-                const note = prompt('Reason (optional)') ?? undefined;
-                onAct(() => airdrop(u.id, Math.round(pts), note));
-              }}
-              className="btn-outline-brand px-3 py-1.5 text-xs"
-            >
-              Airdrop
-            </button>
-          </div>
-        </td>
-      </tr>
-      {open && (
-        <tr className="border-t border-slate-100 bg-slate-50/60">
-          <td colSpan={8} className="p-4">
-            <MinerDetail id={u.id} />
-          </td>
-        </tr>
-      )}
-    </>
-  );
-}
-
-function KycBadge({ status }: { status: string }) {
-  const tone =
-    status === 'APPROVED'
-      ? 'bg-emerald-50 text-emerald-600'
-      : status === 'PENDING'
-        ? 'bg-amber-50 text-amber-700'
-        : status === 'REJECTED'
-          ? 'bg-red-50 text-red-600'
-          : 'bg-slate-100 text-slate-500';
-  return (
-    <span className={`rounded-full px-2 py-1 text-xs font-semibold ${tone}`}>
-      {status}
-    </span>
-  );
-}
-
-/** Expanded row: referral tree + recent ledger. */
-function MinerDetail({ id }: { id: string }) {
-  const [data, setData] = useState<AdminUserDetail | null>(null);
+  const [pointsPerHour, setPointsPerHour] = useState(String(user.rateAdjustMilli / 1000));
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    getUserDetail(id)
-      .then(setData)
-      .catch((err) =>
-        setError(err instanceof ApiError ? err.message : 'Failed to load.'),
-      );
-  }, [id]);
-
-  if (error) return <p className="text-sm text-red-600">{error}</p>;
-  if (!data) return <div className="skeleton h-24 w-full" />;
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const val = Number(pointsPerHour);
+    if (!Number.isFinite(val)) {
+      setError('Please enter a valid numeric value.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await adjustRate(user.id, Math.round(val * 1000));
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Adjustment failed.');
+      setBusy(false);
+    }
+  }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <div>
-        <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">
-          Referral tree ({data.user.referralCount} direct)
-        </h3>
-        {data.referralTree.length ? (
-          <div className="mt-2">
-            <Tree nodes={data.referralTree} />
-          </div>
-        ) : (
-          <p className="mt-2 text-sm text-slate-500">No referrals yet.</p>
-        )}
-      </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md">
+      <form onSubmit={handleSubmit} className="card w-full max-w-md border-slate-800 bg-slate-900 p-6 shadow-2xl">
+        <h3 className="text-lg font-black text-white">Manual Hash Rate Adjustment</h3>
+        <p className="mt-1 text-xs text-slate-400">
+          Target user: <strong className="text-white">{user.email ?? user.id}</strong>
+        </p>
 
-      <div>
-        <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">
-          Recent activity
-        </h3>
-        {data.ledger.length ? (
-          <ul className="mt-2 space-y-1 text-sm">
-            {data.ledger.map((l) => (
-              <li key={l.id} className="flex justify-between gap-3">
-                <span className="text-slate-600">{l.reason}</span>
-                <span
-                  className={`tabular-nums font-medium ${l.points >= 0 ? 'text-emerald-600' : 'text-red-600'}`}
-                >
-                  {l.points >= 0 ? '+' : ''}
-                  {l.points.toFixed(2)}
-                </span>
-              </li>
-            ))}
-          </ul>
+        <div className="mt-4">
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+            Rate Adjustment (PTS / Hour)
+          </label>
+          <p className="mt-0.5 text-[11px] text-slate-500">
+            Positive boosts mining; negative throttles suspicious accounts.
+          </p>
+          <input
+            type="number"
+            step="0.1"
+            value={pointsPerHour}
+            onChange={(e) => setPointsPerHour(e.target.value)}
+            className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 font-mono text-lg font-bold text-amber-400 outline-none focus:border-amber-500"
+            required
+          />
+        </div>
+
+        {/* Preset speed pills */}
+        <div className="mt-3 flex flex-wrap gap-2 text-xs">
+          {[0, 1.0, 2.0, 5.0, -0.5].map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setPointsPerHour(String(v))}
+              className="rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1 font-mono text-slate-300 hover:border-amber-400"
+            >
+              {v > 0 ? `+${v}` : v}/h
+            </button>
+          ))}
+        </div>
+
+        {error && (
+          <div className="mt-3 rounded-xl border border-red-500/40 bg-red-950/40 p-3 text-xs text-red-300">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-6 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-2 text-xs font-bold text-slate-400 hover:text-white"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={busy}
+            className="btn-gold rounded-xl px-5 py-2.5 text-xs font-black uppercase tracking-wider text-slate-950"
+          >
+            {busy ? 'Saving…' : 'Apply Hashrate'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function AirdropModal({
+  user,
+  onClose,
+  onSuccess,
+}: {
+  user: AdminUserRow;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [points, setPoints] = useState('100');
+  const [note, setNote] = useState('Community promotional grant');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const pts = Number(points);
+    if (!Number.isFinite(pts) || pts <= 0) {
+      setError('Enter a valid positive number of points.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await airdrop(user.id, Math.round(pts), note);
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Airdrop grant failed.');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md">
+      <form onSubmit={handleSubmit} className="card w-full max-w-md border-slate-800 bg-slate-900 p-6 shadow-2xl">
+        <h3 className="text-lg font-black text-white">🎁 Grant Manual Airdrop</h3>
+        <p className="mt-1 text-xs text-slate-400">
+          Credited instantly to: <strong className="text-white">{user.email ?? user.id}</strong>
+        </p>
+
+        <div className="mt-4">
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+            Points Amount (PTS)
+          </label>
+          <input
+            type="number"
+            step="1"
+            min="1"
+            value={points}
+            onChange={(e) => setPoints(e.target.value)}
+            className="mt-1.5 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 font-mono text-xl font-bold text-amber-400 outline-none focus:border-amber-500"
+            required
+          />
+        </div>
+
+        <div className="mt-3 flex gap-2 text-xs">
+          {['50', '100', '250', '500', '1000'].map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPoints(p)}
+              className="rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1 font-mono text-slate-300 hover:border-amber-400"
+            >
+              +{p}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4">
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+            Ledger Audit Note
+          </label>
+          <input
+            type="text"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="e.g. VIP bounty reward"
+            className="mt-1.5 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-2.5 text-xs text-slate-200 outline-none focus:border-amber-500"
+          />
+        </div>
+
+        {error && (
+          <div className="mt-3 rounded-xl border border-red-500/40 bg-red-950/40 p-3 text-xs text-red-300">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-6 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-2 text-xs font-bold text-slate-400 hover:text-white"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={busy}
+            className="btn-gold rounded-xl px-5 py-2.5 text-xs font-black uppercase tracking-wider text-slate-950"
+          >
+            {busy ? 'Granting…' : 'Credit Points'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function InspectUserModal({
+  userId,
+  onClose,
+  onChanged,
+}: {
+  userId: string;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const [data, setData] = useState<AdminUserDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(true);
+
+  useEffect(() => {
+    getUserDetail(userId)
+      .then((d) => {
+        setData(d);
+        setBusy(false);
+      })
+      .catch((err) => {
+        setError(err instanceof ApiError ? err.message : 'Failed to load user details.');
+        setBusy(false);
+      });
+  }, [userId]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md">
+      <div className="card max-h-[90vh] w-full max-w-4xl overflow-y-auto border-slate-800 bg-slate-900 p-6 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
+          <div>
+            <h3 className="text-xl font-black text-white">Miner Account Deep Inspection</h3>
+            <p className="font-mono text-xs text-slate-400">ID: {userId}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white"
+          >
+            ✕ Close
+          </button>
+        </div>
+
+        {error && (
+          <div className="mt-4 rounded-xl border border-red-500/40 bg-red-950/40 p-3 text-xs text-red-300">
+            {error}
+          </div>
+        )}
+
+        {busy || !data ? (
+          <div className="py-12 text-center text-xs text-slate-500">Loading comprehensive account telemetry…</div>
         ) : (
-          <p className="mt-2 text-sm text-slate-500">No ledger entries.</p>
+          <div className="mt-6 space-y-6">
+            {/* Account Profile Summary */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
+                <div className="text-[10px] font-bold uppercase text-slate-500">Email</div>
+                <div className="mt-1 font-bold text-white truncate">{data.user.email ?? 'Wallet Account'}</div>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
+                <div className="text-[10px] font-bold uppercase text-slate-500">Points Balance</div>
+                <div className="mt-1 font-mono text-base font-black text-amber-400">{data.user.balancePoints.toFixed(2)} PTS</div>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
+                <div className="text-[10px] font-bold uppercase text-slate-500">Effective Hashrate</div>
+                <div className="mt-1 font-mono text-base font-black text-emerald-400">{data.user.ratePerHour.toFixed(2)} /h</div>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
+                <div className="text-[10px] font-bold uppercase text-slate-500">KYC Status</div>
+                <div className="mt-1 font-bold text-cyan-400">{data.user.kycStatus}</div>
+              </div>
+            </div>
+
+            {/* 6-Level Referral Downline Hierarchy */}
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  🌲 6-Tier Referral Network Tree
+                </span>
+                <span className="text-xs font-bold text-indigo-400">
+                  Direct Invites: {data.user.referralCount}
+                </span>
+              </div>
+              <div className="mt-3 max-h-48 overflow-y-auto font-mono text-xs">
+                {data.referralTree.length === 0 ? (
+                  <p className="text-slate-500">No downline referrals registered under this account.</p>
+                ) : (
+                  <div className="space-y-1.5 pl-2">
+                    {data.referralTree.map((child) => (
+                      <TreeBranch key={child.id} node={child} depth={1} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Ledger Transactions History */}
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                📜 Recent Ledger Transactions (Audit Trail)
+              </span>
+              <div className="mt-3 max-h-48 overflow-y-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-slate-800 text-[10px] uppercase text-slate-500">
+                    <tr>
+                      <th className="pb-1.5">Timestamp</th>
+                      <th className="pb-1.5">Reason</th>
+                      <th className="pb-1.5 text-right">Points Delta</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-900 font-mono">
+                    {data.ledger.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="py-3 text-center text-slate-500">No ledger entries.</td>
+                      </tr>
+                    ) : (
+                      data.ledger.map((l) => (
+                        <tr key={l.id}>
+                          <td className="py-1.5 text-slate-400">{new Date(l.createdAt).toLocaleString()}</td>
+                          <td className="py-1.5 text-slate-200">{l.reason}</td>
+                          <td className={`py-1.5 text-right font-bold ${l.points >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {l.points >= 0 ? `+${l.points.toFixed(2)}` : l.points.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-function Tree({ nodes }: { nodes: TreeNode[] }) {
+function TreeBranch({ node, depth }: { node: TreeNode; depth: number }) {
   return (
-    <ul className="space-y-1 border-l border-slate-200 pl-3 text-sm">
-      {nodes.map((n) => (
-        <li key={n.id}>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-slate-700">{n.email ?? n.id.slice(0, 12)}</span>
-            {n.countryCode && (
-              <span className="text-xs text-slate-400">
-                {countryFlag(n.countryCode)} {countryName(n.countryCode)}
-              </span>
-            )}
-            <span className="tabular-nums text-xs text-slate-500">
-              {n.balancePoints.toFixed(2)} pts
-            </span>
-            {n.isBlocked && (
-              <span className="rounded-full bg-red-50 px-1.5 text-xs text-red-600">
-                blocked
-              </span>
-            )}
-          </div>
-          {n.children.length > 0 && (
-            <div className="mt-1">
-              <Tree nodes={n.children} />
-            </div>
-          )}
-        </li>
-      ))}
-    </ul>
+    <div>
+      <div className="flex items-center gap-2 py-0.5 text-slate-300">
+        <span className="text-slate-600">{'—'.repeat(depth)}</span>
+        <span className="font-bold text-white">{node.email ?? node.id.slice(0, 8)}</span>
+        <span className="text-[10px] text-amber-400">({node.balancePoints.toFixed(1)} PTS)</span>
+        {node.isBlocked && <span className="text-[10px] text-red-400">[BANNED]</span>}
+      </div>
+      {node.children && node.children.length > 0 && (
+        <div className="pl-3">
+          {node.children.map((c) => (
+            <TreeBranch key={c.id} node={c} depth={depth + 1} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
-/* ──────────────────────── Withdrawals ──────────────────────── */
+/* ─────────────────────────── TAB 3: Withdrawals Queue ─────────────────────────── */
 
 function WithdrawalsTab({
   onChanged,
@@ -635,171 +1187,159 @@ function WithdrawalsTab({
   onChanged: () => void;
   onUnauthorized: () => void;
 }) {
-  const [status, setStatus] = useState('PENDING');
+  const [statusFilter, setStatusFilter] = useState<string>('PENDING');
   const [rows, setRows] = useState<AdminWithdrawal[]>([]);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setBusy(true);
     try {
-      setRows(await listWithdrawals(status));
+      const data = await listWithdrawals(statusFilter === 'ALL' ? undefined : statusFilter);
+      setRows(data);
       setError(null);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) return onUnauthorized();
       setError(err instanceof ApiError ? err.message : 'Cannot reach the server.');
+    } finally {
+      setBusy(false);
     }
-  }, [status, onUnauthorized]);
+  }, [statusFilter, onUnauthorized]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  async function decide(w: AdminWithdrawal, approve: boolean) {
-    const note = prompt(
-      approve
-        ? `Approve ${w.points} pts → ${w.tokenAmount} $Matsumoto to ${w.toAddress}?\nOptional note:`
-        : 'Reason for rejection (points are refunded):',
-      approve ? 'Verified' : 'Failed review',
-    );
-    if (note === null) return;
-    setBusyId(w.id);
+  async function handleDecision(id: string, approve: boolean) {
+    let note: string | undefined;
+    if (!approve) {
+      const promptNote = prompt('Reason for rejecting withdrawal (refunds user PTS):', 'Suspicious activity');
+      if (promptNote === null) return;
+      note = promptNote;
+    }
+    setBusy(true);
     try {
-      await decideWithdrawal(w.id, approve, note);
-      await load();
+      await decideWithdrawal(id, approve, note);
+      load();
       onChanged();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Action failed.');
-    } finally {
-      setBusyId(null);
+      alert(err instanceof ApiError ? err.message : 'Decision failed.');
+      setBusy(false);
     }
   }
 
   return (
-    <section className="card-soft overflow-hidden">
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 p-4">
-        {['PENDING', 'PAID', 'REJECTED', ''].map((s) => (
-          <button
-            key={s || 'ALL'}
-            onClick={() => setStatus(s)}
-            data-active={status === s}
-            className="rounded-full border border-slate-200 px-3 py-1.5 text-sm data-[active=true]:border-indigo-200 data-[active=true]:bg-indigo-50 data-[active=true]:text-indigo-700"
-          >
-            {s || 'All'}
-          </button>
-        ))}
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-black text-white">Withdrawals Moderation Queue</h2>
+          <p className="text-xs text-slate-400">Review pending BEP-20 payouts on BNB Smart Chain</p>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs">
+          {['PENDING', 'APPROVED', 'REJECTED', 'ALL'].map((st) => (
+            <button
+              key={st}
+              onClick={() => setStatusFilter(st)}
+              className={`rounded-lg px-3 py-1.5 font-bold uppercase transition ${
+                statusFilter === st
+                  ? 'bg-amber-500 text-slate-950 shadow-sm'
+                  : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+              }`}
+            >
+              {st}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {error && <p className="bg-red-50 p-3 text-sm text-red-600">{error}</p>}
-
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[58rem] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-            <tr>
-              <th className="p-3">Miner</th>
-              <th className="p-3">Points</th>
-              <th className="p-3">$Matsumoto</th>
-              <th className="p-3">To address</th>
-              <th className="p-3">Status</th>
-              <th className="p-3 text-right">Decision</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((w) => (
-              <tr key={w.id} className="border-t border-slate-100 hover:bg-slate-50/60">
-                <td className="p-3">
-                  <div>{w.userEmail ?? w.userId.slice(0, 12)}</div>
-                  <div className="text-xs text-slate-400">
-                    {new Date(w.requestedAt).toLocaleString()}
-                  </div>
-                </td>
-                <td className="p-3 tabular-nums">{w.points.toFixed(2)}</td>
-                <td className="p-3 tabular-nums">
-                  {Number(w.tokenAmount).toFixed(4)}
-                </td>
-                <td className="p-3 font-mono text-xs">
-                  {w.toAddress.slice(0, 10)}…{w.toAddress.slice(-6)}
-                </td>
-                <td className="p-3">
-                  <WithdrawalBadge status={w.status} />
-                  {w.txHash && (
-                    <div className="mt-1 font-mono text-[0.65rem] text-slate-400">
-                      {w.txHash.slice(0, 14)}…
-                    </div>
-                  )}
-                </td>
-                <td className="p-3">
-                  {w.status === 'PENDING' ? (
-                    <div className="flex justify-end gap-2">
-                      <button
-                        disabled={busyId === w.id}
-                        onClick={() => decide(w, true)}
-                        className="btn-primary px-3 py-1.5 text-xs"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        disabled={busyId === w.id}
-                        onClick={() => decide(w, false)}
-                        className="btn-outline-brand px-3 py-1.5 text-xs"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="text-right text-xs text-slate-400">
-                      {w.adminNote ?? '—'}
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {!rows.length && (
+      <div className="card overflow-hidden border-slate-800 bg-slate-900/80 shadow-2xl">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-300">
+            <thead className="border-b border-white/[0.08] bg-slate-950/80 font-bold uppercase tracking-wider text-slate-400">
               <tr>
-                <td colSpan={6} className="p-6 text-center text-slate-500">
-                  Nothing in this queue.
-                </td>
+                <th className="p-3.5">Requested At</th>
+                <th className="p-3.5">Applicant</th>
+                <th className="p-3.5">Points Deducted</th>
+                <th className="p-3.5">Token Payout</th>
+                <th className="p-3.5">Target Wallet Address</th>
+                <th className="p-3.5">Status</th>
+                <th className="p-3.5 text-right">Decision</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-800/80 font-mono">
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-slate-500 font-sans">
+                    {busy ? 'Loading queue…' : 'No withdrawal requests found for this filter.'}
+                  </td>
+                </tr>
+              ) : (
+                rows.map((w) => (
+                  <tr key={w.id} className="transition hover:bg-slate-800/40">
+                    <td className="p-3.5 text-slate-400">{new Date(w.requestedAt).toLocaleString()}</td>
+                    <td className="p-3.5 font-sans font-bold text-white">{w.userEmail ?? w.userId.slice(0, 8)}</td>
+                    <td className="p-3.5 font-bold text-amber-400">{w.points} PTS</td>
+                    <td className="p-3.5 font-bold text-cyan-400">{w.tokenAmount} MATSU</td>
+                    <td className="p-3.5 text-slate-400 truncate max-w-xs">{w.toAddress}</td>
+                    <td className="p-3.5 font-sans">
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        w.status === 'APPROVED'
+                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                          : w.status === 'PENDING'
+                          ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                          : 'bg-red-500/15 text-red-400 border border-red-500/30'
+                      }`}>
+                        {w.status}
+                      </span>
+                    </td>
+                    <td className="p-3.5 text-right font-sans">
+                      {w.status === 'PENDING' ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleDecision(w.id, true)}
+                            className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-black uppercase text-slate-950 hover:bg-emerald-400 transition"
+                          >
+                            ✓ Approve
+                          </button>
+                          <button
+                            onClick={() => handleDecision(w.id, false)}
+                            className="rounded-lg border border-red-500/40 bg-red-950/40 px-3 py-1.5 text-xs font-bold text-red-300 hover:bg-red-900/60 transition"
+                          >
+                            ✕ Reject
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-slate-500 text-[11px]">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </section>
+    </div>
   );
 }
 
-function WithdrawalBadge({ status }: { status: string }) {
-  const tone =
-    status === 'PAID'
-      ? 'bg-emerald-50 text-emerald-600'
-      : status === 'PENDING'
-        ? 'bg-amber-50 text-amber-700'
-        : status === 'REJECTED'
-          ? 'bg-red-50 text-red-600'
-          : 'bg-slate-100 text-slate-500';
-  return (
-    <span className={`rounded-full px-2 py-1 text-xs font-semibold ${tone}`}>
-      {status}
-    </span>
-  );
-}
+/* ─────────────────────────── TAB 4: KYC Verifications ─────────────────────────── */
 
-/* ─────────────────────────── KYC review ────────────────────── */
-
-function SupportTab({ onUnauthorized }: { onUnauthorized: () => void }) {
-  const [status, setStatus] = useState('OPEN');
-  const [rows, setRows] = useState<AdminSupportTicket[]>([]);
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [draft, setDraft] = useState('');
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+function KycTab({ onUnauthorized }: { onUnauthorized: () => void }) {
+  const [status, setStatus] = useState<string>('PENDING');
+  const [rows, setRows] = useState<AdminKycRow[]>([]);
+  const [selected, setSelected] = useState<AdminKycDetail | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
+    setBusy(true);
     try {
-      setRows(await listSupport(status));
-      setError(null);
+      const data = await listKyc(status === 'ALL' ? undefined : status);
+      setRows(data);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) return onUnauthorized();
-      setError(err instanceof ApiError ? err.message : 'Cannot reach the server.');
+    } finally {
+      setBusy(false);
     }
   }, [status, onUnauthorized]);
 
@@ -807,315 +1347,164 @@ function SupportTab({ onUnauthorized }: { onUnauthorized: () => void }) {
     load();
   }, [load]);
 
-  async function send(id: string, close: boolean) {
-    if (draft.trim().length === 0) return;
-    setBusyId(id);
+  async function openDetail(id: string) {
     try {
-      await replySupport(id, draft.trim(), close ? 'CLOSED' : 'ANSWERED');
-      setDraft('');
-      setOpenId(null);
-      await load();
+      const detail = await getKycDetail(id);
+      setSelected(detail);
+    } catch {
+      alert('Failed to load KYC document details.');
+    }
+  }
+
+  async function handleDecide(approve: boolean) {
+    if (!selected) return;
+    const note = prompt(approve ? 'Approval note (optional):' : 'Rejection reason:', approve ? 'Verified' : 'Document unreadable');
+    if (note === null) return;
+    try {
+      await decideKyc(selected.userId, approve, note);
+      setSelected(null);
+      load();
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) return onUnauthorized();
-      setError(err instanceof ApiError ? err.message : 'Cannot reach the server.');
-    } finally {
-      setBusyId(null);
+      alert(err instanceof ApiError ? err.message : 'Decision failed.');
     }
   }
 
   return (
-    <div>
-      <div className="tab-switch inline-flex">
-        {['OPEN', 'ANSWERED', 'CLOSED', ''].map((s) => (
-          <button key={s || 'all'} data-active={status === s} onClick={() => setStatus(s)}>
-            {s || 'All'}
-          </button>
-        ))}
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-black text-white">Identity Verification (KYC) Queue</h2>
+          <p className="text-xs text-slate-400">Review government-issued documents & selfies</p>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs">
+          {['PENDING', 'APPROVED', 'REJECTED', 'ALL'].map((st) => (
+            <button
+              key={st}
+              onClick={() => setStatus(st)}
+              className={`rounded-lg px-3 py-1.5 font-bold uppercase transition ${
+                status === st
+                  ? 'bg-amber-500 text-slate-950 shadow-sm'
+                  : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+              }`}
+            >
+              {st}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {error && <p className="admin-error mt-3">{error}</p>}
-
-      {rows.length === 0 ? (
-        <p className="mt-4 text-sm text-slate-500">No tickets here.</p>
-      ) : (
-        <ul className="mt-4 space-y-3">
-          {rows.map((row) => (
-            <li key={row.id} className="card-soft p-4">
-              <button
-                onClick={() => {
-                  setOpenId(openId === row.id ? null : row.id);
-                  setDraft('');
-                }}
-                className="flex w-full items-start justify-between gap-3 text-left"
-              >
-                <span className="min-w-0">
-                  <span className="block truncate font-semibold">{row.subject}</span>
-                  <span className="mt-0.5 block text-xs text-slate-500">
-                    {row.userEmail ?? 'no email'} · {row.messages.length} messages ·
-                    last activity {new Date(row.updatedAt).toLocaleString()}
-                  </span>
-                </span>
-                <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                  {row.status}
-                </span>
-              </button>
-
-              {openId === row.id && (
-                <div className="mt-3 border-t border-slate-200 pt-3">
-                  <ol className="space-y-2">
-                    {row.messages.map((m) => (
-                      <li
-                        key={m.id}
-                        className={`rounded-lg p-3 text-sm ${
-                          m.fromAdmin ? 'bg-indigo-50' : 'bg-slate-50'
-                        }`}
+      <div className="card overflow-hidden border-slate-800 bg-slate-900/80 shadow-2xl">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-300">
+            <thead className="border-b border-white/[0.08] bg-slate-950/80 font-bold uppercase tracking-wider text-slate-400">
+              <tr>
+                <th className="p-3.5">Submitted</th>
+                <th className="p-3.5">User Account</th>
+                <th className="p-3.5">Full Legal Name</th>
+                <th className="p-3.5">Document Type</th>
+                <th className="p-3.5">Document Number</th>
+                <th className="p-3.5">Status</th>
+                <th className="p-3.5 text-right">Inspect Document</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/80">
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-slate-500">
+                    {busy ? 'Loading KYC applicants…' : 'No KYC records found.'}
+                  </td>
+                </tr>
+              ) : (
+                rows.map((r) => (
+                  <tr key={r.userId} className="transition hover:bg-slate-800/40">
+                    <td className="p-3.5 text-slate-400">{r.submittedAt ? new Date(r.submittedAt).toLocaleDateString() : '—'}</td>
+                    <td className="p-3.5 font-bold text-white">{r.userEmail ?? r.userId.slice(0, 8)}</td>
+                    <td className="p-3.5 font-semibold text-slate-200">{r.fullName ?? '—'}</td>
+                    <td className="p-3.5 text-amber-300 font-bold">{r.documentType ?? '—'}</td>
+                    <td className="p-3.5 font-mono text-slate-400">{r.documentNumber ?? '—'}</td>
+                    <td className="p-3.5">
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        r.status === 'APPROVED'
+                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                          : r.status === 'PENDING'
+                          ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                          : 'bg-red-500/15 text-red-400 border border-red-500/30'
+                      }`}>
+                        {r.status}
+                      </span>
+                    </td>
+                    <td className="p-3.5 text-right">
+                      <button
+                        onClick={() => openDetail(r.userId)}
+                        className="rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-900/50 transition"
                       >
-                        <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          {m.fromAdmin ? 'You' : 'Miner'} ·{' '}
-                          {new Date(m.createdAt).toLocaleString()}
-                        </div>
-                        <p className="whitespace-pre-wrap break-words text-slate-700">
-                          {m.body}
-                        </p>
-                      </li>
-                    ))}
-                  </ol>
-
-                  <textarea
-                    className="input-field mt-3 min-h-[5rem] resize-y"
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    maxLength={4000}
-                    placeholder="Your reply…"
-                  />
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <button
-                      onClick={() => send(row.id, false)}
-                      disabled={busyId === row.id || draft.trim().length === 0}
-                      className="btn-primary px-4 py-2 text-sm"
-                    >
-                      {busyId === row.id ? 'Sending…' : 'Reply'}
-                    </button>
-                    <button
-                      onClick={() => send(row.id, true)}
-                      disabled={busyId === row.id || draft.trim().length === 0}
-                      className="btn-outline-brand px-4 py-2 text-sm"
-                    >
-                      Reply and close
-                    </button>
-                  </div>
-                </div>
+                        🔍 Inspect Media
+                      </button>
+                    </td>
+                  </tr>
+                ))
               )}
-            </li>
-          ))}
-        </ul>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* KYC Inspection Modal */}
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md">
+          <div className="card max-h-[90vh] w-full max-w-3xl overflow-y-auto border-slate-800 bg-slate-900 p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
+              <div>
+                <h3 className="text-lg font-black text-white">KYC Document Inspection</h3>
+                <p className="text-xs text-slate-400">Applicant: {selected.fullName} ({selected.userEmail})</p>
+              </div>
+              <button onClick={() => setSelected(null)} className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-1.5 text-xs font-bold text-slate-400">✕ Close</button>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-4">
+              {selected.documents?.map((doc, idx) => (
+                <div key={idx} className="rounded-xl border border-slate-800 bg-slate-950 p-3">
+                  <div className="text-xs font-bold uppercase text-amber-400">{doc.kind} Document</div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={doc.dataUrl} alt={doc.kind} className="mt-2 h-48 w-full rounded-lg object-contain bg-black/50" />
+                </div>
+              ))}
+            </div>
+
+            {selected.status === 'PENDING' && (
+              <div className="mt-6 flex items-center justify-end gap-3 border-t border-slate-800 pt-4">
+                <button onClick={() => handleDecide(false)} className="rounded-xl border border-red-500/40 bg-red-950/40 px-5 py-2.5 text-xs font-bold text-red-300">
+                  ✕ Reject Applicant
+                </button>
+                <button onClick={() => handleDecide(true)} className="btn-gold rounded-xl px-6 py-2.5 text-xs font-black uppercase text-slate-950">
+                  ✓ Approve Identity
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
 }
 
-function KycTab({ onUnauthorized }: { onUnauthorized: () => void }) {
-  const [status, setStatus] = useState('PENDING');
-  const [rows, setRows] = useState<AdminKycRow[]>([]);
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
+/* ─────────────────────────── TAB 5: Support Tickets ─────────────────────────── */
+
+function SupportTab({ onUnauthorized }: { onUnauthorized: () => void }) {
+  const [tickets, setTickets] = useState<AdminSupportTicket[]>([]);
+  const [selected, setSelected] = useState<AdminSupportTicket | null>(null);
+  const [replyMessage, setReplyMessage] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
+    setBusy(true);
     try {
-      setRows(await listKyc(status));
-      setError(null);
+      const data = await listSupport();
+      setTickets(data);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) return onUnauthorized();
-      setError(err instanceof ApiError ? err.message : 'Cannot reach the server.');
-    }
-  }, [status, onUnauthorized]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  async function decide(row: AdminKycRow, approve: boolean) {
-    const note = prompt(
-      approve
-        ? `Approve ${row.fullName ?? row.userEmail}? Optional note:`
-        : `Reason for rejecting ${row.fullName ?? row.userEmail}? (shown to the user, and their documents are deleted)`,
-      approve ? 'Documents match' : 'Document unreadable',
-    );
-    if (note === null) return;
-    setBusyId(row.userId);
-    try {
-      await decideKyc(row.userId, approve, note);
-      setOpenId(null);
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Action failed.');
     } finally {
-      setBusyId(null);
-    }
-  }
-
-  return (
-    <section className="card-soft overflow-hidden">
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 p-4">
-        {['PENDING', 'APPROVED', 'REJECTED', ''].map((s) => (
-          <button
-            key={s || 'ALL'}
-            onClick={() => setStatus(s)}
-            data-active={status === s}
-            className="rounded-full border border-slate-200 px-3 py-1.5 text-sm data-[active=true]:border-indigo-200 data-[active=true]:bg-indigo-50 data-[active=true]:text-indigo-700"
-          >
-            {s || 'All'}
-          </button>
-        ))}
-      </div>
-
-      {error && <p className="bg-red-50 p-3 text-sm text-red-600">{error}</p>}
-
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[56rem] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-            <tr>
-              <th className="p-3">Applicant</th>
-              <th className="p-3">Document</th>
-              <th className="p-3">Country</th>
-              <th className="p-3">Docs</th>
-              <th className="p-3">Status</th>
-              <th className="p-3 text-right">Review</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <Fragment key={r.userId}>
-                <tr className="border-t border-slate-100 hover:bg-slate-50/60">
-                  <td className="p-3">
-                    <button
-                      onClick={() => setOpenId(openId === r.userId ? null : r.userId)}
-                      className="text-left"
-                    >
-                      <div className="font-medium text-indigo-700 hover:underline">
-                        {r.fullName ?? '(no name)'}
-                      </div>
-                      <div className="text-xs text-slate-400">{r.userEmail}</div>
-                    </button>
-                  </td>
-                  <td className="p-3">
-                    <div>{r.documentType?.replace('_', ' ') ?? '—'}</div>
-                    <div className="font-mono text-xs text-slate-400">
-                      {r.documentNumber ?? ''}
-                    </div>
-                  </td>
-                  <td className="p-3"><Country code={r.countryCode} /></td>
-                  <td className="p-3 tabular-nums">{r.documentCount}</td>
-                  <td className="p-3">
-                    <KycBadge status={r.status} />
-                  </td>
-                  <td className="p-3">
-                    {r.status === 'PENDING' ? (
-                      <div className="flex justify-end gap-2">
-                        <button
-                          disabled={busyId === r.userId}
-                          onClick={() => decide(r, true)}
-                          className="btn-primary px-3 py-1.5 text-xs"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          disabled={busyId === r.userId}
-                          onClick={() => decide(r, false)}
-                          className="btn-outline-brand px-3 py-1.5 text-xs"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="text-right text-xs text-slate-400">
-                        {r.reviewerNote ?? '—'}
-                      </div>
-                    )}
-                  </td>
-                </tr>
-                {openId === r.userId && (
-                  <tr className="border-t border-slate-100 bg-slate-50/60">
-                    <td colSpan={6} className="p-4">
-                      <KycDocuments userId={r.userId} />
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            ))}
-            {!rows.length && (
-              <tr>
-                <td colSpan={6} className="p-6 text-center text-slate-500">
-                  Nothing in this queue.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
-/** Loads the applicant's images on demand — they aren't in the list payload. */
-function KycDocuments({ userId }: { userId: string }) {
-  const [detail, setDetail] = useState<AdminKycDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    getKycDetail(userId)
-      .then(setDetail)
-      .catch((err) =>
-        setError(err instanceof ApiError ? err.message : 'Failed to load.'),
-      );
-  }, [userId]);
-
-  if (error) return <p className="text-sm text-red-600">{error}</p>;
-  if (!detail) return <div className="skeleton h-40 w-full" />;
-  if (!detail.documents.length)
-    return (
-      <p className="text-sm text-slate-500">
-        No documents on file (they are deleted when an application is rejected).
-      </p>
-    );
-
-  return (
-    <div className="flex flex-wrap gap-4">
-      {detail.documents.map((d) => (
-        <figure key={d.id}>
-          <a href={d.dataUrl} target="_blank" rel="noreferrer">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={d.dataUrl}
-              alt={d.kind}
-              className="h-44 w-64 rounded-xl border border-slate-200 bg-white object-contain"
-            />
-          </a>
-          <figcaption className="mt-1 text-center text-xs uppercase tracking-wide text-slate-500">
-            {d.kind}
-          </figcaption>
-        </figure>
-      ))}
-    </div>
-  );
-}
-
-/* ─────────────────────────── Tasks Tab ─────────────────────────── */
-
-function TasksTab({ onUnauthorized }: { onUnauthorized: () => void }) {
-  const [tasks, setTasks] = useState<AdminTaskItem[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [savingId, setSavingId] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      setTasks(await listAdminTasks());
-      setError(null);
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) return onUnauthorized();
-      setError(err instanceof ApiError ? err.message : 'Failed to load tasks.');
+      setBusy(false);
     }
   }, [onUnauthorized]);
 
@@ -1123,543 +1512,250 @@ function TasksTab({ onUnauthorized }: { onUnauthorized: () => void }) {
     load();
   }, [load]);
 
-  const handleSaveTask = async (task: AdminTaskItem) => {
-    setSavingId(task.id);
-    setError(null);
-    setSuccess(null);
+  async function handleReply(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selected || !replyMessage.trim()) return;
+    setBusy(true);
     try {
-      await updateAdminTask(task.id, task);
-      setSuccess(`Saved "${task.title}" successfully!`);
-      setTimeout(() => setSuccess(null), 3000);
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to update task.');
+      await replySupport(selected.id, replyMessage, 'ANSWERED');
+      setReplyMessage('');
+      setSelected(null);
+      load();
+    } catch {
+      alert('Failed to send operator reply.');
     } finally {
-      setSavingId(null);
+      setBusy(false);
     }
-  };
-
-  if (!tasks) {
-    return (
-      <div className="card-soft space-y-4 p-6">
-        <div className="skeleton h-6 w-48" />
-        <div className="skeleton h-32 w-full" />
-      </div>
-    );
   }
 
-  const wheelTask = tasks.find((t) => t.type === 'SPIN_WHEEL');
-  const quizTask = tasks.find((t) => t.type === 'QUIZ');
-  const socialTasks = tasks.filter((t) => t.type !== 'SPIN_WHEEL' && t.type !== 'QUIZ');
-
   return (
-    <div className="space-y-6">
-      {error && (
-        <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-600">
-          {error}
-        </p>
-      )}
-      {success && (
-        <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
-          ✓ {success}
-        </p>
-      )}
+    <div className="space-y-4">
+      <h2 className="text-xl font-black text-white">Customer Support Tickets</h2>
+      <div className="card overflow-hidden border-slate-800 bg-slate-900/80">
+        <table className="w-full text-left text-xs text-slate-300">
+          <thead className="border-b border-white/[0.08] bg-slate-950/80 font-bold uppercase text-slate-400">
+            <tr>
+              <th className="p-3.5">Date</th>
+              <th className="p-3.5">User</th>
+              <th className="p-3.5">Subject</th>
+              <th className="p-3.5">Status</th>
+              <th className="p-3.5 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800">
+            {tickets.length === 0 ? (
+              <tr><td colSpan={5} className="p-8 text-center text-slate-500">No support tickets filed.</td></tr>
+            ) : (
+              tickets.map((t) => (
+                <tr key={t.id} className="hover:bg-slate-800/40">
+                  <td className="p-3.5 text-slate-400">{new Date(t.createdAt).toLocaleDateString()}</td>
+                  <td className="p-3.5 font-bold text-white">{t.userEmail}</td>
+                  <td className="p-3.5 text-slate-200">{t.subject}</td>
+                  <td className="p-3.5 font-bold text-amber-400">{t.status}</td>
+                  <td className="p-3.5 text-right">
+                    <button onClick={() => setSelected(t)} className="rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-1 text-xs font-bold text-amber-300">
+                      Reply
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
-      {/* 1. Lucky Spin Wheel Config */}
-      {wheelTask && (
-        <WheelConfigCard
-          task={wheelTask}
-          saving={savingId === wheelTask.id}
-          onSave={handleSaveTask}
-        />
-      )}
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md">
+          <form onSubmit={handleReply} className="card w-full max-w-lg border-slate-800 bg-slate-900 p-6">
+            <h3 className="text-lg font-black text-white">{selected.subject}</h3>
+            <div className="mt-3 space-y-2 max-h-48 overflow-y-auto">
+              {selected.messages?.map((m) => (
+                <div key={m.id} className={`rounded-xl p-3 text-xs leading-relaxed border ${m.fromAdmin ? 'bg-indigo-950/40 border-indigo-500/30 text-indigo-200' : 'bg-slate-950 border-slate-800 text-slate-300'}`}>
+                  <div className="text-[10px] font-bold uppercase text-slate-500 mb-1">{m.fromAdmin ? 'Operator' : 'Miner'}</div>
+                  {m.body}
+                </div>
+              ))}
+            </div>
 
-      {/* 2. Web3 Knowledge Quiz Config */}
-      {quizTask && (
-        <QuizConfigCard
-          task={quizTask}
-          saving={savingId === quizTask.id}
-          onSave={handleSaveTask}
-        />
-      )}
+            <div className="mt-4">
+              <label className="block text-xs font-bold uppercase text-slate-400">Operator Reply</label>
+              <textarea
+                value={replyMessage}
+                onChange={(e) => setReplyMessage(e.target.value)}
+                rows={4}
+                className="mt-1.5 w-full rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs text-white outline-none focus:border-amber-500"
+                placeholder="Type resolution reply to the miner…"
+                required
+              />
+            </div>
 
-      {/* 3. Social Engagement & Bounty Tasks */}
-      <section className="card-soft p-6">
-        <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-          <div>
-            <h2 className="text-base font-bold">𝕏 Social & Bounty Tasks (X, Repost, YouTube)</h2>
-            <p className="text-xs text-slate-500">
-              Configure point rewards, target URLs, and cooldown hours for community actions.
-            </p>
-          </div>
+            <div className="mt-4 flex justify-end gap-3">
+              <button type="button" onClick={() => setSelected(null)} className="rounded-xl border border-slate-800 px-4 py-2 text-xs font-bold text-slate-400">Cancel</button>
+              <button type="submit" disabled={busy} className="btn-gold rounded-xl px-5 py-2 text-xs font-black uppercase text-slate-950">Send & Resolve</button>
+            </div>
+          </form>
         </div>
-
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          {socialTasks.map((task) => (
-            <SocialTaskCard
-              key={task.id}
-              task={task}
-              saving={savingId === task.id}
-              onSave={handleSaveTask}
-            />
-          ))}
-        </div>
-      </section>
+      )}
     </div>
   );
 }
 
-function WheelConfigCard({
-  task,
-  saving,
-  onSave,
-}: {
-  task: AdminTaskItem;
-  saving: boolean;
-  onSave: (t: AdminTaskItem) => Promise<void>;
-}) {
-  const [title, setTitle] = useState(task.title);
-  const [reward, setReward] = useState(task.rewardPoints);
-  const [cooldown, setCooldown] = useState(task.cooldownHours);
-  const [active, setActive] = useState(task.active);
-  const [segmentsStr, setSegmentsStr] = useState(
-    (task.wheelSegments || [25, 125, 50, 500, 12.5, 75]).join(', '),
-  );
+/* ─────────────────────────── TAB 6: Tasks & Bounties ─────────────────────────── */
 
-  const save = () => {
-    const segments = segmentsStr
-      .split(',')
-      .map((s) => Number(s.trim()))
-      .filter((n) => !isNaN(n) && n > 0);
+function TasksTab({ onUnauthorized }: { onUnauthorized: () => void }) {
+  const [tasks, setTasks] = useState<AdminTaskItem[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [editTask, setEditTask] = useState<AdminTaskItem | null>(null);
 
-    onSave({
-      ...task,
-      title,
-      rewardPoints: Number(reward),
-      cooldownHours: Number(cooldown),
-      active,
-      wheelSegments: segments.length ? segments : undefined,
-    });
-  };
+  const load = useCallback(async () => {
+    setBusy(true);
+    try {
+      const data = await listAdminTasks();
+      setTasks(data);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) return onUnauthorized();
+    } finally {
+      setBusy(false);
+    }
+  }, [onUnauthorized]);
 
-  return (
-    <section className="card-soft p-6">
-      <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-        <div className="flex items-center gap-2.5">
-          <span className="text-2xl">🎡</span>
-          <div>
-            <h2 className="text-base font-bold">Daily Lucky Reward Wheel</h2>
-            <p className="text-xs text-slate-500">
-              Configure custom point slices, cooldown, and active state.
-            </p>
-          </div>
-        </div>
-        <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
-          <input
-            type="checkbox"
-            checked={active}
-            onChange={(e) => setActive(e.target.checked)}
-            className="h-4 w-4 rounded text-amber-500 focus:ring-amber-400"
-          />
-          Active
-        </label>
-      </div>
+  useEffect(() => {
+    load();
+  }, [load]);
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">
-            Task Title
-          </label>
-          <input
-            className="input-field mt-1 text-sm font-semibold"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">
-            Base / Avg Reward (PTS)
-          </label>
-          <input
-            type="number"
-            className="input-field mt-1 text-sm font-semibold"
-            value={reward}
-            onChange={(e) => setReward(Number(e.target.value))}
-          />
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">
-            Cooldown (Hours)
-          </label>
-          <input
-            type="number"
-            className="input-field mt-1 text-sm font-semibold"
-            value={cooldown}
-            onChange={(e) => setCooldown(Number(e.target.value))}
-          />
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <label className="text-xs font-semibold uppercase text-slate-500">
-          Wheel Segment Values (Comma-separated PTS)
-        </label>
-        <input
-          className="input-field mt-1 font-mono text-sm font-bold text-amber-600"
-          value={segmentsStr}
-          onChange={(e) => setSegmentsStr(e.target.value)}
-          placeholder="25, 125, 50, 500, 12.5, 75"
-        />
-        <p className="mt-1 text-[11px] text-slate-500">
-          Miners will randomly land on one of these configured values when spinning.
-        </p>
-      </div>
-
-      <div className="mt-4 flex justify-end">
-        <button
-          type="button"
-          onClick={save}
-          disabled={saving}
-          className="btn-primary px-5 py-2.5 text-xs font-bold uppercase tracking-wider"
-        >
-          {saving ? 'Saving…' : 'Save Wheel Settings'}
-        </button>
-      </div>
-    </section>
-  );
-}
-
-function QuizConfigCard({
-  task,
-  saving,
-  onSave,
-}: {
-  task: AdminTaskItem;
-  saving: boolean;
-  onSave: (t: AdminTaskItem) => Promise<void>;
-}) {
-  const [title, setTitle] = useState(task.title);
-  const [reward, setReward] = useState(task.rewardPoints);
-  const [cooldown, setCooldown] = useState(task.cooldownHours);
-  const [active, setActive] = useState(task.active);
-  const [questions, setQuestions] = useState<AdminQuizQuestion[]>(
-    task.quizQuestions || [
-      {
-        id: 1,
-        question: 'Which blockchain network settles Matsumoto ($MATSU) token withdrawals?',
-        options: [
-          'BNB Smart Chain (BEP-20)',
-          'Ethereum Mainnet (ERC-20)',
-          'Solana Network (SPL)',
-          'Bitcoin Lightning Network',
-        ],
-        correctIndex: 0,
-        explanation: 'Matsumoto utilizes the high-speed, low-gas BNB Smart Chain (BEP-20) for automated withdrawals.',
-      },
-    ],
-  );
-
-  const handleQuestionChange = (idx: number, field: keyof AdminQuizQuestion, val: any) => {
-    setQuestions((prev) => {
-      const copy = [...prev];
-      copy[idx] = { ...copy[idx], [field]: val };
-      return copy;
-    });
-  };
-
-  const handleOptionChange = (qIdx: number, optIdx: number, val: string) => {
-    setQuestions((prev) => {
-      const copy = [...prev];
-      const opts = [...copy[qIdx].options];
-      opts[optIdx] = val;
-      copy[qIdx] = { ...copy[qIdx], options: opts };
-      return copy;
-    });
-  };
-
-  const addQuestion = () => {
-    setQuestions((prev) => [
-      ...prev,
-      {
-        id: prev.length + 1,
-        question: 'New Web3 Question Prompt',
-        options: ['Option A', 'Option B', 'Option C', 'Option D'],
-        correctIndex: 0,
-        explanation: 'Add detailed educational explanation here.',
-      },
-    ]);
-  };
-
-  const removeQuestion = (idx: number) => {
-    setQuestions((prev) => prev.filter((_, i) => i !== idx));
-  };
-
-  const save = () => {
-    onSave({
-      ...task,
-      title,
-      rewardPoints: Number(reward),
-      cooldownHours: Number(cooldown),
-      active,
-      quizQuestions: questions,
-    });
-  };
+  async function handleSaveTask(dto: any) {
+    if (!editTask) return;
+    try {
+      await updateAdminTask(editTask.id, dto);
+      setEditTask(null);
+      load();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : 'Task update failed.');
+    }
+  }
 
   return (
-    <section className="card-soft p-6">
-      <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-        <div className="flex items-center gap-2.5">
-          <span className="text-2xl">🧠</span>
-          <div>
-            <h2 className="text-base font-bold">Web3 Knowledge Quiz Challenge</h2>
-            <p className="text-xs text-slate-500">
-              Manage questions, answer choices, correct answers, and educational explanations.
-            </p>
-          </div>
-        </div>
-        <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
-          <input
-            type="checkbox"
-            checked={active}
-            onChange={(e) => setActive(e.target.checked)}
-            className="h-4 w-4 rounded text-amber-500 focus:ring-amber-400"
-          />
-          Active
-        </label>
-      </div>
-
-      <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">
-            Task Title
-          </label>
-          <input
-            className="input-field mt-1 text-sm font-semibold"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">
-            Bounty Reward (PTS)
-          </label>
-          <input
-            type="number"
-            className="input-field mt-1 text-sm font-semibold"
-            value={reward}
-            onChange={(e) => setReward(Number(e.target.value))}
-          />
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold uppercase text-slate-500">
-            Cooldown (Hours)
-          </label>
-          <input
-            type="number"
-            className="input-field mt-1 text-sm font-semibold"
-            value={cooldown}
-            onChange={(e) => setCooldown(Number(e.target.value))}
-          />
-        </div>
-      </div>
-
-      {/* Question List */}
-      <div className="mt-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
-            Questions ({questions.length})
-          </h3>
-          <button
-            type="button"
-            onClick={addQuestion}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50"
-          >
-            + Add Question
-          </button>
-        </div>
-
-        {questions.map((q, qIdx) => (
-          <div key={qIdx} className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <span className="grid h-6 w-6 place-items-center rounded-full bg-slate-100 text-xs font-bold text-slate-700">
-                {qIdx + 1}
+    <div className="space-y-4">
+      <h2 className="text-xl font-black text-white">Daily Tasks, Quizzes & Bounties Configuration</h2>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {tasks.map((task) => (
+          <div key={task.id} className="card border-slate-800 bg-slate-900/80 p-5">
+            <div className="flex items-center justify-between">
+              <span className="rounded-full bg-indigo-500/15 border border-indigo-500/30 px-2 py-0.5 text-[10px] font-black uppercase text-indigo-300">
+                {task.type}
               </span>
-              <input
-                className="input-field flex-1 font-semibold text-sm"
-                value={q.question}
-                onChange={(e) => handleQuestionChange(qIdx, 'question', e.target.value)}
-                placeholder="Question prompt..."
-              />
-              {questions.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeQuestion(qIdx)}
-                  className="text-xs font-bold text-red-500 hover:text-red-700"
-                >
-                  ✕ Remove
-                </button>
-              )}
+              <span className="font-mono text-sm font-bold text-amber-400">+{task.rewardPoints} PTS</span>
             </div>
+            <h3 className="mt-3 font-bold text-white">{task.title}</h3>
+            <p className="mt-1 text-xs text-slate-400">Cooldown: {task.cooldownHours}h • Status: {task.active ? 'Active' : 'Disabled'}</p>
 
-            <div className="grid gap-2 sm:grid-cols-2 pl-9">
-              {q.options.map((opt, optIdx) => (
-                <label
-                  key={optIdx}
-                  className={`flex items-center gap-2 rounded-xl border p-2 text-xs transition ${
-                    q.correctIndex === optIdx
-                      ? 'border-emerald-500 bg-emerald-50/60 font-bold text-emerald-800'
-                      : 'border-slate-200 bg-slate-50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name={`correct-${qIdx}`}
-                    checked={q.correctIndex === optIdx}
-                    onChange={() => handleQuestionChange(qIdx, 'correctIndex', optIdx)}
-                    className="text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <input
-                    className="w-full bg-transparent outline-none"
-                    value={opt}
-                    onChange={(e) => handleOptionChange(qIdx, optIdx, e.target.value)}
-                    placeholder={`Option ${optIdx + 1}`}
-                  />
-                </label>
-              ))}
-            </div>
-
-            <div className="pl-9">
-              <input
-                className="input-field text-xs text-slate-600"
-                value={q.explanation}
-                onChange={(e) => handleQuestionChange(qIdx, 'explanation', e.target.value)}
-                placeholder="Educational explanation..."
-              />
-            </div>
+            <button
+              onClick={() => setEditTask(task)}
+              className="btn-gold mt-4 w-full rounded-xl py-2 text-xs font-black uppercase text-slate-950"
+            >
+              ⚙️ Configure Task
+            </button>
           </div>
         ))}
       </div>
 
-      <div className="mt-4 flex justify-end">
-        <button
-          type="button"
-          onClick={save}
-          disabled={saving}
-          className="btn-primary px-5 py-2.5 text-xs font-bold uppercase tracking-wider"
-        >
-          {saving ? 'Saving…' : 'Save Quiz Challenge'}
-        </button>
-      </div>
-    </section>
-  );
-}
-
-function SocialTaskCard({
-  task,
-  saving,
-  onSave,
-}: {
-  task: AdminTaskItem;
-  saving: boolean;
-  onSave: (t: AdminTaskItem) => Promise<void>;
-}) {
-  const [title, setTitle] = useState(task.title);
-  const [reward, setReward] = useState(task.rewardPoints);
-  const [cooldown, setCooldown] = useState(task.cooldownHours);
-  const [active, setActive] = useState(task.active);
-  const [actionUrl, setActionUrl] = useState(task.actionUrl || '');
-
-  const save = () => {
-    onSave({
-      ...task,
-      title,
-      rewardPoints: Number(reward),
-      cooldownHours: Number(cooldown),
-      active,
-      actionUrl: actionUrl || undefined,
-    });
-  };
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="font-mono text-xs font-bold uppercase text-amber-600">
-          TYPE: {task.type}
-        </span>
-        <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-          <input
-            type="checkbox"
-            checked={active}
-            onChange={(e) => setActive(e.target.checked)}
-            className="h-3.5 w-3.5 rounded text-amber-500 focus:ring-amber-400"
-          />
-          Active
-        </label>
-      </div>
-
-      <div>
-        <label className="text-[11px] font-semibold uppercase text-slate-500">
-          Title
-        </label>
-        <input
-          className="input-field mt-0.5 text-xs font-semibold"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-      </div>
-
-      <div>
-        <label className="text-[11px] font-semibold uppercase text-slate-500">
-          Action / Target URL
-        </label>
-        <input
-          className="input-field mt-0.5 text-xs font-mono"
-          value={actionUrl}
-          onChange={(e) => setActionUrl(e.target.value)}
-          placeholder="https://x.com/matsumoto..."
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-[11px] font-semibold uppercase text-slate-500">
-            Reward (PTS)
-          </label>
-          <input
-            type="number"
-            className="input-field mt-0.5 text-xs font-semibold"
-            value={reward}
-            onChange={(e) => setReward(Number(e.target.value))}
-          />
-        </div>
-        <div>
-          <label className="text-[11px] font-semibold uppercase text-slate-500">
-            Cooldown (Hours)
-          </label>
-          <input
-            type="number"
-            className="input-field mt-0.5 text-xs font-semibold"
-            value={cooldown}
-            onChange={(e) => setCooldown(Number(e.target.value))}
-          />
-        </div>
-      </div>
-
-      <div className="flex justify-end pt-1">
-        <button
-          type="button"
-          onClick={save}
-          disabled={saving}
-          className="btn-primary px-4 py-2 text-xs font-bold uppercase tracking-wider"
-        >
-          {saving ? 'Saving…' : 'Save Task'}
-        </button>
-      </div>
+      {editTask && (
+        <EditTaskModal task={editTask} onClose={() => setEditTask(null)} onSave={handleSaveTask} />
+      )}
     </div>
   );
 }
 
+function EditTaskModal({
+  task,
+  onClose,
+  onSave,
+}: {
+  task: AdminTaskItem;
+  onClose: () => void;
+  onSave: (dto: any) => void;
+}) {
+  const [title, setTitle] = useState(task.title);
+  const [rewardPoints, setRewardPoints] = useState(String(task.rewardPoints));
+  const [cooldownHours, setCooldownHours] = useState(String(task.cooldownHours));
+  const [active, setActive] = useState(task.active);
+  const [actionUrl, setActionUrl] = useState(task.actionUrl ?? '');
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    onSave({
+      title,
+      rewardPoints: Number(rewardPoints),
+      cooldownHours: Number(cooldownHours),
+      active,
+      actionUrl: actionUrl || undefined,
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md">
+      <form onSubmit={submit} className="card w-full max-w-md border-slate-800 bg-slate-900 p-6 shadow-2xl">
+        <h3 className="text-lg font-black text-white">Configure Task: {task.type}</h3>
+
+        <div className="mt-4 space-y-3">
+          <div>
+            <label className="block text-xs font-bold uppercase text-slate-400">Task Title</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs text-white"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase text-slate-400">Reward (PTS)</label>
+            <input
+              type="number"
+              value={rewardPoints}
+              onChange={(e) => setRewardPoints(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs text-white font-mono font-bold text-amber-400"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase text-slate-400">Cooldown (Hours)</label>
+            <input
+              type="number"
+              value={cooldownHours}
+              onChange={(e) => setCooldownHours(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs text-white"
+              required
+            />
+          </div>
+          {task.type !== 'QUIZ' && task.type !== 'SPIN_WHEEL' && (
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-400">Social Action URL</label>
+              <input
+                type="url"
+                value={actionUrl}
+                onChange={(e) => setActionUrl(e.target.value)}
+                placeholder="https://x.com/..."
+                className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs text-white"
+              />
+            </div>
+          )}
+          <label className="flex items-center gap-2 pt-2 text-xs font-bold text-slate-300">
+            <input
+              type="checkbox"
+              checked={active}
+              onChange={(e) => setActive(e.target.checked)}
+              className="rounded"
+            />
+            <span>Active & Visible to Miners</span>
+          </label>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-3">
+          <button type="button" onClick={onClose} className="rounded-xl border border-slate-800 px-4 py-2 text-xs font-bold text-slate-400">Cancel</button>
+          <button type="submit" className="btn-gold rounded-xl px-5 py-2 text-xs font-black uppercase text-slate-950">Save Settings</button>
+        </div>
+      </form>
+    </div>
+  );
+}

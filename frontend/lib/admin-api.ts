@@ -159,7 +159,7 @@ export const airdrop = (id: string, points: number, note?: string) =>
     { method: 'POST', body: JSON.stringify({ points, note }) },
   );
 
-export const listWithdrawals = (status: string) =>
+export const listWithdrawals = (status?: string) =>
   adminFetch<AdminWithdrawal[]>(
     `/withdrawals${status ? `?status=${status}` : ''}`,
   );
@@ -191,7 +191,7 @@ export interface AdminKycDetail extends AdminKycRow {
   documents: { id: string; kind: string; dataUrl: string }[];
 }
 
-export const listKyc = (status: string) =>
+export const listKyc = (status?: string) =>
   adminFetch<AdminKycRow[]>(`/kyc${status ? `?status=${status}` : ''}`);
 
 export const getKycDetail = (userId: string) =>
@@ -221,7 +221,7 @@ export interface AdminSupportTicket {
   }[];
 }
 
-export const listSupport = (status: string) =>
+export const listSupport = (status?: string) =>
   adminFetch<AdminSupportTicket[]>(`/support${status ? `?status=${status}` : ''}`);
 
 export const replySupport = (
