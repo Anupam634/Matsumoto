@@ -161,13 +161,13 @@ function AuthForm() {
 
         {/* Centered Form Body */}
         <main
-          className="flex flex-1 items-center justify-center px-5 py-8 sm:px-10 lg:px-16 xl:px-24"
+          className="flex flex-1 flex-col items-center justify-center px-4 py-6 sm:px-10 lg:px-16 xl:px-24"
           style={{
             paddingBottom: 'max(2rem, env(safe-area-inset-bottom))',
           }}
         >
           <div className="mx-auto w-full max-w-md">
-            <div className="card border-slate-800/90 bg-slate-900/80 p-6 sm:p-8 shadow-2xl backdrop-blur-2xl">
+            <div className="card border-slate-800/90 bg-slate-900/80 p-5 sm:p-8 shadow-2xl backdrop-blur-2xl">
               <h1 className="text-2xl font-black tracking-tight sm:text-3xl text-slate-100">
                 {mode === 'login' ? t('signIn') : t('createAccount')}
               </h1>
@@ -283,11 +283,11 @@ function AuthForm() {
               </button>
             </form>
           </div>
-        </div>
 
-        <p className="mx-auto mt-8 max-w-sm text-center text-[11px] text-slate-500 lg:hidden">
-          {tLanding('hero.honesty')}
-        </p>
+          <p className="mx-auto mt-6 max-w-sm text-center text-[11px] text-slate-500 lg:hidden">
+            {tLanding('hero.honesty')}
+          </p>
+        </div>
       </main>
     </div>
   </div>

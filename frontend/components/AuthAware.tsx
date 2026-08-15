@@ -40,27 +40,27 @@ export function NavAuth({
     return (
       <Link
         href={`/${locale}/dashboard`}
-        className="btn-primary px-4 py-2 text-sm"
+        className="btn-gold whitespace-nowrap rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md"
       >
         {dashboardLabel} →
       </Link>
     );
   }
   return (
-    <>
+    <div className="flex items-center gap-1.5 sm:gap-3">
       <Link
         href={`/${locale}/login`}
-        className="whitespace-nowrap text-slate-600 hover:text-indigo-600"
+        className="hidden sm:inline-block whitespace-nowrap text-xs font-bold uppercase tracking-wider text-slate-300 hover:text-amber-400 transition"
       >
         {signInLabel}
       </Link>
       <Link
         href={`/${locale}/login?mode=register`}
-        className="btn-primary whitespace-nowrap px-4 py-2 text-sm"
+        className="btn-gold whitespace-nowrap rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md"
       >
         {getStartedLabel} →
       </Link>
-    </>
+    </div>
   );
 }
 
