@@ -2,11 +2,11 @@
   "landing": {
     "network": {
       "chain": "BNB Smart Chain",
-      "mainnetStatus": "Mainnet Node: Online",
-      "blockHeight": "Block #38,914,820",
-      "poolHashrate": "Total Pool Hashrate: 1.48 EH/s",
-      "activeMinersCount": "48,290+ Active Miners",
-      "gasPrice": "Gas: 3 Gwei"
+      "mainnetStatus": "Mainnet Engine: Active",
+      "tokenStandard": "Token: $Matsumoto (BEP-20)",
+      "baseRateSpec": "Base Rate: 0.90 MATSU/h",
+      "conversionSpec": "3 Points = 1 $MATSU",
+      "minWithdrawalSpec": "Min Payout: 100 PTS"
     },
     "nav": {
       "features": "Features",
@@ -28,8 +28,8 @@
       "ctaPrimary": "Start Mining Free",
       "ctaSecondary": "Open Web3 Terminal",
       "honesty": "Matsumoto utilizes a scheduled reward accrual model (zero electricity & zero hardware wear). Accrued points convert directly to on-chain $Matsumoto on BNB Smart Chain.",
-      "activeMinersBadge": "48,290+ Active Miners Accruing Now",
-      "verifiedNode": "KYC Verified Security · Instant 24h Payouts",
+      "activeMinersBadge": "Scheduled 24h Accrual · Zero Hardware Wear",
+      "verifiedNode": "Mandatory KYC Security · Direct BEP-20 Payouts",
       "playVideo": "Play intro video",
       "pauseVideo": "Pause intro video"
     },
@@ -169,7 +169,7 @@
     "cta": {
       "badge": "LAUNCH YOUR CLOUD RIG IN 30 SECONDS",
       "title": "Ready to Start Mining $Matsumoto?",
-      "body": "Join over 48,000+ active crypto miners on BNB Chain. Start earning at the base rate for free today with zero upfront hardware investment.",
+      "body": "Start earning Matsumoto Points at the 0.90/h base rate for free today with zero upfront hardware investment.",
       "buttonPrimary": "Create Free Account Now",
       "buttonSecondary": "Sign In to Mining Dashboard"
     },

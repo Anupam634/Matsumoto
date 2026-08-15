@@ -2,11 +2,11 @@
   "landing": {
     "network": {
       "chain": "BNB 스마트 체인",
-      "mainnetStatus": "메인넷 노드: 정상 가동 중",
-      "blockHeight": "블록 #38,914,820",
-      "poolHashrate": "풀 전체 해시레이트: 1.48 EH/s",
-      "activeMinersCount": "48,290+ 활성 채굴자",
-      "gasPrice": "Gas: 3 Gwei"
+      "mainnetStatus": "메인넷 엔진: 활성화됨",
+      "tokenStandard": "토큰: $Matsumoto (BEP-20)",
+      "baseRateSpec": "기본 해시레이트: 0.90 MATSU/h",
+      "conversionSpec": "3 포인트 = 1 $MATSU",
+      "minWithdrawalSpec": "최소 출금: 100 포인트"
     },
     "nav": {
       "features": "기능 소개",
@@ -28,8 +28,8 @@
       "ctaPrimary": "무료 마이닝 시작",
       "ctaSecondary": "Web3 터미널 열기",
       "honesty": "Matsumoto는 정기 보상 누적 모델을 사용합니다(하드웨어 마모 및 전기세 없음). 적립된 포인트는 BNB 스마트 체인의 온체인 $Matsumoto 토큰으로 직접 정산됩니다.",
-      "activeMinersBadge": "현재 48,290명 이상의 채굴자가 실시간 적립 중",
-      "verifiedNode": "KYC 인증 보안 체계 · 24시간 신속 정산",
+      "activeMinersBadge": "24시간 정기 보상 누적 · 하드웨어 부담 없음",
+      "verifiedNode": "KYC 보안 인증 체계 · BEP-20 직결 정산",
       "playVideo": "소개 영상 재생",
       "pauseVideo": "소개 영상 일시정지"
     },
@@ -167,10 +167,10 @@
       "a5": "출금 조건: 1) 최소 100 포인트 이상 보유, 2) 본인 확인을 위한 기본 KYC 인증 완료, 3) 이전 출금 신청 후 7일 경과입니다."
     },
     "cta": {
-      "badge": "30초 만에 클라우드 마이닝 장비 가동",
-      "title": "$Matsumoto 마이닝을 시작할 준비가 되셨나요?",
-      "body": "BNB 체인의 48,000명 이상의 채굴자와 함께하세요. 하드웨어 투자 없이 무료로 오늘부터 매일 수익을 적립하세요.",
-      "buttonPrimary": "지금 무료 계정 만들기",
+      "badge": "30초 만에 클라우드 마이닝 시작",
+      "title": "$Matsumoto 채굴을 시작할 준비가 되셨나요?",
+      "body": "초기 하드웨어 투자 없이 지금 바로 0.90/h 기본 해시레이트로 무료 적립을 시작하세요.",
+      "buttonPrimary": "지금 무료 계정 생성",
       "buttonSecondary": "마이닝 대시보드 로그인"
     },
     "footer": {

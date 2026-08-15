@@ -2,11 +2,11 @@
   "landing": {
     "network": {
       "chain": "BNB 智能链",
-      "mainnetStatus": "主网节点：在线",
-      "blockHeight": "区块 #38,914,820",
-      "poolHashrate": "全网矿池总算力：1.48 EH/s",
-      "activeMinersCount": "48,290+ 活跃矿工",
-      "gasPrice": "Gas: 3 Gwei"
+      "mainnetStatus": "主网引擎：运行中",
+      "tokenStandard": "代币：$Matsumoto (BEP-20)",
+      "baseRateSpec": "基础算力：0.90 MATSU/h",
+      "conversionSpec": "3 积分 = 1 $MATSU",
+      "minWithdrawalSpec": "最低提现：100 积分"
     },
     "nav": {
       "features": "平台特色",
@@ -28,8 +28,8 @@
       "ctaPrimary": "免费开启挖矿",
       "ctaSecondary": "打开 Web3 终端",
       "honesty": "Matsumoto 采用定时收益累积机制（无硬件损耗与电力消耗）。累积的积分可直接在 BNB 智能链上兑换为真实的 $Matsumoto 代币。",
-      "activeMinersBadge": "已有 48,290+ 名矿工正在实时挖矿",
-      "verifiedNode": "KYC 认证安全保障 · 24小时即时提现",
+      "activeMinersBadge": "24小时定时累积机制 · 零硬件损耗",
+      "verifiedNode": "KYC 认证安全保障 · 直连 BEP-20 结算",
       "playVideo": "播放介绍视频",
       "pauseVideo": "暂停介绍视频"
     },
@@ -167,11 +167,11 @@
       "a5": "提现需满足：1) 积分余额达到 100 积分以上，2) 完成基础 KYC 身份认证以确认独立身份，3) 距离上次提现间隔达到 7 天。"
     },
     "cta": {
-      "badge": "只需 30 秒即可启动您的云端矿机",
-      "title": "准备好开始赚取 $Matsumoto 了吗？",
-      "body": "加入 BNB 链上超过 48,000+ 名活跃加密矿工，零硬件投资即可从第一天起享受每日收益。",
-      "buttonPrimary": "立即免费创建账户",
-      "buttonSecondary": "登录挖矿仪表盘"
+      "badge": "30 秒内快速开启云端矿机",
+      "title": "准备好开始挖取 $Matsumoto 了吗？",
+      "body": "立即免费开启 0.90/h 基础算力，无需前期硬件投入，随时开启收益累积。",
+      "buttonPrimary": "立即免费注册账户",
+      "buttonSecondary": "登录挖矿控制台"
     },
     "footer": {
       "brandDesc": "Matsumoto 是 BNB 智能链上的领先云端挖矿与收益模拟平台。致力于让全球用户通过每日定时累积轻松赚取链上加密资产奖励。",

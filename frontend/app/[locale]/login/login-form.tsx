@@ -8,6 +8,7 @@ import { login, register, getToken, ApiError } from '../../../lib/api';
 import { CountrySelect } from '../../../components/CountrySelect';
 import { LogoLockup, LogoMark } from '../../../components/Logo';
 import { LocaleSwitcher } from '../../../components/LocaleSwitcher';
+import { ThemeToggle } from '../../../components/ThemeToggle';
 
 type Mode = 'login' | 'register';
 
@@ -154,7 +155,8 @@ function AuthForm() {
           >
             ← {t('backHome')}
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <ThemeToggle />
             <LocaleSwitcher locale={params.locale} />
             <span className="lg:hidden">
               <LogoMark size={36} priority />

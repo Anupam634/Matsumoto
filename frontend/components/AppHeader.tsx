@@ -3,12 +3,8 @@
 import Link from 'next/link';
 import { LogoMark } from './Logo';
 import { LocaleSwitcher } from './LocaleSwitcher';
+import { ThemeToggle } from './ThemeToggle';
 
-/**
- * The sticky header shared by every secondary screen (boosters, KYC,
- * profile, withdraw): a way back to the dashboard on one side, the mark on
- * the other. The dashboard itself has its own header with full navigation.
- */
 export function AppHeader({
   locale,
   backLabel,
@@ -16,12 +12,11 @@ export function AppHeader({
 }: {
   locale: string;
   backLabel: string;
-  /** Match the page's own container so the header lines up with its content. */
   maxWidth?: string;
 }) {
   return (
     <header
-      className="sticky top-0 z-20 border-b border-white/5 bg-[#05070f]/85 backdrop-blur"
+      className="sticky top-0 z-20 border-b border-white/5 bg-[#05070f]/85 backdrop-blur-xl"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       <div
@@ -29,14 +24,15 @@ export function AppHeader({
       >
         <Link
           href={`/${locale}/dashboard`}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 transition hover:text-indigo-300"
+          className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 transition hover:text-amber-400"
         >
           ← {backLabel}
         </Link>
-        <span className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5">
+          <ThemeToggle />
           <LocaleSwitcher locale={locale} />
           <LogoMark size={32} />
-        </span>
+        </div>
       </div>
     </header>
   );

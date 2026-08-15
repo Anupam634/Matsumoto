@@ -11,6 +11,7 @@ import { TasksBountySection } from '../../components/TasksBountySection';
 import { FAQSection } from '../../components/FAQSection';
 import { LogoMark } from '../../components/Logo';
 import { LocaleSwitcher } from '../../components/LocaleSwitcher';
+import { ThemeToggle } from '../../components/ThemeToggle';
 import { NavAuth, AuthAwareCta, HideWhenAuthed } from '../../components/AuthAware';
 
 export default function LandingPage({
@@ -77,8 +78,9 @@ function Landing({ locale }: { locale: string }) {
             </a>
           </nav>
 
-          {/* Action CTAs & Language Switcher */}
-          <div className="flex items-center gap-3 text-xs">
+          {/* Action CTAs, Language & Theme Switcher */}
+          <div className="flex items-center gap-2.5 text-xs">
+            <ThemeToggle />
             <LocaleSwitcher locale={locale} />
             <NavAuth
               locale={locale}

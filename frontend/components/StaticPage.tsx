@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { LogoMark } from './Logo';
 import { LocaleSwitcher } from './LocaleSwitcher';
+import { ThemeToggle } from './ThemeToggle';
 
 export function StaticPage({
   locale,
@@ -30,7 +31,8 @@ export function StaticPage({
           >
             ← {backLabel}
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <ThemeToggle />
             <LocaleSwitcher locale={locale} />
             <LogoMark size={32} />
           </div>

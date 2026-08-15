@@ -13,11 +13,98 @@
     scroll-behavior: smooth;
   }
 
+  /* Default Dark Mode */
   body {
     background-color: #030712;
     color: #f8fafc;
     overflow-x: hidden;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* ☀️ Light Clean Mode */
+  html.theme-light body {
+    background-color: #f8fafc;
+    color: #0f172a;
+  }
+
+  html.theme-light .glow-field {
+    background:
+      radial-gradient(80rem 50rem at 50% -10%, rgba(245, 158, 11, 0.12), transparent 65%),
+      radial-gradient(60rem 40rem at 85% 30%, rgba(6, 182, 212, 0.08), transparent 60%),
+      radial-gradient(70rem 45rem at 50% 90%, rgba(245, 158, 11, 0.08), transparent 65%);
+  }
+
+  html.theme-light .bg-cyber-grid {
+    background-image: 
+      linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+    background-size: 36px 36px;
+  }
+
+  html.theme-light .glass-panel,
+  html.theme-light .card {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(226, 232, 240, 0.9);
+    color: #0f172a;
+    box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+
+  html.theme-light .glass-panel:hover,
+  html.theme-light .card:hover {
+    border-color: #f59e0b;
+    box-shadow: 0 20px 45px -5px rgba(245, 158, 11, 0.15);
+  }
+
+  html.theme-light .text-slate-100 {
+    color: #0f172a;
+  }
+
+  html.theme-light .text-slate-200 {
+    color: #1e293b;
+  }
+
+  html.theme-light .text-slate-300 {
+    color: #334155;
+  }
+
+  html.theme-light .text-slate-400 {
+    color: #64748b;
+  }
+
+  html.theme-light .bg-slate-950,
+  html.theme-light .bg-slate-950\/80,
+  html.theme-light .bg-slate-950\/90,
+  html.theme-light .bg-slate-900\/60,
+  html.theme-light .bg-slate-900\/80 {
+    background-color: rgba(255, 255, 255, 0.9);
+    border-color: rgba(226, 232, 240, 0.9);
+  }
+
+  html.theme-light input,
+  html.theme-light select {
+    background-color: #ffffff;
+    color: #0f172a;
+    border-color: #cbd5e1;
+  }
+
+  /* ⚡ Cyber Gold Mode */
+  html.theme-cyber body {
+    background-color: #050508;
+    color: #fffbeb;
+  }
+
+  html.theme-cyber .glow-field {
+    background:
+      radial-gradient(80rem 50rem at 50% -10%, rgba(251, 191, 36, 0.35), transparent 65%),
+      radial-gradient(60rem 40rem at 85% 30%, rgba(245, 158, 11, 0.25), transparent 60%),
+      radial-gradient(70rem 45rem at 50% 90%, rgba(251, 191, 36, 0.25), transparent 65%);
+  }
+
+  html.theme-cyber .glass-panel,
+  html.theme-cyber .card {
+    border-color: rgba(245, 158, 11, 0.4);
+    box-shadow: 0 0 35px -5px rgba(245, 158, 11, 0.25);
   }
 
   /* Custom high-tech scrollbar */
@@ -78,11 +165,11 @@
 
   .coin {
     position: relative;
-    width: 13rem;
-    height: 13rem;
+    width: 13.5rem;
+    height: 13.5rem;
     transform-style: preserve-3d;
     animation: coin-spin 11s linear infinite;
-    filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.7));
+    filter: drop-shadow(0 20px 35px rgba(0, 0, 0, 0.75));
   }
 
   .coin-face {
@@ -94,9 +181,9 @@
     backface-visibility: hidden;
     background: radial-gradient(circle at 30% 30%, #fffbeb 0%, #fef08a 25%, #f59e0b 60%, #92400e 100%);
     box-shadow:
-      inset 0 0 0 0.55rem rgba(120, 53, 15, 0.45),
-      inset 0 1rem 2.5rem rgba(255, 255, 255, 0.7),
-      0 1.5rem 4rem rgba(245, 158, 11, 0.4);
+      inset 0 0 0 0.55rem rgba(120, 53, 15, 0.5),
+      inset 0 1rem 2.5rem rgba(255, 255, 255, 0.8),
+      0 1.5rem 4rem rgba(245, 158, 11, 0.45);
     color: #451a03;
     font-weight: 900;
   }
@@ -117,15 +204,15 @@
   .orbit {
     position: absolute;
     border-radius: 9999px;
-    border: 1px solid rgba(245, 158, 11, 0.45);
-    box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);
+    border: 1.5px solid rgba(245, 158, 11, 0.5);
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.25);
     transform-style: preserve-3d;
     animation: orbit-tilt 18s linear infinite;
   }
 
   .orbit--wide {
-    border-color: rgba(6, 182, 212, 0.4);
-    box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+    border-color: rgba(6, 182, 212, 0.45);
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
     animation-duration: 25s;
     animation-direction: reverse;
   }
@@ -136,8 +223,8 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: linear-gradient(
       145deg,
-      rgba(15, 23, 42, 0.6) 0%,
-      rgba(2, 6, 23, 0.75) 100%
+      rgba(15, 23, 42, 0.65) 0%,
+      rgba(2, 6, 23, 0.8) 100%
     );
     backdrop-filter: blur(24px);
     box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -145,9 +232,9 @@
   }
 
   .glass-panel:hover {
-    border-color: rgba(245, 158, 11, 0.45);
+    border-color: rgba(245, 158, 11, 0.5);
     transform: translateY(-4px);
-    box-shadow: 0 25px 55px -10px rgba(245, 158, 11, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    box-shadow: 0 25px 55px -10px rgba(245, 158, 11, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   }
 
   .card {
@@ -155,8 +242,8 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: linear-gradient(
       150deg,
-      rgba(15, 23, 42, 0.65) 0%,
-      rgba(2, 6, 23, 0.85) 100%
+      rgba(15, 23, 42, 0.7) 0%,
+      rgba(2, 6, 23, 0.88) 100%
     );
     backdrop-filter: blur(20px);
     box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
