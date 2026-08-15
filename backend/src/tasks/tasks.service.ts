@@ -94,9 +94,9 @@ const DEFAULT_QUIZ_QUESTIONS: QuizQuestionDto[] = [
 
 // Persistent runtime config store for extended dynamic task metadata
 const taskConfigMap = new Map<string, {
-  quizQuestions?: QuizQuestionDto[];
-  wheelSegments?: number[];
-  actionUrl?: string;
+  quizQuestions?: QuizQuestionDto[] | null;
+  wheelSegments?: number[] | null;
+  actionUrl?: string | null;
 }>();
 
 @Injectable()
