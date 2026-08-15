@@ -140,13 +140,16 @@ function useQuizSound(muted: boolean) {
 
 export function QuizModal({
   rewardPoints,
+  customQuestions,
   onComplete,
   onClose,
 }: {
   rewardPoints: number;
+  customQuestions?: QuizQuestion[] | null;
   onComplete: () => Promise<void>;
   onClose: () => void;
 }) {
+  const questionsList = customQuestions && customQuestions.length > 0 ? customQuestions : QUIZ_QUESTIONS;
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [score, setScore] = useState(0);
@@ -156,7 +159,7 @@ export function QuizModal({
   const [muted, setMuted] = useState(false);
 
   const { playCorrect, playWrong, playComplete } = useQuizSound(muted);
-  const currentQ = QUIZ_QUESTIONS[currentIdx];
+  const currentQ = questionsList[currentIdx] || questionsList[0];
 
   const handleSelect = (idx: number) => {
     if (isAnswered) return;
@@ -173,155 +176,155 @@ export function QuizModal({
   };
 
   const handleNext = () => {
-    if (currentIdx + 1 < QUIZ_QUESTIONS.length) {
-      setCurrentIdx((c) => c + 1);
-      setSelectedIdx(null);
-      setIsAnswered(false);
-    } else {
-      setIsFinished(true);
-      playComplete();
-    }
-  };
+      if (currentIdx + 1 < questionsList.length) {
+        setCurrentIdx((c) => c + 1);
+        setSelectedIdx(null);
+        setIsAnswered(false);
+      } else {
+        setIsFinished(true);
+        playComplete();
+      }
+    };
 
-  const handleClaim = async () => {
-    setClaiming(true);
-    try {
-      await onComplete();
-      onClose();
-    } finally {
-      setClaiming(false);
-    }
-  };
+    const handleClaim = async () => {
+      setClaiming(true);
+      try {
+        await onComplete();
+        onClose();
+      } finally {
+        setClaiming(false);
+      }
+    };
 
-  const progressPercent = ((currentIdx + (isAnswered ? 1 : 0)) / QUIZ_QUESTIONS.length) * 100;
+    const progressPercent = ((currentIdx + (isAnswered ? 1 : 0)) / questionsList.length) * 100;
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-200">
-      {/* Radiant ambient aura */}
-      <div className="pointer-events-none absolute h-96 w-96 rounded-full bg-cyan-500/20 blur-3xl" />
+    return (
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-200">
+        {/* Radiant ambient aura */}
+        <div className="pointer-events-none absolute h-96 w-96 rounded-full bg-cyan-500/20 blur-3xl" />
 
-      {/* Transparent Glassmorphism Modal Card */}
-      <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/20 bg-slate-950/40 p-6 sm:p-8 text-center shadow-[0_25px_60px_rgba(0,0,0,0.6)] backdrop-blur-3xl ring-1 ring-white/10 transition-all">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
-          <div className="flex items-center gap-2.5 text-left">
-            <div className="grid h-9 w-9 place-items-center rounded-2xl bg-cyan-500/20 border border-cyan-500/30 text-lg">
-              🧠
-            </div>
-            <div>
-              <h2 className="text-lg font-black tracking-tight text-slate-100">
-                Web3 Knowledge Challenge
-              </h2>
-              <p className="text-[11px] font-medium text-slate-400">
-                Answer correctly to earn +{rewardPoints} MATSU points
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setMuted((m) => !m)}
-              className="grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-slate-900/60 text-slate-300 transition hover:border-cyan-400/50 hover:text-cyan-400"
-            >
-              {muted ? '🔇' : '🔊'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-slate-900/60 text-slate-400 transition hover:border-slate-700 hover:text-white"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-
-        {!isFinished ? (
-          <div className="mt-5 text-left">
-            {/* Progress Bar */}
-            <div className="flex items-center justify-between text-xs font-mono font-bold text-slate-400">
-              <span>QUESTION {currentIdx + 1} OF {QUIZ_QUESTIONS.length}</span>
-              <span className="text-cyan-400">SCORE: {score}/{QUIZ_QUESTIONS.length}</span>
-            </div>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800/80">
-              <div
-                className="h-full bg-gradient-to-r from-cyan-400 to-amber-400 transition-all duration-300"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-
-            {/* Question Box */}
-            <div className="mt-5 rounded-2xl border border-white/10 bg-slate-900/40 p-4 backdrop-blur-md">
-              <p className="text-base font-extrabold text-slate-100 leading-snug">
-                {currentQ.question}
-              </p>
-            </div>
-
-            {/* Options List */}
-            <div className="mt-4 space-y-2.5">
-              {currentQ.options.map((option, idx) => {
-                const isSelected = selectedIdx === idx;
-                const isCorrect = idx === currentQ.correctIndex;
-                let btnStyle = 'border-white/10 bg-slate-900/40 text-slate-200 hover:border-cyan-400/50 hover:bg-slate-900/60';
-
-                if (isAnswered) {
-                  if (isCorrect) {
-                    btnStyle = 'border-emerald-500/80 bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/50 shadow-lg';
-                  } else if (isSelected) {
-                    btnStyle = 'border-red-500/80 bg-red-500/20 text-red-300 ring-1 ring-red-400/50';
-                  } else {
-                    btnStyle = 'opacity-40 border-white/5 bg-slate-900/20 text-slate-400';
-                  }
-                }
-
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => handleSelect(idx)}
-                    disabled={isAnswered}
-                    className={`w-full text-left rounded-2xl border p-3.5 text-sm font-semibold transition-all duration-200 flex items-center justify-between ${btnStyle}`}
-                  >
-                    <span>{option}</span>
-                    {isAnswered && (
-                      <span className="font-bold text-xs">
-                        {isCorrect ? '✓ CORRECT' : isSelected ? '✕ WRONG' : ''}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Explanation Note & Next Button */}
-            {isAnswered && (
-              <div className="mt-4 space-y-3 animate-in fade-in duration-200">
-                <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3 text-xs text-cyan-200 leading-relaxed backdrop-blur-md">
-                  💡 <strong>Explanation:</strong> {currentQ.explanation}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  className="btn-gold w-full rounded-2xl py-3 text-xs font-black uppercase tracking-wider text-slate-950 shadow-lg"
-                >
-                  {currentIdx + 1 === QUIZ_QUESTIONS.length ? 'Finish Challenge →' : 'Next Question →'}
-                </button>
+        {/* Transparent Glassmorphism Modal Card */}
+        <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/20 bg-slate-950/40 p-6 sm:p-8 text-center shadow-[0_25px_60px_rgba(0,0,0,0.6)] backdrop-blur-3xl ring-1 ring-white/10 transition-all">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
+            <div className="flex items-center gap-2.5 text-left">
+              <div className="grid h-9 w-9 place-items-center rounded-2xl bg-cyan-500/20 border border-cyan-500/30 text-lg">
+                🧠
               </div>
-            )}
-          </div>
-        ) : (
-          /* Finished Screen */
-          <div className="mt-6 text-center animate-in zoom-in-95 duration-300">
-            <div className="inline-grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-tr from-amber-500 to-yellow-400 text-3xl shadow-xl">
-              🏆
+              <div>
+                <h2 className="text-lg font-black tracking-tight text-slate-100">
+                  Web3 Knowledge Challenge
+                </h2>
+                <p className="text-[11px] font-medium text-slate-400">
+                  Answer correctly to earn +{rewardPoints} MATSU points
+                </p>
+              </div>
             </div>
-            <h3 className="mt-4 text-2xl font-black text-slate-100">
-              Quiz Completed!
-            </h3>
-            <p className="mt-1 text-sm text-slate-400">
-              You scored {score} out of {QUIZ_QUESTIONS.length} questions correctly.
-            </p>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMuted((m) => !m)}
+                className="grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-slate-900/60 text-slate-300 transition hover:border-cyan-400/50 hover:text-cyan-400"
+              >
+                {muted ? '🔇' : '🔊'}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-slate-900/60 text-slate-400 transition hover:border-slate-700 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {!isFinished ? (
+            <div className="mt-5 text-left">
+              {/* Progress Bar */}
+              <div className="flex items-center justify-between text-xs font-mono font-bold text-slate-400">
+                <span>QUESTION {currentIdx + 1} OF {questionsList.length}</span>
+                <span className="text-cyan-400">SCORE: {score}/{questionsList.length}</span>
+              </div>
+              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800/80">
+                <div
+                  className="h-full bg-gradient-to-r from-cyan-400 to-amber-400 transition-all duration-300"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+
+              {/* Question Box */}
+              <div className="mt-5 rounded-2xl border border-white/10 bg-slate-900/40 p-4 backdrop-blur-md">
+                <p className="text-base font-extrabold text-slate-100 leading-snug">
+                  {currentQ.question}
+                </p>
+              </div>
+
+              {/* Options List */}
+              <div className="mt-4 space-y-2.5">
+                {currentQ.options.map((option, idx) => {
+                  const isSelected = selectedIdx === idx;
+                  const isCorrect = idx === currentQ.correctIndex;
+                  let btnStyle = 'border-white/10 bg-slate-900/40 text-slate-200 hover:border-cyan-400/50 hover:bg-slate-900/60';
+
+                  if (isAnswered) {
+                    if (isCorrect) {
+                      btnStyle = 'border-emerald-500/80 bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/50 shadow-lg';
+                    } else if (isSelected) {
+                      btnStyle = 'border-red-500/80 bg-red-500/20 text-red-300 ring-1 ring-red-400/50';
+                    } else {
+                      btnStyle = 'opacity-40 border-white/5 bg-slate-900/20 text-slate-400';
+                    }
+                  }
+
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSelect(idx)}
+                      disabled={isAnswered}
+                      className={`w-full text-left rounded-2xl border p-3.5 text-sm font-semibold transition-all duration-200 flex items-center justify-between ${btnStyle}`}
+                    >
+                      <span>{option}</span>
+                      {isAnswered && (
+                        <span className="font-bold text-xs">
+                          {isCorrect ? '✓ CORRECT' : isSelected ? '✕ WRONG' : ''}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Explanation Note & Next Button */}
+              {isAnswered && (
+                <div className="mt-4 space-y-3 animate-in fade-in duration-200">
+                  <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3 text-xs text-cyan-200 leading-relaxed backdrop-blur-md">
+                    💡 <strong>Explanation:</strong> {currentQ.explanation}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleNext}
+                    className="btn-gold w-full rounded-2xl py-3 text-xs font-black uppercase tracking-wider text-slate-950 shadow-lg"
+                  >
+                    {currentIdx + 1 === questionsList.length ? 'Finish Challenge →' : 'Next Question →'}
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Finished Screen */
+            <div className="mt-6 text-center animate-in zoom-in-95 duration-300">
+              <div className="inline-grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-tr from-amber-500 to-yellow-400 text-3xl shadow-xl">
+                🏆
+              </div>
+              <h3 className="mt-4 text-2xl font-black text-slate-100">
+                Quiz Completed!
+              </h3>
+              <p className="mt-1 text-sm text-slate-400">
+                You scored {score} out of {questionsList.length} questions correctly.
+              </p>
 
             <div className="mt-5 rounded-2xl border border-amber-400/40 bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 p-4 backdrop-blur-md">
               <div className="text-xs uppercase font-black tracking-widest text-amber-400">

@@ -10,6 +10,7 @@ import {
 import { AdminService } from './admin.service';
 import { AdminAuthGuard } from './admin.guard';
 import { WithdrawalsService } from '../withdrawals/withdrawals.service';
+import { TasksService } from '../tasks/tasks.service';
 import {
   AdjustRateDto,
   AdminLoginDto,
@@ -42,12 +43,37 @@ export class AdminSecureController {
   constructor(
     private readonly admin: AdminService,
     private readonly withdrawals: WithdrawalsService,
+    private readonly tasks: TasksService,
   ) {}
 
   /** GET /api/admin/stats — active miners, balances, per-country counts. */
   @Get('stats')
   stats() {
     return this.admin.stats();
+  }
+
+  /** GET /api/admin/tasks — manage Quiz, Lucky Wheel, and Bounty tasks. */
+  @Get('tasks')
+  listTasks() {
+    return this.tasks.adminListTasks();
+  }
+
+  /** POST /api/admin/tasks — create new task/bounty. */
+  @Post('tasks')
+  createTask(@Body() dto: any) {
+    return this.tasks.adminCreateTask(dto);
+  }
+
+  /** PUT /api/admin/tasks/:id — update task questions, wheel segments, rewards, etc. */
+  @Post('tasks/:id/update')
+  updateTask(@Param('id') id: string, @Body() dto: any) {
+    return this.tasks.adminUpdateTask(id, dto);
+  }
+
+  /** DELETE /api/admin/tasks/:id — remove task. */
+  @Post('tasks/:id/delete')
+  deleteTask(@Param('id') id: string) {
+    return this.tasks.adminDeleteTask(id);
   }
 
   /** GET /api/admin/users?search=&page=&pageSize= */

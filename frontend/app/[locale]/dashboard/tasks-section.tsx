@@ -182,6 +182,7 @@ export default function TasksSection({
       {quizTask && (
         <QuizModal
           rewardPoints={quizTask.rewardPoints}
+          customQuestions={quizTask.quizQuestions}
           onComplete={async () => {
             const res = await claimTask(quizTask.id);
             setWon({ id: quizTask.id, points: res.earnedPoints });

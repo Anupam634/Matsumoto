@@ -6,6 +6,7 @@ import { AdminAuthGuard } from './admin.guard';
 import { PrismaService } from '../prisma.service';
 import { AuthModule } from '../auth/auth.module';
 import { WithdrawalsModule } from '../withdrawals/withdrawals.module';
+import { TasksService } from '../tasks/tasks.service';
 
 /**
  * Admin panel API (SPEC §6). Imports AuthModule purely for its configured
@@ -15,6 +16,12 @@ import { WithdrawalsModule } from '../withdrawals/withdrawals.module';
 @Module({
   imports: [AuthModule, WithdrawalsModule],
   controllers: [AdminController, AdminSecureController],
-  providers: [AdminService, AdminAuthGuard, PrismaService, AdminBootstrapService],
+  providers: [
+    AdminService,
+    AdminAuthGuard,
+    PrismaService,
+    AdminBootstrapService,
+    TasksService,
+  ],
 })
 export class AdminModule {}

@@ -236,3 +236,44 @@ export const replySupport = (
 
 export const closeSupport = (id: string) =>
   adminFetch<AdminSupportTicket>(`/support/${id}/close`, { method: 'POST' });
+
+// ─────────────────────────── Tasks & Rewards ─────────────────
+
+export interface AdminQuizQuestion {
+  id: number;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+}
+
+export interface AdminTaskItem {
+  id: string;
+  type: 'TWEET' | 'FOLLOW' | 'REPOST' | 'YOUTUBE' | 'QUIZ' | 'SPIN_WHEEL';
+  title: string;
+  rewardPoints: number;
+  cooldownHours: number;
+  active: boolean;
+  wheelSegments?: number[];
+  quizQuestions?: AdminQuizQuestion[];
+  actionUrl?: string;
+}
+
+export const listAdminTasks = () => adminFetch<AdminTaskItem[]>('/tasks');
+
+export const updateAdminTask = (id: string, dto: Partial<AdminTaskItem>) =>
+  adminFetch<AdminTaskItem>(`/tasks/${id}/update`, {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  });
+
+export const createAdminTask = (dto: Omit<AdminTaskItem, 'id'>) =>
+  adminFetch<AdminTaskItem>('/tasks', {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  });
+
+export const deleteAdminTask = (id: string) =>
+  adminFetch<{ success: boolean }>(`/tasks/${id}/delete`, {
+    method: 'POST',
+  });

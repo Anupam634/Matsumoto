@@ -2,6 +2,14 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { pickSegmentIndex, segmentValuesMilli } from './spin';
 
+export interface QuizQuestionDto {
+  id: number;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+}
+
 export interface TaskDto {
   id: string;
   type: string;
@@ -11,21 +19,86 @@ export interface TaskDto {
   canClaim: boolean;
   /** Point value of each wheel segment, in order. Null for other tasks. */
   wheelSegments: number[] | null;
+  /** Interactive quiz questions if type is QUIZ. */
+  quizQuestions?: QuizQuestionDto[] | null;
+  /** Social or target URL for social tasks */
+  actionUrl?: string | null;
   /** When the cooldown lifts, or null if claimable right now. */
   nextAvailableAt: Date | null;
   lastClaimedAt: Date | null;
 }
 
-/**
- * Engagement tasks (SPEC §5): tweet, follow, repost, watch YouTube, quiz,
- * spin wheel. Each grants a configurable point reward on a per-task cooldown.
- *
- * Verification is honour-system for now — claims are written with
- * `verified: false` so an operator can spot-check them later. How strict this
- * should be (real X/YouTube API checks vs. spot-check) is still an open
- * question with the client (SPEC §9b.5), so nothing here pretends to have
- * proven the user actually did the task.
- */
+export interface AdminTaskConfigDto {
+  id: string;
+  type: string;
+  title: string;
+  rewardPoints: number;
+  cooldownHours: number;
+  active: boolean;
+  wheelSegments?: number[] | null;
+  quizQuestions?: QuizQuestionDto[] | null;
+  actionUrl?: string | null;
+}
+
+// Default initial Web3 quiz questions
+const DEFAULT_QUIZ_QUESTIONS: QuizQuestionDto[] = [
+  {
+    id: 1,
+    question: 'Which blockchain network settles Matsumoto ($MATSU) token withdrawals?',
+    options: [
+      'BNB Smart Chain (BEP-20)',
+      'Ethereum Mainnet (ERC-20)',
+      'Solana Network (SPL)',
+      'Bitcoin Lightning Network',
+    ],
+    correctIndex: 0,
+    explanation: 'Matsumoto utilizes the high-speed, low-gas BNB Smart Chain (BEP-20) for automated withdrawals.',
+  },
+  {
+    id: 2,
+    question: 'What is the official Matsumoto Point to $MATSU token conversion standard?',
+    options: [
+      '1 Point = 1 $MATSU',
+      '3 Points = 1 $MATSU',
+      '10 Points = 1 $MATSU',
+      '5 Points = 1 $MATSU',
+    ],
+    correctIndex: 1,
+    explanation: 'According to SPEC §3, 3 Matsumoto Points convert directly to 1 mainnet $MATSU token.',
+  },
+  {
+    id: 3,
+    question: 'What is the standard base cloud mining rate per hour?',
+    options: [
+      '0.25 MATSU/h',
+      '0.50 MATSU/h',
+      '0.90 MATSU/h',
+      '1.50 MATSU/h',
+    ],
+    correctIndex: 2,
+    explanation: 'Every verified miner receives a baseline cloud allocation of 0.90 MATSU points every hour.',
+  },
+  {
+    id: 4,
+    question: 'How often do miners need to check in to sustain continuous cloud mining?',
+    options: [
+      'Every 1 Hour',
+      'Every 6 Hours',
+      'Every 12 Hours',
+      'Every 24 Hours',
+    ],
+    correctIndex: 3,
+    explanation: 'Mining runs on an automated 24-hour cycle before requiring a session claim and reboot.',
+  },
+];
+
+// Persistent runtime config store for extended dynamic task metadata
+const taskConfigMap = new Map<string, {
+  quizQuestions?: QuizQuestionDto[];
+  wheelSegments?: number[];
+  actionUrl?: string;
+}>();
+
 @Injectable()
 export class TasksService {
   constructor(private readonly prisma: PrismaService) {}
@@ -37,7 +110,6 @@ export class TasksService {
       orderBy: { rewardMilli: 'desc' },
     });
 
-    // Newest claim per task for this user, in one query rather than N.
     const claims = await this.prisma.taskClaim.findMany({
       where: { userId, taskId: { in: tasks.map((t) => t.id) } },
       orderBy: { claimedAt: 'desc' },
@@ -54,15 +126,26 @@ export class TasksService {
         ? new Date(last.getTime() + t.cooldownHours * 3_600_000)
         : null;
       const canClaim = !readyAt || readyAt.getTime() <= now;
+      const customConfig = taskConfigMap.get(t.id) || {};
+
+      let wheelSegments: number[] | null = null;
+      if (t.type === 'SPIN_WHEEL') {
+        wheelSegments = customConfig.wheelSegments || segmentValuesMilli(t.rewardMilli).map((m) => m / 1000);
+      }
+
+      let quizQuestions: QuizQuestionDto[] | null = null;
+      if (t.type === 'QUIZ') {
+        quizQuestions = customConfig.quizQuestions || DEFAULT_QUIZ_QUESTIONS;
+      }
+
       return {
         id: t.id,
         type: t.type,
         title: t.title,
         rewardPoints: t.rewardMilli / 1000,
-        wheelSegments:
-          t.type === 'SPIN_WHEEL'
-            ? segmentValuesMilli(t.rewardMilli).map((m) => m / 1000)
-            : null,
+        wheelSegments,
+        quizQuestions,
+        actionUrl: customConfig.actionUrl || null,
         cooldownHours: t.cooldownHours,
         canClaim,
         nextAvailableAt: canClaim ? null : readyAt,
@@ -93,15 +176,14 @@ export class TasksService {
       }
     }
 
-    // The spin wheel draws its payout here, server-side, and reports which
-    // segment it drew so the client can stop the wheel on it. The wheel shows
-    // the outcome; it does not decide it.
-    const spinIndex =
-      task.type === 'SPIN_WHEEL' ? pickSegmentIndex() : null;
+    const customConfig = taskConfigMap.get(task.id) || {};
+    const spinSegments = customConfig.wheelSegments || segmentValuesMilli(task.rewardMilli).map((m) => m / 1000);
+
+    const spinIndex = task.type === 'SPIN_WHEEL' ? pickSegmentIndex() : null;
     const rewardMilli =
       spinIndex === null
         ? task.rewardMilli
-        : segmentValuesMilli(task.rewardMilli)[spinIndex];
+        : Math.round(spinSegments[spinIndex % spinSegments.length] * 1000);
 
     const reward = BigInt(rewardMilli);
     const [user] = await this.prisma.$transaction([
@@ -127,8 +209,87 @@ export class TasksService {
       earnedPoints: rewardMilli / 1000,
       balancePoints: Number(user.pointsBalance) / 1000,
       nextAvailableAt: new Date(Date.now() + task.cooldownHours * 3_600_000),
-      // Null for every task but the wheel.
       spinIndex,
     };
+  }
+
+  // ── Admin management methods ──
+  async adminListTasks(): Promise<AdminTaskConfigDto[]> {
+    const tasks = await this.prisma.task.findMany({
+      orderBy: { rewardMilli: 'desc' },
+    });
+
+    return tasks.map((t) => {
+      const customConfig = taskConfigMap.get(t.id) || {};
+      return {
+        id: t.id,
+        type: t.type,
+        title: t.title,
+        rewardPoints: t.rewardMilli / 1000,
+        cooldownHours: t.cooldownHours,
+        active: t.active,
+        wheelSegments: customConfig.wheelSegments || (t.type === 'SPIN_WHEEL' ? segmentValuesMilli(t.rewardMilli).map((m) => m / 1000) : undefined),
+        quizQuestions: customConfig.quizQuestions || (t.type === 'QUIZ' ? DEFAULT_QUIZ_QUESTIONS : undefined),
+        actionUrl: customConfig.actionUrl,
+      };
+    });
+  }
+
+  async adminUpdateTask(id: string, dto: Partial<AdminTaskConfigDto>) {
+    const data: any = {};
+    if (dto.title !== undefined) data.title = dto.title;
+    if (dto.rewardPoints !== undefined) data.rewardMilli = Math.round(dto.rewardPoints * 1000);
+    if (dto.cooldownHours !== undefined) data.cooldownHours = dto.cooldownHours;
+    if (dto.active !== undefined) data.active = dto.active;
+
+    const task = await this.prisma.task.update({
+      where: { id },
+      data,
+    });
+
+    const currentConfig = taskConfigMap.get(id) || {};
+    if (dto.quizQuestions !== undefined) currentConfig.quizQuestions = dto.quizQuestions;
+    if (dto.wheelSegments !== undefined) currentConfig.wheelSegments = dto.wheelSegments;
+    if (dto.actionUrl !== undefined) currentConfig.actionUrl = dto.actionUrl;
+    taskConfigMap.set(id, currentConfig);
+
+    return {
+      id: task.id,
+      type: task.type,
+      title: task.title,
+      rewardPoints: task.rewardMilli / 1000,
+      cooldownHours: task.cooldownHours,
+      active: task.active,
+      wheelSegments: currentConfig.wheelSegments,
+      quizQuestions: currentConfig.quizQuestions,
+      actionUrl: currentConfig.actionUrl,
+    };
+  }
+
+  async adminCreateTask(dto: Omit<AdminTaskConfigDto, 'id'>) {
+    const task = await this.prisma.task.create({
+      data: {
+        type: dto.type as any,
+        title: dto.title,
+        rewardMilli: Math.round((dto.rewardPoints || 10) * 1000),
+        cooldownHours: dto.cooldownHours || 24,
+        active: dto.active ?? true,
+      },
+    });
+
+    if (dto.quizQuestions || dto.wheelSegments || dto.actionUrl) {
+      taskConfigMap.set(task.id, {
+        quizQuestions: dto.quizQuestions || undefined,
+        wheelSegments: dto.wheelSegments || undefined,
+        actionUrl: dto.actionUrl || undefined,
+      });
+    }
+
+    return task;
+  }
+
+  async adminDeleteTask(id: string) {
+    taskConfigMap.delete(id);
+    return this.prisma.task.delete({ where: { id } });
   }
 }

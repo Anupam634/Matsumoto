@@ -34,10 +34,16 @@ import {
   type AdminUserRow,
   type AdminWithdrawal,
   type TreeNode,
+  listAdminTasks,
+  updateAdminTask,
+  createAdminTask,
+  deleteAdminTask,
+  type AdminTaskItem,
+  type AdminQuizQuestion,
 } from '../../../lib/admin-api';
 import { countryFlag, countryName } from '../../../lib/countries';
 
-type Tab = 'miners' | 'withdrawals' | 'kyc' | 'support';
+type Tab = 'miners' | 'withdrawals' | 'kyc' | 'support' | 'tasks';
 
 export default function AdminClient() {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -223,6 +229,9 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
           <button data-active={tab === 'support'} onClick={() => setTab('support')}>
             Support
           </button>
+          <button data-active={tab === 'tasks'} onClick={() => setTab('tasks')}>
+            🎯 Tasks & Bounties (Quiz, Wheel, X)
+          </button>
         </div>
 
         <div className="mt-4">
@@ -234,6 +243,7 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
           )}
           {tab === 'kyc' && <KycTab onUnauthorized={onSignOut} />}
           {tab === 'support' && <SupportTab onUnauthorized={onSignOut} />}
+          {tab === 'tasks' && <TasksTab onUnauthorized={onSignOut} />}
         </div>
       </main>
     </div>
@@ -1090,3 +1100,566 @@ function KycDocuments({ userId }: { userId: string }) {
     </div>
   );
 }
+
+/* ─────────────────────────── Tasks Tab ─────────────────────────── */
+
+function TasksTab({ onUnauthorized }: { onUnauthorized: () => void }) {
+  const [tasks, setTasks] = useState<AdminTaskItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      setTasks(await listAdminTasks());
+      setError(null);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) return onUnauthorized();
+      setError(err instanceof ApiError ? err.message : 'Failed to load tasks.');
+    }
+  }, [onUnauthorized]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleSaveTask = async (task: AdminTaskItem) => {
+    setSavingId(task.id);
+    setError(null);
+    setSuccess(null);
+    try {
+      await updateAdminTask(task.id, task);
+      setSuccess(`Saved "${task.title}" successfully!`);
+      setTimeout(() => setSuccess(null), 3000);
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to update task.');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  if (!tasks) {
+    return (
+      <div className="card-soft space-y-4 p-6">
+        <div className="skeleton h-6 w-48" />
+        <div className="skeleton h-32 w-full" />
+      </div>
+    );
+  }
+
+  const wheelTask = tasks.find((t) => t.type === 'SPIN_WHEEL');
+  const quizTask = tasks.find((t) => t.type === 'QUIZ');
+  const socialTasks = tasks.filter((t) => t.type !== 'SPIN_WHEEL' && t.type !== 'QUIZ');
+
+  return (
+    <div className="space-y-6">
+      {error && (
+        <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-600">
+          {error}
+        </p>
+      )}
+      {success && (
+        <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
+          ✓ {success}
+        </p>
+      )}
+
+      {/* 1. Lucky Spin Wheel Config */}
+      {wheelTask && (
+        <WheelConfigCard
+          task={wheelTask}
+          saving={savingId === wheelTask.id}
+          onSave={handleSaveTask}
+        />
+      )}
+
+      {/* 2. Web3 Knowledge Quiz Config */}
+      {quizTask && (
+        <QuizConfigCard
+          task={quizTask}
+          saving={savingId === quizTask.id}
+          onSave={handleSaveTask}
+        />
+      )}
+
+      {/* 3. Social Engagement & Bounty Tasks */}
+      <section className="card-soft p-6">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+          <div>
+            <h2 className="text-base font-bold">𝕏 Social & Bounty Tasks (X, Repost, YouTube)</h2>
+            <p className="text-xs text-slate-500">
+              Configure point rewards, target URLs, and cooldown hours for community actions.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          {socialTasks.map((task) => (
+            <SocialTaskCard
+              key={task.id}
+              task={task}
+              saving={savingId === task.id}
+              onSave={handleSaveTask}
+            />
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function WheelConfigCard({
+  task,
+  saving,
+  onSave,
+}: {
+  task: AdminTaskItem;
+  saving: boolean;
+  onSave: (t: AdminTaskItem) => Promise<void>;
+}) {
+  const [title, setTitle] = useState(task.title);
+  const [reward, setReward] = useState(task.rewardPoints);
+  const [cooldown, setCooldown] = useState(task.cooldownHours);
+  const [active, setActive] = useState(task.active);
+  const [segmentsStr, setSegmentsStr] = useState(
+    (task.wheelSegments || [25, 125, 50, 500, 12.5, 75]).join(', '),
+  );
+
+  const save = () => {
+    const segments = segmentsStr
+      .split(',')
+      .map((s) => Number(s.trim()))
+      .filter((n) => !isNaN(n) && n > 0);
+
+    onSave({
+      ...task,
+      title,
+      rewardPoints: Number(reward),
+      cooldownHours: Number(cooldown),
+      active,
+      wheelSegments: segments.length ? segments : undefined,
+    });
+  };
+
+  return (
+    <section className="card-soft p-6">
+      <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+        <div className="flex items-center gap-2.5">
+          <span className="text-2xl">🎡</span>
+          <div>
+            <h2 className="text-base font-bold">Daily Lucky Reward Wheel</h2>
+            <p className="text-xs text-slate-500">
+              Configure custom point slices, cooldown, and active state.
+            </p>
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
+          <input
+            type="checkbox"
+            checked={active}
+            onChange={(e) => setActive(e.target.checked)}
+            className="h-4 w-4 rounded text-amber-500 focus:ring-amber-400"
+          />
+          Active
+        </label>
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">
+            Task Title
+          </label>
+          <input
+            className="input-field mt-1 text-sm font-semibold"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">
+            Base / Avg Reward (PTS)
+          </label>
+          <input
+            type="number"
+            className="input-field mt-1 text-sm font-semibold"
+            value={reward}
+            onChange={(e) => setReward(Number(e.target.value))}
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">
+            Cooldown (Hours)
+          </label>
+          <input
+            type="number"
+            className="input-field mt-1 text-sm font-semibold"
+            value={cooldown}
+            onChange={(e) => setCooldown(Number(e.target.value))}
+          />
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <label className="text-xs font-semibold uppercase text-slate-500">
+          Wheel Segment Values (Comma-separated PTS)
+        </label>
+        <input
+          className="input-field mt-1 font-mono text-sm font-bold text-amber-600"
+          value={segmentsStr}
+          onChange={(e) => setSegmentsStr(e.target.value)}
+          placeholder="25, 125, 50, 500, 12.5, 75"
+        />
+        <p className="mt-1 text-[11px] text-slate-500">
+          Miners will randomly land on one of these configured values when spinning.
+        </p>
+      </div>
+
+      <div className="mt-4 flex justify-end">
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          className="btn-primary px-5 py-2.5 text-xs font-bold uppercase tracking-wider"
+        >
+          {saving ? 'Saving…' : 'Save Wheel Settings'}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function QuizConfigCard({
+  task,
+  saving,
+  onSave,
+}: {
+  task: AdminTaskItem;
+  saving: boolean;
+  onSave: (t: AdminTaskItem) => Promise<void>;
+}) {
+  const [title, setTitle] = useState(task.title);
+  const [reward, setReward] = useState(task.rewardPoints);
+  const [cooldown, setCooldown] = useState(task.cooldownHours);
+  const [active, setActive] = useState(task.active);
+  const [questions, setQuestions] = useState<AdminQuizQuestion[]>(
+    task.quizQuestions || [
+      {
+        id: 1,
+        question: 'Which blockchain network settles Matsumoto ($MATSU) token withdrawals?',
+        options: [
+          'BNB Smart Chain (BEP-20)',
+          'Ethereum Mainnet (ERC-20)',
+          'Solana Network (SPL)',
+          'Bitcoin Lightning Network',
+        ],
+        correctIndex: 0,
+        explanation: 'Matsumoto utilizes the high-speed, low-gas BNB Smart Chain (BEP-20) for automated withdrawals.',
+      },
+    ],
+  );
+
+  const handleQuestionChange = (idx: number, field: keyof AdminQuizQuestion, val: any) => {
+    setQuestions((prev) => {
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], [field]: val };
+      return copy;
+    });
+  };
+
+  const handleOptionChange = (qIdx: number, optIdx: number, val: string) => {
+    setQuestions((prev) => {
+      const copy = [...prev];
+      const opts = [...copy[qIdx].options];
+      opts[optIdx] = val;
+      copy[qIdx] = { ...copy[qIdx], options: opts };
+      return copy;
+    });
+  };
+
+  const addQuestion = () => {
+    setQuestions((prev) => [
+      ...prev,
+      {
+        id: prev.length + 1,
+        question: 'New Web3 Question Prompt',
+        options: ['Option A', 'Option B', 'Option C', 'Option D'],
+        correctIndex: 0,
+        explanation: 'Add detailed educational explanation here.',
+      },
+    ]);
+  };
+
+  const removeQuestion = (idx: number) => {
+    setQuestions((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const save = () => {
+    onSave({
+      ...task,
+      title,
+      rewardPoints: Number(reward),
+      cooldownHours: Number(cooldown),
+      active,
+      quizQuestions: questions,
+    });
+  };
+
+  return (
+    <section className="card-soft p-6">
+      <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+        <div className="flex items-center gap-2.5">
+          <span className="text-2xl">🧠</span>
+          <div>
+            <h2 className="text-base font-bold">Web3 Knowledge Quiz Challenge</h2>
+            <p className="text-xs text-slate-500">
+              Manage questions, answer choices, correct answers, and educational explanations.
+            </p>
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
+          <input
+            type="checkbox"
+            checked={active}
+            onChange={(e) => setActive(e.target.checked)}
+            className="h-4 w-4 rounded text-amber-500 focus:ring-amber-400"
+          />
+          Active
+        </label>
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">
+            Task Title
+          </label>
+          <input
+            className="input-field mt-1 text-sm font-semibold"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">
+            Bounty Reward (PTS)
+          </label>
+          <input
+            type="number"
+            className="input-field mt-1 text-sm font-semibold"
+            value={reward}
+            onChange={(e) => setReward(Number(e.target.value))}
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold uppercase text-slate-500">
+            Cooldown (Hours)
+          </label>
+          <input
+            type="number"
+            className="input-field mt-1 text-sm font-semibold"
+            value={cooldown}
+            onChange={(e) => setCooldown(Number(e.target.value))}
+          />
+        </div>
+      </div>
+
+      {/* Question List */}
+      <div className="mt-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
+            Questions ({questions.length})
+          </h3>
+          <button
+            type="button"
+            onClick={addQuestion}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50"
+          >
+            + Add Question
+          </button>
+        </div>
+
+        {questions.map((q, qIdx) => (
+          <div key={qIdx} className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <span className="grid h-6 w-6 place-items-center rounded-full bg-slate-100 text-xs font-bold text-slate-700">
+                {qIdx + 1}
+              </span>
+              <input
+                className="input-field flex-1 font-semibold text-sm"
+                value={q.question}
+                onChange={(e) => handleQuestionChange(qIdx, 'question', e.target.value)}
+                placeholder="Question prompt..."
+              />
+              {questions.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeQuestion(qIdx)}
+                  className="text-xs font-bold text-red-500 hover:text-red-700"
+                >
+                  ✕ Remove
+                </button>
+              )}
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2 pl-9">
+              {q.options.map((opt, optIdx) => (
+                <label
+                  key={optIdx}
+                  className={`flex items-center gap-2 rounded-xl border p-2 text-xs transition ${
+                    q.correctIndex === optIdx
+                      ? 'border-emerald-500 bg-emerald-50/60 font-bold text-emerald-800'
+                      : 'border-slate-200 bg-slate-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name={`correct-${qIdx}`}
+                    checked={q.correctIndex === optIdx}
+                    onChange={() => handleQuestionChange(qIdx, 'correctIndex', optIdx)}
+                    className="text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <input
+                    className="w-full bg-transparent outline-none"
+                    value={opt}
+                    onChange={(e) => handleOptionChange(qIdx, optIdx, e.target.value)}
+                    placeholder={`Option ${optIdx + 1}`}
+                  />
+                </label>
+              ))}
+            </div>
+
+            <div className="pl-9">
+              <input
+                className="input-field text-xs text-slate-600"
+                value={q.explanation}
+                onChange={(e) => handleQuestionChange(qIdx, 'explanation', e.target.value)}
+                placeholder="Educational explanation..."
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 flex justify-end">
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          className="btn-primary px-5 py-2.5 text-xs font-bold uppercase tracking-wider"
+        >
+          {saving ? 'Saving…' : 'Save Quiz Challenge'}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function SocialTaskCard({
+  task,
+  saving,
+  onSave,
+}: {
+  task: AdminTaskItem;
+  saving: boolean;
+  onSave: (t: AdminTaskItem) => Promise<void>;
+}) {
+  const [title, setTitle] = useState(task.title);
+  const [reward, setReward] = useState(task.rewardPoints);
+  const [cooldown, setCooldown] = useState(task.cooldownHours);
+  const [active, setActive] = useState(task.active);
+  const [actionUrl, setActionUrl] = useState(task.actionUrl || '');
+
+  const save = () => {
+    onSave({
+      ...task,
+      title,
+      rewardPoints: Number(reward),
+      cooldownHours: Number(cooldown),
+      active,
+      actionUrl: actionUrl || undefined,
+    });
+  };
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="font-mono text-xs font-bold uppercase text-amber-600">
+          TYPE: {task.type}
+        </span>
+        <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+          <input
+            type="checkbox"
+            checked={active}
+            onChange={(e) => setActive(e.target.checked)}
+            className="h-3.5 w-3.5 rounded text-amber-500 focus:ring-amber-400"
+          />
+          Active
+        </label>
+      </div>
+
+      <div>
+        <label className="text-[11px] font-semibold uppercase text-slate-500">
+          Title
+        </label>
+        <input
+          className="input-field mt-0.5 text-xs font-semibold"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label className="text-[11px] font-semibold uppercase text-slate-500">
+          Action / Target URL
+        </label>
+        <input
+          className="input-field mt-0.5 text-xs font-mono"
+          value={actionUrl}
+          onChange={(e) => setActionUrl(e.target.value)}
+          placeholder="https://x.com/matsumoto..."
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-[11px] font-semibold uppercase text-slate-500">
+            Reward (PTS)
+          </label>
+          <input
+            type="number"
+            className="input-field mt-0.5 text-xs font-semibold"
+            value={reward}
+            onChange={(e) => setReward(Number(e.target.value))}
+          />
+        </div>
+        <div>
+          <label className="text-[11px] font-semibold uppercase text-slate-500">
+            Cooldown (Hours)
+          </label>
+          <input
+            type="number"
+            className="input-field mt-0.5 text-xs font-semibold"
+            value={cooldown}
+            onChange={(e) => setCooldown(Number(e.target.value))}
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end pt-1">
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          className="btn-primary px-4 py-2 text-xs font-bold uppercase tracking-wider"
+        >
+          {saving ? 'Saving…' : 'Save Task'}
+        </button>
+      </div>
+    </div>
+  );
+}
+

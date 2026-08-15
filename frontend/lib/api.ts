@@ -176,6 +176,16 @@ export interface TaskDto {
   lastClaimedAt: string | null;
   /** Point value of each wheel segment, in order. Null for non-wheel tasks. */
   wheelSegments: number[] | null;
+  /** Dynamic quiz questions configured by admin. */
+  quizQuestions?: {
+    id: number;
+    question: string;
+    options: string[];
+    correctIndex: number;
+    explanation: string;
+  }[] | null;
+  /** Custom social/target URL */
+  actionUrl?: string | null;
 }
 
 export const getTasks = () => apiFetch<TaskDto[]>('/tasks');
