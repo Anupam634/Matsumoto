@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { SpinWheelModal } from '../../../components/SpinWheelModal';
+import { QuizModal } from '../../../components/QuizModal';
 import { ApiError, claimTask, getTasks, type TaskDto } from '../../../lib/api';
 
 /** i18n key per task type — the labels already exist under `tasks.*`. */
@@ -36,6 +37,7 @@ export default function TasksSection({
   const [tasks, setTasks] = useState<TaskDto[] | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [wheelTask, setWheelTask] = useState<TaskDto | null>(null);
+  const [quizTask, setQuizTask] = useState<TaskDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [won, setWon] = useState<{ id: string; points: number } | null>(null);
 
@@ -53,10 +55,13 @@ export default function TasksSection({
   }, [load]);
 
   async function claim(task: TaskDto) {
-    // The wheel is its own screen: opening it is the whole action here, and
-    // the claim happens when the miner presses the hub.
     if (task.type === 'SPIN_WHEEL' && task.wheelSegments) {
       setWheelTask(task);
+      return;
+    }
+
+    if (task.type === 'QUIZ') {
+      setQuizTask(task);
       return;
     }
 
@@ -171,6 +176,20 @@ export default function TasksSection({
           segments={wheelTask.wheelSegments}
           onSpin={() => spinFor(wheelTask)}
           onClose={() => setWheelTask(null)}
+        />
+      )}
+
+      {quizTask && (
+        <QuizModal
+          rewardPoints={quizTask.rewardPoints}
+          onComplete={async () => {
+            const res = await claimTask(quizTask.id);
+            setWon({ id: quizTask.id, points: res.earnedPoints });
+            setTimeout(() => setWon(null), 2000);
+            await load();
+            onClaimed();
+          }}
+          onClose={() => setQuizTask(null)}
         />
       )}
     </section>

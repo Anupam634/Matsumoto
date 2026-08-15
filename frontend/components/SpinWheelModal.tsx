@@ -152,12 +152,12 @@ export function SpinWheelModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 p-4 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-200">
       {/* Outer ambient glow halo */}
       <div className="pointer-events-none absolute h-96 w-96 rounded-full bg-amber-500/20 blur-3xl" />
 
-      {/* Main Luxury Modal Card */}
-      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/15 bg-slate-950/95 p-6 sm:p-8 text-center shadow-2xl backdrop-blur-3xl ring-1 ring-amber-400/20">
+      {/* Main Luxury Transparent Glassmorphic Modal Card */}
+      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/20 bg-slate-950/40 p-6 sm:p-8 text-center shadow-[0_25px_60px_rgba(0,0,0,0.6)] backdrop-blur-3xl ring-1 ring-amber-400/20">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
           <div className="flex items-center gap-2.5 text-left">
