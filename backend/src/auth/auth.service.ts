@@ -9,7 +9,12 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import { AntiabuseService } from '../antiabuse/antiabuse.service';
 import { hashPassword, verifyPassword } from './password';
-import { LoginDto, RegisterDto } from './dto';
+import {
+  ForgotPasswordDto,
+  LoginDto,
+  RegisterDto,
+  ResetPasswordDto,
+} from './dto';
 import { referralTierFor } from '../mining/mining.engine';
 
 /** Request-derived signals we pass through to the anti-abuse checks. */
@@ -17,6 +22,8 @@ export interface SignupSignals {
   ip?: string;
   fingerprint?: string;
 }
+
+const DUMMY_OTP = '12345';
 
 @Injectable()
 export class AuthService {
@@ -33,11 +40,73 @@ export class AuthService {
   }
 
   /**
-   * Free registration (SPEC §1). Referral codes are resolved here; a referral
-   * that fails the anti-abuse check is dropped rather than failing the signup.
+   * Request OTP verification code for Signup, 2FA, or Password Reset.
+   */
+  async sendOtp(email: string) {
+    const cleanEmail = email.trim().toLowerCase();
+    this.logger.log(`[OTP] Generated verification code for ${cleanEmail}: ${DUMMY_OTP}`);
+    return {
+      success: true,
+      message: `Verification code sent to ${cleanEmail}. (Code: ${DUMMY_OTP})`,
+      dummyOtp: DUMMY_OTP,
+    };
+  }
+
+  /**
+   * Request password reset OTP.
+   */
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const email = dto.email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (user && user.isBlocked) {
+      throw new ForbiddenException('Account is blocked.');
+    }
+    // Return dummy OTP for development/testing
+    this.logger.log(`[Password Reset] OTP for ${email}: ${DUMMY_OTP}`);
+    return {
+      success: true,
+      message: `Password reset OTP has been sent to ${email}.`,
+      dummyOtp: DUMMY_OTP,
+    };
+  }
+
+  /**
+   * Reset user password using OTP.
+   */
+  async resetPassword(dto: ResetPasswordDto) {
+    const email = dto.email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new BadRequestException('No account found with this email address.');
+    }
+    if (user.isBlocked) {
+      throw new ForbiddenException('Account is blocked.');
+    }
+
+    if (dto.otp.trim() !== DUMMY_OTP) {
+      throw new BadRequestException('Invalid or expired verification code. Use 12345.');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: await hashPassword(dto.newPassword) },
+    });
+
+    return {
+      success: true,
+      message: 'Your password has been reset successfully. Please sign in.',
+    };
+  }
+
+  /**
+   * Free registration (SPEC §1).
    */
   async register(dto: RegisterDto, signals: SignupSignals) {
     const email = dto.email.trim().toLowerCase();
+
+    if (dto.otp && dto.otp.trim() !== DUMMY_OTP) {
+      throw new BadRequestException('Invalid email verification code. Use 12345.');
+    }
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -101,6 +170,11 @@ export class AuthService {
 
   async login(dto: LoginDto, signals: SignupSignals) {
     const email = dto.email.trim().toLowerCase();
+
+    if (dto.otp && dto.otp.trim() !== DUMMY_OTP) {
+      throw new BadRequestException('Invalid 2FA verification code. Use 12345.');
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { email },
       select: {

@@ -1,6 +1,11 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto } from './dto';
+import {
+  ForgotPasswordDto,
+  LoginDto,
+  RegisterDto,
+  ResetPasswordDto,
+} from './dto';
 import { JwtAuthGuard } from './jwt.guard';
 import { CurrentUser } from './current-user.decorator';
 
@@ -16,6 +21,24 @@ function clientIp(req: any): string | undefined {
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
+
+  /** POST /api/auth/send-otp — request OTP for email verification. */
+  @Post('send-otp')
+  sendOtp(@Body('email') email: string) {
+    return this.auth.sendOtp(email || 'miner@matsumoto.io');
+  }
+
+  /** POST /api/auth/forgot-password — initiate password recovery. */
+  @Post('forgot-password')
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.auth.forgotPassword(dto);
+  }
+
+  /** POST /api/auth/reset-password — finalize password reset with OTP. */
+  @Post('reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(dto);
+  }
 
   /** POST /api/auth/register — free signup (SPEC §1). */
   @Post('register')

@@ -3,7 +3,6 @@ import {
   IsEmail,
   IsOptional,
   IsString,
-  Length,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -31,6 +30,11 @@ export class RegisterDto {
   @IsCountryCode()
   countryCode!: string;
 
+  /** OTP verification code (dummy: 12345). */
+  @IsOptional()
+  @IsString()
+  otp?: string;
+
   /** Client-side device fingerprint, used by the anti-abuse guard (SPEC §7). */
   @IsOptional()
   @IsString()
@@ -46,8 +50,31 @@ export class LoginDto {
   @MaxLength(128)
   password!: string;
 
+  /** OTP verification code (dummy: 12345). */
+  @IsOptional()
+  @IsString()
+  otp?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(128)
   deviceFingerprint?: string;
+}
+
+export class ForgotPasswordDto {
+  @IsEmail()
+  email!: string;
+}
+
+export class ResetPasswordDto {
+  @IsEmail()
+  email!: string;
+
+  @IsString()
+  otp!: string;
+
+  @IsString()
+  @MinLength(8, { message: 'Password must be at least 8 characters.' })
+  @MaxLength(128)
+  newPassword!: string;
 }

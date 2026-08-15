@@ -4,13 +4,22 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { login, register, getToken, ApiError } from '../../../lib/api';
+import {
+  login,
+  register,
+  sendOtp,
+  forgotPassword,
+  resetPassword,
+  getToken,
+  ApiError,
+} from '../../../lib/api';
 import { CountrySelect } from '../../../components/CountrySelect';
 import { LogoLockup, LogoMark } from '../../../components/Logo';
 import { LocaleSwitcher } from '../../../components/LocaleSwitcher';
 import { ThemeToggle } from '../../../components/ThemeToggle';
 
-type Mode = 'login' | 'register';
+type Mode = 'login' | 'register' | 'forgot';
+type Step = 'form' | 'otp';
 
 const STAT_KEYS = ['baseRate', 'conversion', 'minWithdrawal', 'boosterDuration'] as const;
 const STAT_VALUES: Record<(typeof STAT_KEYS)[number], string> = {
@@ -41,12 +50,21 @@ function AuthForm() {
       ? 'register'
       : 'login',
   );
+  const [step, setStep] = useState<Step>('form');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [referralCode, setReferralCode] = useState(search.get('ref') ?? '');
   const [countryCode, setCountryCode] = useState('');
+
+  // OTP & Reset Password fields
+  const [otp, setOtp] = useState('12345');
+  const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
+  const [infoMsg, setInfoMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -57,15 +75,78 @@ function AuthForm() {
 
   function switchMode(next: Mode) {
     setMode(next);
+    setStep('form');
     setError(null);
+    setInfoMsg(null);
   }
 
-  async function submit(e: React.FormEvent) {
+  // 1. Initial Submit (Form Phase)
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setInfoMsg(null);
 
-    if (mode === 'register' && !countryCode) {
-      setError(t('countryRequired'));
+    if (mode === 'register') {
+      if (!countryCode) {
+        setError(t('countryRequired'));
+        return;
+      }
+      // Trigger OTP step for registration
+      setBusy(true);
+      try {
+        await sendOtp(email);
+        setStep('otp');
+        setInfoMsg('Verification code sent to your email. (Use dummy code: 12345)');
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'Failed to send OTP.');
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    if (mode === 'login') {
+      // Trigger 2FA OTP step for login
+      setBusy(true);
+      try {
+        await sendOtp(email);
+        setStep('otp');
+        setInfoMsg('Enter the 2FA code sent to your account. (Use dummy code: 12345)');
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : t('networkError'));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    if (mode === 'forgot') {
+      // Initiate forgot password recovery
+      if (!email.trim()) {
+        setError('Please enter your account email address.');
+        return;
+      }
+      setBusy(true);
+      try {
+        const res = await forgotPassword(email);
+        setStep('otp');
+        setInfoMsg(res.message || 'Password reset OTP sent. (Use dummy code: 12345)');
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'Account not found.');
+      } finally {
+        setBusy(false);
+      }
+    }
+  }
+
+  // 2. Finalize with OTP (OTP Phase)
+  async function handleVerifyOtp(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setInfoMsg(null);
+
+    if (otp.trim() !== '12345') {
+      setError('Invalid verification code. Please enter 12345.');
       return;
     }
 
@@ -77,16 +158,37 @@ function AuthForm() {
           password,
           referralCode,
           countryCode,
+          otp: otp.trim(),
         });
         if (res.referralRejected) {
           alert(t('referralRejected'));
         }
-      } else {
-        await login({ email, password });
+        router.push(`/${params.locale}/dashboard`);
+      } else if (mode === 'login') {
+        await login({
+          email,
+          password,
+          otp: otp.trim(),
+        });
+        router.push(`/${params.locale}/dashboard`);
+      } else if (mode === 'forgot') {
+        if (!newPassword || newPassword.length < 8) {
+          setError('New password must be at least 8 characters long.');
+          setBusy(false);
+          return;
+        }
+        const res = await resetPassword({
+          email,
+          otp: otp.trim(),
+          newPassword,
+        });
+        setInfoMsg(res.message || 'Password reset successfully! Please sign in.');
+        setMode('login');
+        setStep('form');
+        setPassword('');
       }
-      router.push(`/${params.locale}/dashboard`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('networkError'));
+      setError(err instanceof ApiError ? err.message : 'Verification failed.');
     } finally {
       setBusy(false);
     }
@@ -143,7 +245,7 @@ function AuthForm() {
       {/* ───────────────────────── Form panel ───────────────────────── */}
       <div className="flex flex-1 flex-col min-h-dvh">
         {/* Pinned Top Navigation Bar */}
-        <header className="sticky top-0 z-20 w-full flex items-center justify-between border-b border-white/[0.06] bg-slate-950/70 px-5 py-4 backdrop-blur-xl sm:px-10 lg:px-16 xl:px-24">
+        <header className="sticky top-0 z-20 w-full flex items-center justify-between border-b border-white/[0.06] bg-slate-950/70 px-4 py-3.5 backdrop-blur-xl sm:px-10 lg:px-16 xl:px-24">
           <Link
             href={`/${params.locale}`}
             className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 transition hover:text-amber-400"
@@ -168,129 +270,293 @@ function AuthForm() {
         >
           <div className="mx-auto w-full max-w-md">
             <div className="card border-slate-800/90 bg-slate-900/80 p-5 sm:p-8 shadow-2xl backdrop-blur-2xl">
+              {/* Header Title */}
               <h1 className="text-2xl font-black tracking-tight sm:text-3xl text-slate-100">
-                {mode === 'login' ? t('signIn') : t('createAccount')}
+                {mode === 'forgot'
+                  ? 'Reset Password'
+                  : step === 'otp'
+                  ? 'Verify Code'
+                  : mode === 'login'
+                  ? t('signIn')
+                  : t('createAccount')}
               </h1>
               <p className="mt-1.5 text-xs text-slate-400">
-                {mode === 'login'
+                {mode === 'forgot'
+                  ? 'Enter your email to receive a recovery code & set a new password.'
+                  : step === 'otp'
+                  ? 'Enter the 5-digit verification code sent to your email.'
+                  : mode === 'login'
                   ? 'Access your cloud mining terminal & daily yield.'
                   : 'Start earning Matsumoto Points with zero hardware cost.'}
               </p>
 
-            {/* Mode Switch Tabs */}
-            <div className="mt-6 grid w-full grid-cols-2 rounded-xl border border-slate-800 bg-slate-950/80 p-1">
-              <button
-                type="button"
-                onClick={() => switchMode('login')}
-                className={`rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider transition-all ${
-                  mode === 'login'
-                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {t('signIn')}
-              </button>
-              <button
-                type="button"
-                onClick={() => switchMode('register')}
-                className={`rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider transition-all ${
-                  mode === 'register'
-                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {t('signUp')}
-              </button>
-            </div>
-
-            <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
-              <Field
-                label={t('email')}
-                type="email"
-                value={email}
-                onChange={setEmail}
-                autoComplete="email"
-                inputMode="email"
-                enterKeyHint="next"
-                icon={<IconMail />}
-              />
-              <Field
-                label={t('password')}
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={setPassword}
-                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                enterKeyHint={mode === 'register' ? 'next' : 'done'}
-                icon={<IconLock />}
-                endAdornment={
+              {/* Mode Switch Tabs (Only in form phase) */}
+              {step === 'form' && (
+                <div className="mt-6 grid w-full grid-cols-2 rounded-xl border border-slate-800 bg-slate-950/80 p-1">
                   <button
                     type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? t('hidePassword') : t('showPassword')}
-                    className="text-slate-500 transition hover:text-amber-400"
+                    onClick={() => switchMode('login')}
+                    className={`rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider transition-all ${
+                      mode === 'login'
+                        ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
                   >
-                    {showPassword ? <IconEyeOff /> : <IconEye />}
+                    {t('signIn')}
                   </button>
-                }
-              />
-              {mode === 'register' && (
-                <CountrySelect
-                  id="signup-country"
-                  locale={params.locale}
-                  value={countryCode}
-                  onChange={setCountryCode}
-                  label={t('country')}
-                  placeholder={t('countryPlaceholder')}
-                  required
-                />
-              )}
-              {mode === 'register' && (
-                <Field
-                  label={t('referralCode')}
-                  type="text"
-                  value={referralCode}
-                  onChange={setReferralCode}
-                  enterKeyHint="done"
-                  icon={<IconTicket />}
-                  optional
-                />
+                  <button
+                    type="button"
+                    onClick={() => switchMode('register')}
+                    className={`rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider transition-all ${
+                      mode === 'register'
+                        ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {t('signUp')}
+                  </button>
+                </div>
               )}
 
-              {mode === 'register' && (
-                <p className="text-[11px] text-slate-400">{t('passwordHint')}</p>
+              {/* Feedback Alerts */}
+              {infoMsg && (
+                <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-300">
+                  <span className="font-bold">ℹ</span>
+                  <span>{infoMsg}</span>
+                </div>
               )}
 
               {error && (
-                <div className="flex items-start gap-2 rounded-xl border border-red-500/40 bg-red-950/40 p-3 text-xs text-red-300">
+                <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-500/40 bg-red-950/40 p-3 text-xs text-red-300">
                   <span className="text-red-400 font-bold" aria-hidden>⚠</span>
                   <span>{error}</span>
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={busy}
-                className="btn-gold mt-2 w-full rounded-xl py-3.5 text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-lg shadow-amber-500/20 disabled:opacity-50"
-              >
-                {busy ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <IconSpinner />
-                    <span>{t('working')}</span>
-                  </span>
-                ) : (
-                  <span>{mode === 'login' ? t('signIn') : t('signUp')} →</span>
-                )}
-              </button>
-            </form>
-          </div>
+              {/* ───────────────── STEP 1: Main Form ───────────────── */}
+              {step === 'form' ? (
+                <form onSubmit={handleSubmit} className="mt-5 space-y-4" noValidate>
+                  <Field
+                    label={t('email')}
+                    type="email"
+                    value={email}
+                    onChange={setEmail}
+                    autoComplete="email"
+                    inputMode="email"
+                    enterKeyHint="next"
+                    icon={<IconMail />}
+                  />
 
-          <p className="mx-auto mt-6 max-w-sm text-center text-[11px] text-slate-500 lg:hidden">
-            {tLanding('hero.honesty')}
-          </p>
-        </div>
-      </main>
+                  {mode !== 'forgot' && (
+                    <div>
+                      <Field
+                        label={t('password')}
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={setPassword}
+                        autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                        enterKeyHint={mode === 'register' ? 'next' : 'done'}
+                        icon={<IconLock />}
+                        endAdornment={
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((v) => !v)}
+                            aria-label={showPassword ? t('hidePassword') : t('showPassword')}
+                            className="text-slate-500 transition hover:text-amber-400"
+                          >
+                            {showPassword ? <IconEyeOff /> : <IconEye />}
+                          </button>
+                        }
+                      />
+
+                      {mode === 'login' && (
+                        <div className="mt-2 text-right">
+                          <button
+                            type="button"
+                            onClick={() => switchMode('forgot')}
+                            className="text-xs font-bold text-amber-400 hover:text-amber-300 transition underline underline-offset-2"
+                          >
+                            Forgot password?
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {mode === 'register' && (
+                    <CountrySelect
+                      id="signup-country"
+                      locale={params.locale}
+                      value={countryCode}
+                      onChange={setCountryCode}
+                      label={t('country')}
+                      placeholder={t('countryPlaceholder')}
+                      required
+                    />
+                  )}
+
+                  {mode === 'register' && (
+                    <Field
+                      label={t('referralCode')}
+                      type="text"
+                      value={referralCode}
+                      onChange={setReferralCode}
+                      enterKeyHint="done"
+                      icon={<IconTicket />}
+                      optional
+                    />
+                  )}
+
+                  {mode === 'register' && (
+                    <p className="text-[11px] text-slate-400">{t('passwordHint')}</p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="btn-gold mt-2 w-full rounded-xl py-3.5 text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-lg shadow-amber-500/20 disabled:opacity-50"
+                  >
+                    {busy ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <IconSpinner />
+                        <span>{t('working')}</span>
+                      </span>
+                    ) : (
+                      <span>
+                        {mode === 'forgot'
+                          ? 'Send Reset Code →'
+                          : mode === 'login'
+                          ? `${t('signIn')} →`
+                          : 'Continue to Verify →'}
+                      </span>
+                    )}
+                  </button>
+
+                  {mode === 'forgot' && (
+                    <div className="text-center pt-2">
+                      <button
+                        type="button"
+                        onClick={() => switchMode('login')}
+                        className="text-xs font-bold text-slate-400 hover:text-slate-200 transition"
+                      >
+                        ← Back to Sign In
+                      </button>
+                    </div>
+                  )}
+                </form>
+              ) : (
+                /* ───────────────── STEP 2: OTP Verification ───────────────── */
+                <form onSubmit={handleVerifyOtp} className="mt-5 space-y-4" noValidate>
+                  <div>
+                    <label className="block">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                          Verification Code (OTP)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setOtp('12345')}
+                          className="text-[11px] font-bold text-amber-400 hover:underline"
+                        >
+                          ⚡ Autofill 12345
+                        </button>
+                      </div>
+                      <div className="relative mt-1.5">
+                        <input
+                          className="w-full rounded-xl border border-slate-800 bg-slate-950/80 py-3.5 px-4 text-center font-mono text-xl font-black tracking-widest text-amber-400 placeholder-slate-600 outline-none transition-all focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40"
+                          type="text"
+                          maxLength={6}
+                          value={otp}
+                          onChange={(e) => setOtp(e.target.value)}
+                          placeholder="12345"
+                          autoFocus
+                          required
+                        />
+                      </div>
+                    </label>
+                    <p className="mt-1.5 text-center text-[11px] text-slate-400">
+                      Dummy verification code for testing: <strong className="text-amber-400">12345</strong>
+                    </p>
+                  </div>
+
+                  {mode === 'forgot' && (
+                    <Field
+                      label="New Password"
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={setNewPassword}
+                      autoComplete="new-password"
+                      enterKeyHint="done"
+                      icon={<IconLock />}
+                      endAdornment={
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword((v) => !v)}
+                          aria-label={showNewPassword ? t('hidePassword') : t('showPassword')}
+                          className="text-slate-500 transition hover:text-amber-400"
+                        >
+                          {showNewPassword ? <IconEyeOff /> : <IconEye />}
+                        </button>
+                      }
+                    />
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="btn-gold mt-3 w-full rounded-xl py-3.5 text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-lg shadow-amber-500/20 disabled:opacity-50"
+                  >
+                    {busy ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <IconSpinner />
+                        <span>Verifying…</span>
+                      </span>
+                    ) : (
+                      <span>
+                        {mode === 'forgot'
+                          ? 'Set New Password & Save →'
+                          : mode === 'login'
+                          ? 'Verify & Sign In →'
+                          : 'Verify & Create Account →'}
+                      </span>
+                    )}
+                  </button>
+
+                  <div className="flex items-center justify-between pt-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setStep('form')}
+                      className="font-bold text-slate-400 hover:text-slate-200 transition"
+                    >
+                      ← Back to edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setBusy(true);
+                        try {
+                          await sendOtp(email);
+                          setInfoMsg('Code re-sent. (Code: 12345)');
+                        } finally {
+                          setBusy(false);
+                        }
+                      }}
+                      className="font-bold text-amber-400 hover:text-amber-300 transition"
+                    >
+                      Resend Code
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            <p className="mx-auto mt-6 max-w-sm text-center text-[11px] text-slate-500 lg:hidden">
+              {tLanding('hero.honesty')}
+            </p>
+          </div>
+        </main>
+      </div>
     </div>
-  </div>
   );
 }
 

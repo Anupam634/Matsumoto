@@ -98,6 +98,7 @@ export async function register(params: {
   password: string;
   referralCode?: string;
   countryCode?: string;
+  otp?: string;
 }): Promise<AuthResponse> {
   const data = await apiFetch<AuthResponse>('/auth/register', {
     method: 'POST',
@@ -105,6 +106,7 @@ export async function register(params: {
       ...params,
       referralCode: params.referralCode || undefined,
       countryCode: params.countryCode || undefined,
+      otp: params.otp || undefined,
       deviceFingerprint: deviceFingerprint(),
     }),
   });
@@ -115,16 +117,43 @@ export async function register(params: {
 export async function login(params: {
   email: string;
   password: string;
+  otp?: string;
 }): Promise<AuthResponse> {
   const data = await apiFetch<AuthResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({
       ...params,
+      otp: params.otp || undefined,
       deviceFingerprint: deviceFingerprint(),
     }),
   });
   setToken(data.accessToken);
   return data;
+}
+
+export async function sendOtp(email: string): Promise<{ success: boolean; message: string; dummyOtp: string }> {
+  return apiFetch('/auth/send-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function forgotPassword(email: string): Promise<{ success: boolean; message: string; dummyOtp: string }> {
+  return apiFetch('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function resetPassword(params: {
+  email: string;
+  otp: string;
+  newPassword: string;
+}): Promise<{ success: boolean; message: string }> {
+  return apiFetch('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
 }
 
 export interface Profile {
