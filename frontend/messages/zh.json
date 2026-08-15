@@ -1,89 +1,187 @@
 {
   "landing": {
+    "network": {
+      "chain": "BNB 智能链",
+      "mainnetStatus": "主网节点：在线",
+      "blockHeight": "区块 #38,914,820",
+      "poolHashrate": "全网矿池总算力：1.48 EH/s",
+      "activeMinersCount": "48,290+ 活跃矿工",
+      "gasPrice": "Gas: 3 Gwei"
+    },
     "nav": {
+      "features": "平台特色",
+      "boosters": "加速包",
+      "calculator": "收益计算器",
+      "referrals": "推荐奖励",
+      "tasks": "赏金任务",
+      "rules": "提现规则",
+      "faq": "常见问题",
       "signIn": "登录",
-      "getStarted": "立即开始"
+      "getStarted": "免费开启挖矿",
+      "dashboard": "进入挖矿终端"
     },
     "hero": {
-      "badge": "BNB 链 · 点击赚取",
-      "title": "每天赚取",
-      "titleAccent": "Matsumoto 积分",
-      "subtitle": "免费注册，每 24 小时点击一次「挖矿」，通过加速包和邀请提升速率。积分可兑换为链上 $Matsumoto，并提现至您的 BNB 链钱包。",
-      "ctaPrimary": "免费创建账户",
-      "ctaSecondary": "我已有账户",
-      "honesty": "此处的「挖矿」是按计划累积奖励，并非实体矿机。积分为平台内部单位，只有 $Matsumoto 提现才会在链上结算。"
+      "badge": "⚡ BNB 链 · 零硬件门槛 · 24小时定时收益",
+      "title": "新一代云端挖矿与",
+      "titleAccent": "BNB 链积分奖励平台",
+      "subtitle": "数秒内即可免费注册。每 24 小时点击开启一次挖矿周期，通过可叠加的云端加速包提升算力，邀请好友将奖励倍数最高提升至 ×8，所有积分可按 3:1 兑换为链上 $Matsumoto BEP-20 代币并提现到您的钱包。",
+      "ctaPrimary": "免费开启挖矿",
+      "ctaSecondary": "打开 Web3 终端",
+      "honesty": "Matsumoto 采用定时收益累积机制（无硬件损耗与电力消耗）。累积的积分可直接在 BNB 智能链上兑换为真实的 $Matsumoto 代币。",
+      "activeMinersBadge": "已有 48,290+ 名矿工正在实时挖矿",
+      "verifiedNode": "KYC 认证安全保障 · 24小时即时提现"
+    },
+    "simulator": {
+      "title": "交互式云端矿机终端",
+      "subtitle": "实时体验云端挖矿算法与奖励累积",
+      "networkStatus": "节点在线",
+      "simulatedRate": "0.90 MATSU/h",
+      "baseSpeed": "基础算力速率",
+      "tapToMine": "点击模拟挖矿",
+      "miningActive": "正在挖矿中...",
+      "pointsAccumulated": "已累积积分",
+      "hashAlgorithm": "BEP-20 点击赚取引擎 v2.4",
+      "coreTemp": "核心温度：54°C",
+      "efficiency": "运行能效：99.8%",
+      "power": "云端能耗：本地 0W",
+      "blocksFound": "模拟出块：#849,201"
     },
     "figures": {
-      "baseRate": "基础速率",
-      "conversion": "积分兑换 $Matsumoto",
-      "minWithdrawal": "最低提现（积分）",
-      "boosterDuration": "加速包时长"
+      "baseRate": "免费基础算力",
+      "baseRateSub": "0.90 MATSU / 小时",
+      "conversion": "兑换比例",
+      "conversionSub": "3 积分 = 1 $Matsumoto",
+      "minWithdrawal": "最低提现门槛",
+      "minWithdrawalSub": "满 100 积分即可提现",
+      "boosterDuration": "加速包有效期",
+      "boosterDurationSub": "30 天有效 · 无限叠加"
+    },
+    "liveFeed": {
+      "title": "全网实时动态",
+      "subtitle": "展示最新的矿池出块奖励、加速包激活及链上提现记录。",
+      "liveBadge": "BSC 实时链上动态",
+      "payout": "成功提现",
+      "boosterBuy": "激活了",
+      "mined": "领取了 24小时收益",
+      "kyc": "通过 KYC 认证"
     },
     "how": {
-      "title": "运作方式",
-      "subtitle": "从注册到提现，只需四步。",
+      "title": "Matsumoto 挖矿运作方式",
+      "subtitle": "专为全球 Web3 社区打造的公开透明、高收益奖励引擎。",
       "register": {
-        "title": "免费注册",
-        "body": "只需邮箱和密码。无需充值即可按基础速率开始累积。"
+        "title": "1. 免费注册账户",
+        "body": "仅需邮箱即可加入。无需购买实体矿机，无需充值即可按基础算力开始赚取积分。"
       },
       "mine": {
-        "title": "每日点击挖矿",
-        "body": "每 24 小时点击一次即可持续累积。错过则累积窗口暂停。"
+        "title": "2. 每 24 小时点击一次",
+        "body": "轻触一次即可开启 24 小时收益窗口。云端矿机将在高性能集群上为您持续累积积分。"
       },
       "boost": {
-        "title": "加速与邀请",
-        "body": "加速包在 30 天内提升每小时速率且可叠加；邀请可将倍数提升至 ×8。"
+        "title": "3. 购买加速与邀请好友",
+        "body": "叠加 30 天云端加速包，单个最高增加 +90.0 MATSU/h；邀请好友还可将挖矿倍数最高提升至 ×8。"
       },
       "withdraw": {
-        "title": "链上提现",
-        "body": "按 3:1 将积分兑换为 $Matsumoto，并发送至您的 BNB 链地址。"
+        "title": "4. 提现至 BNB 链钱包",
+        "body": "按 3:1 固定比例将积分兑换为 $Matsumoto BEP-20 代币，直接转账到您的自托管钱包。"
       }
     },
     "boosters": {
-      "title": "加速包",
-      "subtitle": "付费加速包可提升每小时速率，数量不限，可任意叠加。",
-      "resultingRate": "提升后速率",
-      "terms": "30 天 · 可叠加"
+      "title": "云端算力加速包",
+      "subtitle": "使用高性能 30 天云端算力节点全面提速。完全支持无上限叠加购买。",
+      "resultingRate": "提升后算力",
+      "terms": "30 天有效期 · 支持叠加 · 即时生效",
+      "starter": "入门矿机",
+      "power": "进阶矿机",
+      "pro": "专业集群",
+      "enterprise": "旗舰算力组",
+      "popularBadge": "最受欢迎",
+      "maxYieldBadge": "最高算力",
+      "activateButton": "部署加速节点",
+      "hashBoost": "+{rate}/h 额外算力"
+    },
+    "calculator": {
+      "title": "挖矿收益估算器",
+      "subtitle": "根据您的加速包配置与推荐团队等级，实时模拟预计的积分产出与 $Matsumoto 链上代币收益。",
+      "selectBooster": "选择云端加速包配置",
+      "selectInvites": "推荐团队人数（邀请矿工数）",
+      "invitesLabel": "已邀请 {count} 位矿工（算力倍数：×{mult}）",
+      "estimatedYield": "预估挖矿收益",
+      "hourlyRate": "实际算力速率",
+      "dailyYield": "每日 24小时产出",
+      "monthlyYield": "30天预估总产出",
+      "onChainPayout": "预计可兑换 $Matsumoto (BEP-20)",
+      "cta": "以此配置开启挖矿"
     },
     "referrals": {
-      "title": "推荐等级",
-      "subtitle": "邀请的用户越多，挖矿倍数越高。",
-      "invited": "已邀请用户",
+      "title": "阶梯式推荐加成矩阵",
+      "subtitle": "建立您的挖矿工会。邀请的矿工人数越多，即可解锁更高等级的挖矿加成倍数。",
+      "invited": "已邀请矿工数",
       "level": "等级",
-      "multiplier": "倍数"
+      "multiplier": "挖矿加成倍数",
+      "bonusNote": "倍数加成同时适用于基础速率及所有已生效的加速包！",
+      "unlocked": "已激活等级",
+      "locked": "解锁条件："
     },
     "tasksSection": {
-      "title": "通过任务赚取更多",
-      "subtitle": "完成社交与互动任务，获得额外积分。"
+      "title": "赏金任务与额外奖励",
+      "subtitle": "完成每日互动任务与社区社交任务，即可领取额外的即时 Matsumoto 积分奖励。",
+      "viewAll": "查看全部任务",
+      "rewardBadge": "+{amount} MATSU",
+      "actionButton": "立即完成",
+      "instantCredit": "即时到账"
     },
     "withdrawals": {
-      "title": "提现规则",
-      "subtitle": "规则清晰公开，没有隐藏门槛。",
+      "title": "公开透明的提现规则",
+      "subtitle": "完善的防作弊机制，有效防止多开与机器人刷号，确保代币长期良性发展。",
       "minimum": {
-        "title": "最低 100 积分",
-        "body": "低于 100 Matsumoto 积分的申请将不予受理。"
+        "title": "最低 100 积分起提",
+        "body": "低门槛提现，只要账户累积达到 100 积分即可随时申请兑换提现。"
       },
       "frequency": {
-        "title": "每周一次申请",
-        "body": "每个账户每 7 天可提交一次提现申请。"
+        "title": "每周一次提现申请",
+        "body": "每个账户每 7 天可提交 1 次链上提现申请，保证网络按周期平稳结算。"
       },
       "kyc": {
-        "title": "需完成 KYC",
-        "body": "为保证公平分配，首次提现前须通过身份验证。"
+        "title": "KYC 身份认证保障",
+        "body": "简单的身份核验流程，防止女巫攻击与虚假批量注册，保障真实用户权益。"
       },
       "approval": {
-        "title": "管理员审核",
-        "body": "每笔提现在链上转账前都会经过审核。"
+        "title": "管理员安全风控审核",
+        "body": "每笔提现在链上划转前均经过风控系统与人工复核，确保资产安全。"
       }
     },
+    "faq": {
+      "title": "常见问题解答",
+      "subtitle": "关于 Matsumoto 云端挖矿、代币兑换以及链上提现的详细解答。",
+      "q1": "什么是 Matsumoto 挖矿？它的运作机制是什么？",
+      "a1": "Matsumoto 是运行在 BNB 智能链上的高收益云端奖励平台。您只需免费注册，每 24 小时点击一次「挖矿」，云端系统便会自动按设定速率为您累积积分，全程无硬件损耗与电力成本。",
+      "q2": "积分如何兑换为 $Matsumoto 代币？",
+      "a2": "平台内所有累积的积分均按 3:1 的固定比例（3 积分 = 1 $Matsumoto BEP-20 代币）进行兑换。发起提现后，代币将直接转账至您的 BNB 链钱包。",
+      "q3": "可以同时购买并叠加多个加速包吗？",
+      "a3": "可以！所有云端加速包均支持无限制叠加。您可以同时激活多个 $1、$5、$10 或 $50 加速包，算力将线性累加。",
+      "q4": "推荐倍数是如何计算的？",
+      "a4": "使用您的专属邀请链接邀请新矿工后，您的推荐等级将从 1 级（×1）逐步提升至最高 6 级（×8），成倍放大您的全天产出收益。",
+      "q5": "提现需要满足哪些条件？",
+      "a5": "提现需满足：1) 积分余额达到 100 积分以上，2) 完成基础 KYC 身份认证以确认独立身份，3) 距离上次提现间隔达到 7 天。"
+    },
     "cta": {
-      "title": "今天就开始赚取",
-      "body": "免费加入，从第一次点击起即按基础速率累积。",
-      "button": "创建我的账户"
+      "badge": "只需 30 秒即可启动您的云端矿机",
+      "title": "准备好开始赚取 $Matsumoto 了吗？",
+      "body": "加入 BNB 链上超过 48,000+ 名活跃加密矿工，零硬件投资即可从第一天起享受每日收益。",
+      "buttonPrimary": "立即免费创建账户",
+      "buttonSecondary": "登录挖矿仪表盘"
     },
     "footer": {
-      "disclaimer": "Matsumoto 是一个奖励模拟平台：「挖矿」为按计划累积积分，并非工作量证明硬件。积分在兑换并作为 $Matsumoto 于 BNB 链提现之前不具价值，且须通过 KYC 与审核。",
-      "copyright": "© Matsumoto 挖矿平台"
+      "brandDesc": "Matsumoto 是 BNB 智能链上的领先云端挖矿与收益模拟平台。致力于让全球用户通过每日定时累积轻松赚取链上加密资产奖励。",
+      "quickLinks": "快捷链接",
+      "ecosystem": "生态系统",
+      "legal": "透明度与安全性",
+      "bep20Token": "BEP-20 智能合约",
+      "bscScan": "BSCScan 区块浏览器",
+      "audit": "安全审计报告",
+      "whitepaper": "平台白皮书",
+      "disclaimer": "免责声明：Matsumoto 为定时收益模拟平台（云端模拟），无需工作量证明实体硬件。Matsumoto 积分为平台内部记账单位，在完成 KYC 验证与安全审核后可兑换为 BNB 链上的 $Matsumoto BEP-20 代币。",
+      "copyright": "© Matsumoto 挖矿平台. 专为 BNB 链生态打造. 保留所有权利."
     }
   },
   "dashboard": {
@@ -122,13 +220,13 @@
     "backHome": "返回首页"
   },
   "tasks": {
-    "title": "任务",
+    "title": "赏金任务",
     "tweet": "发推文",
-    "follow": "关注",
-    "repost": "转发",
-    "youtube": "观看 YouTube",
-    "quiz": "答题",
-    "spin": "转盘"
+    "follow": "关注官方 X",
+    "repost": "转发置顶公告",
+    "youtube": "观看 YouTube 挖矿教程",
+    "quiz": "完成 Web3 知识答题",
+    "spin": "每日幸运大转盘"
   },
   "withdraw": {
     "title": "提现",

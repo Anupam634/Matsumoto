@@ -1,89 +1,187 @@
 {
   "landing": {
+    "network": {
+      "chain": "BNB 스마트 체인",
+      "mainnetStatus": "메인넷 노드: 정상 가동 중",
+      "blockHeight": "블록 #38,914,820",
+      "poolHashrate": "풀 전체 해시레이트: 1.48 EH/s",
+      "activeMinersCount": "48,290+ 활성 채굴자",
+      "gasPrice": "Gas: 3 Gwei"
+    },
     "nav": {
+      "features": "기능 소개",
+      "boosters": "부스터",
+      "calculator": "수익 계산기",
+      "referrals": "추천 보너스",
+      "tasks": "바운티 미션",
+      "rules": "출금 규정",
+      "faq": "자주 묻는 질문",
       "signIn": "로그인",
-      "getStarted": "시작하기"
+      "getStarted": "무료 마이닝 시작",
+      "dashboard": "마이닝 터미널 실행"
     },
     "hero": {
-      "badge": "BNB 체인 · 탭하여 적립",
-      "title": "매일 적립하는",
-      "titleAccent": "Matsumoto 포인트",
-      "subtitle": "무료로 가입하고 24시간마다 한 번 마이닝을 탭하세요. 부스터와 초대로 적립 속도를 높일 수 있습니다. 포인트는 온체인 $Matsumoto로 전환되어 BNB 체인 지갑으로 출금됩니다.",
-      "ctaPrimary": "무료 계정 만들기",
-      "ctaSecondary": "이미 계정이 있습니다",
-      "honesty": "여기서의 마이닝은 예약된 보상 적립이며 실제 채굴 장비가 아닙니다. 포인트는 플랫폼 내부 단위이며, $Matsumoto 출금만 온체인에서 정산됩니다."
+      "badge": "⚡ BNB 체인 · 하드웨어 비용 0원 · 24시간 정기 보상",
+      "title": "차세대 클라우드 마이닝 및",
+      "titleAccent": "BNB 체인 리워드 플랫폼",
+      "subtitle": "몇 초 만에 무료로 가입하세요. 24시간마다 한 번 탭하여 마이닝 사이클을 시작하고, 중첩 가능한 클라우드 부스터로 해시레이트를 업그레이드하며, 추천 크루와 함께 배수를 최대 ×8까지 늘리고, 3:1 비율로 온체인 $Matsumoto BEP-20 토큰으로 전환해 출금하세요.",
+      "ctaPrimary": "무료 마이닝 시작",
+      "ctaSecondary": "Web3 터미널 열기",
+      "honesty": "Matsumoto는 정기 보상 누적 모델을 사용합니다(하드웨어 마모 및 전기세 없음). 적립된 포인트는 BNB 스마트 체인의 온체인 $Matsumoto 토큰으로 직접 정산됩니다.",
+      "activeMinersBadge": "현재 48,290명 이상의 채굴자가 실시간 적립 중",
+      "verifiedNode": "KYC 인증 보안 체계 · 24시간 신속 정산"
+    },
+    "simulator": {
+      "title": "인터랙티브 클라우드 마이닝 터미널",
+      "subtitle": "실시간 클라우드 채굴 알고리즘 및 적립 시뮬레이션 체험",
+      "networkStatus": "노드 온라인",
+      "simulatedRate": "0.90 MATSU/h",
+      "baseSpeed": "기본 해시레이트",
+      "tapToMine": "탭하여 마이닝 시뮬레이션",
+      "miningActive": "마이닝 진행 중...",
+      "pointsAccumulated": "누적된 포인트",
+      "hashAlgorithm": "BEP-20 Tap-to-Earn 엔진 v2.4",
+      "coreTemp": "코어 온도: 54°C",
+      "efficiency": "구동 효율: 99.8%",
+      "power": "클라우드 전력: 로컬 0W",
+      "blocksFound": "시뮬레이션 블록: #849,201"
     },
     "figures": {
-      "baseRate": "기본 적립률",
-      "conversion": "$Matsumoto당 포인트",
-      "minWithdrawal": "최소 출금 (포인트)",
-      "boosterDuration": "부스터 기간"
+      "baseRate": "무료 기본 해시레이트",
+      "baseRateSub": "0.90 MATSU / 시간",
+      "conversion": "토큰 전환 비율",
+      "conversionSub": "3 포인트 = 1 $Matsumoto",
+      "minWithdrawal": "최소 출금 기준",
+      "minWithdrawalSub": "100 포인트 이상 출금 가능",
+      "boosterDuration": "부스터 유지 기간",
+      "boosterDurationSub": "30일 유지 · 무제한 중첩"
+    },
+    "liveFeed": {
+      "title": "실시간 네트워크 활동",
+      "subtitle": "검증된 채굴 풀 보상, 부스터 활성화 및 온체인 출금 현황 스트림입니다.",
+      "liveBadge": "실시간 BSC 피드",
+      "payout": "출금 완료",
+      "boosterBuy": "활성화됨",
+      "mined": "24시간 수익 수령",
+      "kyc": "KYC 인증 완료"
     },
     "how": {
-      "title": "이용 방법",
-      "subtitle": "가입부터 출금까지 네 단계.",
+      "title": "Matsumoto 마이닝 운영 원리",
+      "subtitle": "글로벌 Web3 커뮤니티를 위해 설계된 투명하고 강력한 보상 엔진입니다.",
       "register": {
-        "title": "무료 가입",
-        "body": "이메일과 비밀번호만 있으면 됩니다. 입금 없이 기본 적립률로 시작하세요."
+        "title": "1. 무료 계정 가입",
+        "body": "이메일만으로 간편 가입. 고가의 하드웨어나 입금 없이 기본 해시레이트로 즉시 시작합니다."
       },
       "mine": {
-        "title": "매일 마이닝 탭",
-        "body": "24시간마다 한 번 탭하면 적립이 계속됩니다. 놓치면 적립 창이 멈춥니다."
+        "title": "2. 24시간마다 탭 한 번",
+        "body": "한 번의 탭으로 24시간 보상 창이 열립니다. 클라우드 장비가 고속 클러스터에서 자동으로 포인트를 누적합니다."
       },
       "boost": {
-        "title": "부스터와 초대",
-        "body": "부스터는 30일 동안 시간당 적립률을 올리며 중첩됩니다. 초대는 배수를 최대 ×8까지 올려 줍니다."
+        "title": "3. 부스터 및 친구 초대",
+        "body": "30일 클라우드 부스터로 최대 +90.0 MATSU/h를 추가하고, 친구 초대로 배수를 최대 ×8까지 강화하세요."
       },
       "withdraw": {
-        "title": "온체인 출금",
-        "body": "포인트를 3:1 비율로 $Matsumoto로 전환해 BNB 체인 주소로 받습니다."
+        "title": "4. BNB 체인 온체인 출금",
+        "body": "3:1 확정 비율로 포인트를 $Matsumoto BEP-20 토큰으로 전환해 본인의 개인지갑으로 직접 수령하세요."
       }
     },
     "boosters": {
-      "title": "부스터 패키지",
-      "subtitle": "유료 부스터가 시간당 적립률을 더해 줍니다. 원하는 만큼 중첩할 수 있습니다.",
-      "resultingRate": "적용 후 적립률",
-      "terms": "30일 · 중첩 가능"
+      "title": "클라우드 마이닝 부스터 팩",
+      "subtitle": "고성능 30일 클라우드 컴퓨팅 노드로 채굴 속도를 대폭 향상시키세요. 무제한 중첩 가능.",
+      "resultingRate": "적용 후 해시레이트",
+      "terms": "30일 활성화 · 무제한 중첩 · 즉시 적용",
+      "starter": "스타터 장비",
+      "power": "어드밴스드 장비",
+      "pro": "프로 클러스터",
+      "enterprise": "엔터프라이즈 장비",
+      "popularBadge": "인기 최고",
+      "maxYieldBadge": "최대 해시레이트",
+      "activateButton": "부스터 배포하기",
+      "hashBoost": "+{rate}/h 추가 해시"
+    },
+    "calculator": {
+      "title": "마이닝 수익성 시뮬레이터",
+      "subtitle": "부스터 패키지 및 추천인 크루 규모에 따른 예상 마이닝 포인트와 온체인 $Matsumoto 토큰 수령액을 계산해 보세요.",
+      "selectBooster": "클라우드 부스터 패키지 선택",
+      "selectInvites": "추천 팀 규모 (초대한 채굴자 수)",
+      "invitesLabel": "{count}명 초대 (배수: ×{mult})",
+      "estimatedYield": "예상 마이닝 수익",
+      "hourlyRate": "실제 해시레이트",
+      "dailyYield": "일일 24시간 적립량",
+      "monthlyYield": "30일 예상 총 적립량",
+      "onChainPayout": "예상 $Matsumoto (BEP-20) 출금액",
+      "cta": "이 설정으로 마이닝 시작"
     },
     "referrals": {
-      "title": "추천 등급",
-      "subtitle": "더 많은 사람을 초대할수록 마이닝 배수가 높아집니다.",
-      "invited": "초대한 사용자",
-      "level": "등급",
-      "multiplier": "배수"
+      "title": "단계별 추천 배수 매트릭스",
+      "subtitle": "채굴 신디케이트를 구성하세요. 초대 인원이 늘어날수록 일일 채굴 수익에 적용되는 배수가 기하급수적으로 증가합니다.",
+      "invited": "초대한 채굴자 수",
+      "level": "등급 레벨",
+      "multiplier": "마이닝 배수",
+      "bonusNote": "배수 혜택은 기본 해시레이트와 모든 활성 부스터에 동일하게 적용됩니다!",
+      "unlocked": "현재 활성 등급",
+      "locked": "달성 조건:"
     },
     "tasksSection": {
-      "title": "작업으로 더 적립하기",
-      "subtitle": "소셜 및 참여 작업을 완료하고 추가 포인트를 받으세요."
+      "title": "바운티 미션 및 추가 보너스",
+      "subtitle": "일일 참여 미션과 소셜 퀘스트를 완료하고 즉시 보너스 Matsumoto 포인트를 획득하세요.",
+      "viewAll": "전체 미션 확인",
+      "rewardBadge": "+{amount} MATSU",
+      "actionButton": "미션 완료하기",
+      "instantCredit": "즉시 포인트 지급"
     },
     "withdrawals": {
-      "title": "출금 규정",
-      "subtitle": "명확하게 공개된 규정 — 숨겨진 조건은 없습니다.",
+      "title": "투명한 출금 정책",
+      "subtitle": "봇 어뷰징을 방지하고 장기적인 토큰 생태계 건전성을 보장하기 위한 안전장치입니다.",
       "minimum": {
         "title": "최소 100 포인트",
-        "body": "100 Matsumoto 포인트 미만의 신청은 접수되지 않습니다."
+        "body": "낮고 합리적인 출금 문턱. 100 포인트에 도달하면 언제든지 출금을 요청할 수 있습니다."
       },
       "frequency": {
-        "title": "주 1회 신청",
-        "body": "계정당 7일마다 한 번 출금을 신청할 수 있습니다."
+        "title": "주 1회 출금 주기",
+        "body": "안정적인 네트워크 정산을 위해 계정당 7일마다 1회의 온체인 출금 신청이 가능합니다."
       },
       "kyc": {
-        "title": "KYC 필수",
-        "body": "공정한 배분을 위해 첫 출금 전에 인증 승인이 필요합니다."
+        "title": "KYC 본인 인증 필수",
+        "body": "다계정 시빌 공격을 방지하고 실제 유저에게 공정하게 분배하기 위한 기본 인증입니다."
       },
       "approval": {
-        "title": "관리자 검토",
-        "body": "모든 출금은 온체인 전송 전에 검토를 거칩니다."
+        "title": "관리자 보안 검토",
+        "body": "모든 출금은 온체인 트랜잭션 전송 전 자동 및 수동 보안 검토를 거칩니다."
       }
     },
+    "faq": {
+      "title": "자주 묻는 질문 (FAQ)",
+      "subtitle": "Matsumoto 클라우드 마이닝, 토큰 전환 및 온체인 출금에 관한 핵심 가이드입니다.",
+      "q1": "Matsumoto 마이닝이란 무엇이며 어떻게 작동하나요?",
+      "a1": "Matsumoto는 BNB 스마트 체인 기반의 고수익 클라우드 리워드 시뮬레이션 플랫폼입니다. 무료 가입 후 24시간마다 한 번 '마이닝'을 탭하면 클라우드 서버에서 설정된 속도로 포인트가 자동 적립되며, 하드웨어 손상이나 전기세가 발생하지 않습니다.",
+      "q2": "포인트를 $Matsumoto 토큰으로 어떻게 전환하나요?",
+      "a2": "모든 내부 포인트는 3:1 고정 비율(3 포인트 = 1 $Matsumoto BEP-20 토큰)로 전환됩니다. 출금 신청 시 본인의 BNB 체인 지갑 주소로 직접 토큰이 전송됩니다.",
+      "q3": "부스터 패키지를 여러 개 중첩할 수 있나요?",
+      "a3": "네! 모든 부스터 패키지는 무제한 중첩이 가능합니다. $1, $5, $10, $50 부스터를 원하는 만큼 복수로 활성화하여 시간당 해시레이트를 극대화할 수 있습니다.",
+      "q4": "추천 배수는 어떻게 적용되나요?",
+      "a4": "초대 링크로 친구를 초대하면 인원수에 따라 레벨 1(×1)부터 최고 레벨 6(×8)까지 상승하며, 모든 24시간 채굴 수익에 곱해집니다.",
+      "q5": "출금 조건은 무엇인가요?",
+      "a5": "출금 조건: 1) 최소 100 포인트 이상 보유, 2) 본인 확인을 위한 기본 KYC 인증 완료, 3) 이전 출금 신청 후 7일 경과입니다."
+    },
     "cta": {
-      "title": "오늘 바로 시작하세요",
-      "body": "가입은 무료이며, 첫 탭부터 기본 적립률이 적용됩니다.",
-      "button": "계정 만들기"
+      "badge": "30초 만에 클라우드 마이닝 장비 가동",
+      "title": "$Matsumoto 마이닝을 시작할 준비가 되셨나요?",
+      "body": "BNB 체인의 48,000명 이상의 채굴자와 함께하세요. 하드웨어 투자 없이 무료로 오늘부터 매일 수익을 적립하세요.",
+      "buttonPrimary": "지금 무료 계정 만들기",
+      "buttonSecondary": "마이닝 대시보드 로그인"
     },
     "footer": {
-      "disclaimer": "Matsumoto는 보상 시뮬레이션 플랫폼입니다. '마이닝'은 예약된 포인트 적립이며 작업증명 하드웨어가 아닙니다. 포인트는 KYC와 검토를 거쳐 BNB 체인에서 $Matsumoto로 전환·출금되기 전까지는 가치를 갖지 않습니다.",
-      "copyright": "© Matsumoto 마이닝 플랫폼"
+      "brandDesc": "Matsumoto는 BNB 스마트 체인 상의 프리미엄 클라우드 마이닝 및 리워드 시뮬레이션 플랫폼입니다. 전 세계 사용자에게 매일 정기 적립을 통한 온체인 암호화폐 보상을 제공합니다.",
+      "quickLinks": "빠른 링크",
+      "ecosystem": "생태계",
+      "legal": "투명성 및 보안",
+      "bep20Token": "BEP-20 스마트 컨트랙트",
+      "bscScan": "BSCScan 탐색기",
+      "audit": "보안 감사 보고서",
+      "whitepaper": "플랫폼 백서",
+      "disclaimer": "면책 조항: Matsumoto는 물리적 채굴 장비 없이 운영되는 정기 보상 적립(클라우드 마이닝 시뮬레이션) 플랫폼입니다. Matsumoto 포인트는 플랫폼 내부 단위이며, KYC 인증 및 보안 검토 후 BNB 체인의 $Matsumoto BEP-20 토큰으로 전환·출금됩니다.",
+      "copyright": "© Matsumoto 마이닝 플랫폼. BNB 체인 생태계를 위해 제작되었습니다. All rights reserved."
     }
   },
   "dashboard": {
@@ -122,13 +220,13 @@
     "backHome": "홈으로 돌아가기"
   },
   "tasks": {
-    "title": "작업",
-    "tweet": "트윗",
-    "follow": "팔로우",
-    "repost": "리포스트",
-    "youtube": "YouTube 시청",
-    "quiz": "퀴즈",
-    "spin": "룰렛 돌리기"
+    "title": "바운티 미션",
+    "tweet": "X(트위터) 글 작성",
+    "follow": "공식 X 팔로우",
+    "repost": "공지 리포스트",
+    "youtube": "YouTube 마이닝 가이드 시청",
+    "quiz": "Web3 지식 퀴즈 풀기",
+    "spin": "일일 행운의 룰렛"
   },
   "withdraw": {
     "title": "출금",

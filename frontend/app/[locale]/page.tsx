@@ -1,35 +1,15 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
-import { Coin3D } from '../../components/Coin3D';
 import { locales } from '../../i18n';
-
-/** Booster catalogue — mirrors SPEC.md §2 and prisma/seed.ts. */
-const BOOSTERS = [
-  { price: 1, rate: '2.9' },
-  { price: 5, rate: '10.9' },
-  { price: 10, rate: '20.9' },
-  { price: 50, rate: '90.9' },
-];
-
-/** Referral tiers — mirrors SPEC.md §2 and mining.engine.ts. */
-const TIERS = [
-  { invites: '0', level: 1, multiplier: 1 },
-  { invites: '1–5', level: 2, multiplier: 3 },
-  { invites: '6–10', level: 3, multiplier: 4 },
-  { invites: '11–20', level: 4, multiplier: 5 },
-  { invites: '21–30', level: 5, multiplier: 6 },
-  { invites: '31+', level: 6, multiplier: 8 },
-];
-
-const TASK_KEYS = [
-  'tweet',
-  'follow',
-  'repost',
-  'youtube',
-  'quiz',
-  'spin',
-] as const;
+import { NetworkStatusBar } from '../../components/NetworkStatusBar';
+import { InteractiveMinerVisualizer } from '../../components/InteractiveMinerVisualizer';
+import { MiningCalculator } from '../../components/MiningCalculator';
+import { LiveTransactionsTicker } from '../../components/LiveTransactionsTicker';
+import { BoosterGrid } from '../../components/BoosterGrid';
+import { ReferralTierMatrix } from '../../components/ReferralTierMatrix';
+import { TasksBountySection } from '../../components/TasksBountySection';
+import { FAQSection } from '../../components/FAQSection';
 
 const LOCALE_LABELS: Record<string, string> = {
   en: 'EN',
@@ -48,235 +28,425 @@ export default function LandingPage({
 
 function Landing({ locale }: { locale: string }) {
   const t = useTranslations('landing');
-  const tasks = useTranslations('tasks');
-
   const register = `/${locale}/login?mode=register`;
   const signIn = `/${locale}/login`;
 
   return (
-    <div className="glow-field min-h-screen">
-      {/* ─────────────────────────── Nav ─────────────────────────── */}
-      <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 p-5">
-        <span className="flex items-center gap-2 font-bold">
-          <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-amber-200 to-amber-600 text-sm text-amber-950">
-            M
-          </span>
-          Matsumoto
-        </span>
+    <div className="glow-field min-h-screen bg-cyber-grid text-slate-100 selection:bg-amber-500 selection:text-slate-950">
+      {/* ─────────────────── Top Network Status Bar ─────────────────── */}
+      <NetworkStatusBar />
 
-        <nav className="flex items-center gap-4 text-sm">
-          <div className="hidden gap-2 sm:flex">
-            {locales.map((l) => (
-              <Link
-                key={l}
-                href={`/${l}`}
-                className={
-                  l === locale
-                    ? 'text-amber-400'
-                    : 'text-slate-400 hover:text-slate-200'
-                }
-              >
-                {LOCALE_LABELS[l]}
-              </Link>
-            ))}
+      {/* ─────────────────────────── Nav ─────────────────────────── */}
+      <header className="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4">
+          {/* Logo */}
+          <Link href={`/${locale}`} className="flex items-center gap-2.5 font-black text-lg">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-amber-300 via-amber-500 to-amber-600 font-extrabold text-slate-950 shadow-md shadow-amber-500/20">
+              M
+            </span>
+            <span className="tracking-tight">
+              Matsumoto <span className="text-amber-400 font-mono text-xs uppercase tracking-widest block font-bold">Mining Platform</span>
+            </span>
+          </Link>
+
+          {/* Nav Links */}
+          <nav className="hidden lg:flex items-center gap-6 text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <a href="#how" className="transition-colors hover:text-amber-400">
+              {t('nav.features')}
+            </a>
+            <a href="#boosters" className="transition-colors hover:text-amber-400">
+              {t('nav.boosters')}
+            </a>
+            <a href="#calculator" className="transition-colors hover:text-amber-400">
+              {t('nav.calculator')}
+            </a>
+            <a href="#referrals" className="transition-colors hover:text-amber-400">
+              {t('nav.referrals')}
+            </a>
+            <a href="#tasks" className="transition-colors hover:text-amber-400">
+              {t('nav.tasks')}
+            </a>
+            <a href="#rules" className="transition-colors hover:text-amber-400">
+              {t('nav.rules')}
+            </a>
+            <a href="#faq" className="transition-colors hover:text-amber-400">
+              {t('nav.faq')}
+            </a>
+          </nav>
+
+          {/* Action CTAs & Language Switcher */}
+          <div className="flex items-center gap-3 text-xs">
+            {/* Language Switcher */}
+            <div className="flex items-center rounded-xl border border-slate-800 bg-slate-900/90 p-1">
+              {locales.map((l) => (
+                <Link
+                  key={l}
+                  href={`/${l}`}
+                  className={`rounded-lg px-2.5 py-1 font-semibold transition-all ${
+                    l === locale
+                      ? 'bg-amber-500 text-slate-950 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {LOCALE_LABELS[l]}
+                </Link>
+              ))}
+            </div>
+
+            <Link
+              href={signIn}
+              className="hidden sm:inline-block rounded-xl border border-slate-700/80 bg-slate-900/60 px-4 py-2 font-semibold text-slate-200 hover:border-amber-500/60 hover:text-amber-400"
+            >
+              {t('nav.signIn')}
+            </Link>
+            <Link
+              href={register}
+              className="btn-gold rounded-xl px-4 py-2 font-bold uppercase tracking-wider text-slate-950"
+            >
+              {t('nav.getStarted')}
+            </Link>
           </div>
-          <Link href={signIn} className="text-slate-300 hover:text-amber-400">
-            {t('nav.signIn')}
-          </Link>
-          <Link
-            href={register}
-            className="rounded-lg bg-amber-500 px-4 py-2 font-semibold text-slate-900 hover:bg-amber-400"
-          >
-            {t('nav.getStarted')}
-          </Link>
-        </nav>
+        </div>
       </header>
 
       {/* ────────────────────────── Hero ─────────────────────────── */}
-      <section className="mx-auto grid max-w-6xl items-center gap-8 px-5 py-12 md:grid-cols-2 md:py-20">
-        <div>
-          <span className="inline-block rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs uppercase tracking-wide text-amber-300">
-            {t('hero.badge')}
-          </span>
-          <h1 className="mt-5 text-4xl font-extrabold leading-tight sm:text-5xl">
-            {t('hero.title')}{' '}
-            <span className="bg-gradient-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent">
-              {t('hero.titleAccent')}
-            </span>
-          </h1>
-          <p className="mt-5 text-lg text-slate-300">{t('hero.subtitle')}</p>
+      <section className="relative mx-auto max-w-7xl px-5 pt-12 pb-16 md:pt-20 md:pb-24">
+        <div className="grid items-center gap-12 lg:grid-cols-12">
+          {/* Left Hero Content */}
+          <div className="lg:col-span-7">
+            <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wide text-amber-300 backdrop-blur-md">
+              <span className="pulse-dot h-2 w-2 rounded-full bg-amber-400" />
+              <span>{t('hero.badge')}</span>
+            </div>
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              href={register}
-              className="rounded-xl bg-amber-500 px-6 py-3 font-semibold text-slate-900 hover:bg-amber-400"
-            >
-              {t('hero.ctaPrimary')}
-            </Link>
-            <Link
-              href={signIn}
-              className="rounded-xl border border-slate-700 px-6 py-3 font-semibold text-slate-200 hover:border-amber-500/60"
-            >
-              {t('hero.ctaSecondary')}
-            </Link>
+            <h1 className="mt-6 text-4xl font-black leading-tight sm:text-5xl lg:text-6xl">
+              {t('hero.title')}{' '}
+              <span className="bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500 bg-clip-text text-transparent drop-shadow-sm">
+                {t('hero.titleAccent')}
+              </span>
+            </h1>
+
+            <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
+              {t('hero.subtitle')}
+            </p>
+
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <Link
+                href={register}
+                className="btn-gold rounded-xl px-8 py-4 text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-xl shadow-amber-500/20"
+              >
+                {t('hero.ctaPrimary')} →
+              </Link>
+              <Link
+                href={signIn}
+                className="rounded-xl border border-slate-700/80 bg-slate-900/60 px-6 py-4 text-sm font-bold text-slate-200 backdrop-blur-md hover:border-amber-500/60 hover:text-amber-400 transition-colors"
+              >
+                {t('hero.ctaSecondary')}
+              </Link>
+            </div>
+
+            {/* Trust & Verified Node info */}
+            <div className="mt-8 flex flex-wrap items-center gap-4 border-t border-slate-800/80 pt-6 text-xs text-slate-400">
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-400 font-bold">✓</span>
+                <span>{t('hero.verifiedNode')}</span>
+              </div>
+              <span className="text-slate-700">•</span>
+              <div className="flex items-center gap-2">
+                <span className="text-amber-400 font-bold">⚡</span>
+                <span>{t('hero.activeMinersBadge')}</span>
+              </div>
+            </div>
+
+            <p className="mt-4 text-[11px] leading-relaxed text-slate-500">
+              {t('hero.honesty')}
+            </p>
           </div>
 
-          <p className="mt-5 text-xs text-slate-400">{t('hero.honesty')}</p>
+          {/* Right Hero: Live Interactive Mining Rig Terminal */}
+          <div className="lg:col-span-5">
+            <InteractiveMinerVisualizer />
+          </div>
         </div>
-
-        <Coin3D />
       </section>
 
-      {/* ───────────────────── Key numbers strip ─────────────────── */}
-      <section className="mx-auto grid max-w-6xl grid-cols-2 gap-4 px-5 lg:grid-cols-4">
-        <Figure value="0.9 /h" label={t('figures.baseRate')} />
-        <Figure value="3 : 1" label={t('figures.conversion')} />
-        <Figure value="100" label={t('figures.minWithdrawal')} />
-        <Figure value="30d" label={t('figures.boosterDuration')} />
+      {/* ───────────────────── Key Numbers Strip ─────────────────── */}
+      <section className="mx-auto max-w-7xl px-5 py-6">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Figure
+            value="0.90 /h"
+            label={t('figures.baseRate')}
+            subLabel={t('figures.baseRateSub')}
+            icon="⚡"
+          />
+          <Figure
+            value="3 : 1"
+            label={t('figures.conversion')}
+            subLabel={t('figures.conversionSub')}
+            icon="🔄"
+          />
+          <Figure
+            value="100 PTS"
+            label={t('figures.minWithdrawal')}
+            subLabel={t('figures.minWithdrawalSub')}
+            icon="💰"
+          />
+          <Figure
+            value="30 Days"
+            label={t('figures.boosterDuration')}
+            subLabel={t('figures.boosterDurationSub')}
+            icon="⏱️"
+          />
+        </div>
       </section>
 
-      {/* ────────────────────── How it works ─────────────────────── */}
-      <Section title={t('how.title')} subtitle={t('how.subtitle')}>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {['register', 'mine', 'boost', 'withdraw'].map((step, i) => (
-            <div key={step} className="card card-lift p-5">
-              <div className="grid h-9 w-9 place-items-center rounded-full bg-amber-500/15 font-bold text-amber-400">
-                {i + 1}
+      {/* ───────────────── Live Activity / Payouts ───────────────── */}
+      <section className="mx-auto max-w-7xl px-5 py-10">
+        <LiveTransactionsTicker />
+      </section>
+
+      {/* ────────────────────── How It Works ─────────────────────── */}
+      <section id="how" className="mx-auto max-w-7xl px-5 py-16">
+        <SectionHeading title={t('how.title')} subtitle={t('how.subtitle')} />
+
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {(['register', 'mine', 'boost', 'withdraw'] as const).map((step, i) => (
+            <div
+              key={step}
+              className="card card-lift relative flex flex-col justify-between p-6"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-500/10 border border-amber-500/20 font-black text-xl text-amber-400">
+                    0{i + 1}
+                  </div>
+                  <span className="font-mono text-xs text-slate-500 font-bold">
+                    STEP {i + 1}
+                  </span>
+                </div>
+
+                <h3 className="mt-5 text-lg font-bold text-slate-100">
+                  {t(`how.${step}.title`)}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                  {t(`how.${step}.body`)}
+                </p>
               </div>
-              <h3 className="mt-4 font-semibold">{t(`how.${step}.title`)}</h3>
-              <p className="mt-2 text-sm text-slate-400">
-                {t(`how.${step}.body`)}
-              </p>
+
+              <div className="mt-6 h-1 w-12 rounded-full bg-amber-500/30" />
             </div>
           ))}
         </div>
-      </Section>
+      </section>
 
-      {/* ──────────────────── Booster packages ───────────────────── */}
-      <Section title={t('boosters.title')} subtitle={t('boosters.subtitle')}>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {BOOSTERS.map((b) => (
-            <div key={b.price} className="card card-lift p-5 text-center">
-              <div className="text-3xl font-extrabold text-amber-400">
-                ${b.price}
-              </div>
-              <div className="mt-3 text-sm text-slate-400">
-                {t('boosters.resultingRate')}
-              </div>
-              <div className="text-xl font-bold">{b.rate} /h</div>
-              <div className="mt-4 border-t border-slate-800 pt-3 text-xs text-slate-400">
-                {t('boosters.terms')}
-              </div>
-            </div>
-          ))}
-        </div>
-      </Section>
+      {/* ──────────────────── Booster Packages ───────────────────── */}
+      <section id="boosters" className="mx-auto max-w-7xl px-5 py-16">
+        <SectionHeading
+          title={t('boosters.title')}
+          subtitle={t('boosters.subtitle')}
+        />
+        <BoosterGrid locale={locale} />
+      </section>
+
+      {/* ────────────────── Profitability Calculator ─────────────── */}
+      <section id="calculator" className="mx-auto max-w-7xl px-5 py-16">
+        <SectionHeading
+          title={t('calculator.title')}
+          subtitle={t('calculator.subtitle')}
+        />
+        <MiningCalculator locale={locale} />
+      </section>
 
       {/* ─────────────────────── Referrals ───────────────────────── */}
-      <Section title={t('referrals.title')} subtitle={t('referrals.subtitle')}>
-        <div className="card overflow-x-auto">
-          <table className="w-full min-w-[28rem] text-left text-sm">
-            <thead className="text-xs uppercase text-slate-400">
-              <tr>
-                <th className="p-4">{t('referrals.invited')}</th>
-                <th className="p-4">{t('referrals.level')}</th>
-                <th className="p-4">{t('referrals.multiplier')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {TIERS.map((tier) => (
-                <tr key={tier.level} className="border-t border-slate-800">
-                  <td className="p-4">{tier.invites}</td>
-                  <td className="p-4">{tier.level}</td>
-                  <td className="p-4 font-bold text-amber-400">
-                    ×{tier.multiplier}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Section>
+      <section id="referrals" className="mx-auto max-w-7xl px-5 py-16">
+        <ReferralTierMatrix />
+      </section>
 
       {/* ───────────────────────── Tasks ─────────────────────────── */}
-      <Section title={t('tasksSection.title')} subtitle={t('tasksSection.subtitle')}>
-        <div className="flex flex-wrap gap-3">
-          {TASK_KEYS.map((key) => (
-            <span
-              key={key}
-              className="rounded-full border border-slate-700 bg-slate-900 px-4 py-2 text-sm"
-            >
-              {tasks(key)}
-            </span>
-          ))}
-        </div>
-      </Section>
+      <section id="tasks" className="mx-auto max-w-7xl px-5 py-16">
+        <SectionHeading
+          title={t('tasksSection.title')}
+          subtitle={t('tasksSection.subtitle')}
+        />
+        <TasksBountySection locale={locale} />
+      </section>
 
       {/* ─────────────────────── Withdrawals ─────────────────────── */}
-      <Section title={t('withdrawals.title')} subtitle={t('withdrawals.subtitle')}>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {['minimum', 'frequency', 'kyc', 'approval'].map((rule) => (
-            <div key={rule} className="card p-5">
-              <h3 className="font-semibold text-amber-400">
+      <section id="rules" className="mx-auto max-w-7xl px-5 py-16">
+        <SectionHeading
+          title={t('withdrawals.title')}
+          subtitle={t('withdrawals.subtitle')}
+        />
+
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {(['minimum', 'frequency', 'kyc', 'approval'] as const).map((rule, idx) => (
+            <div key={rule} className="card card-lift p-6">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-800 text-lg">
+                {idx === 0 ? '🔒' : idx === 1 ? '📅' : idx === 2 ? '🛡️' : '⚖️'}
+              </div>
+              <h3 className="mt-4 font-bold text-amber-400">
                 {t(`withdrawals.${rule}.title`)}
               </h3>
-              <p className="mt-2 text-sm text-slate-400">
+              <p className="mt-2 text-sm leading-relaxed text-slate-400">
                 {t(`withdrawals.${rule}.body`)}
               </p>
             </div>
           ))}
         </div>
-      </Section>
+      </section>
+
+      {/* ─────────────────────────── FAQ ─────────────────────────── */}
+      <section id="faq" className="mx-auto max-w-7xl px-5 py-16">
+        <SectionHeading title={t('faq.title')} subtitle={t('faq.subtitle')} />
+        <FAQSection />
+      </section>
 
       {/* ─────────────────────── Final CTA ───────────────────────── */}
-      <section className="mx-auto max-w-6xl px-5 py-16">
-        <div className="card p-8 text-center sm:p-12">
-          <h2 className="text-3xl font-extrabold">{t('cta.title')}</h2>
-          <p className="mx-auto mt-3 max-w-xl text-slate-400">
+      <section className="mx-auto max-w-7xl px-5 py-20">
+        <div className="card card-glow-gold relative overflow-hidden p-8 sm:p-14 text-center">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-amber-500/15 blur-3xl" />
+          <div className="pointer-events-none absolute -left-24 -bottom-24 h-72 w-72 rounded-full bg-cyan-500/15 blur-3xl" />
+
+          <span className="inline-block rounded-full border border-amber-500/40 bg-amber-500/10 px-4 py-1.5 text-xs font-black uppercase tracking-widest text-amber-300">
+            {t('cta.badge')}
+          </span>
+
+          <h2 className="mt-6 text-3xl font-black sm:text-5xl">
+            {t('cta.title')}
+          </h2>
+
+          <p className="mx-auto mt-4 max-w-2xl text-base text-slate-300 sm:text-lg">
             {t('cta.body')}
           </p>
-          <Link
-            href={register}
-            className="mt-8 inline-block rounded-xl bg-amber-500 px-8 py-3 font-semibold text-slate-900 hover:bg-amber-400"
-          >
-            {t('cta.button')}
-          </Link>
+
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+            <Link
+              href={register}
+              className="btn-gold rounded-xl px-8 py-4 text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-xl"
+            >
+              {t('cta.buttonPrimary')} →
+            </Link>
+            <Link
+              href={signIn}
+              className="rounded-xl border border-slate-700 bg-slate-900/80 px-6 py-4 text-sm font-bold text-slate-200 hover:border-amber-500/60 hover:text-amber-400"
+            >
+              {t('cta.buttonSecondary')}
+            </Link>
+          </div>
         </div>
       </section>
 
-      <footer className="border-t border-slate-900 px-5 py-8 text-center text-xs text-slate-500">
-        <p className="mx-auto max-w-2xl">{t('footer.disclaimer')}</p>
-        <p className="mt-3">{t('footer.copyright')}</p>
+      {/* ────────────────────────── Footer ───────────────────────── */}
+      <footer className="border-t border-slate-900 bg-slate-950/90 px-5 pt-16 pb-12 text-slate-400">
+        <div className="mx-auto max-w-7xl grid gap-10 lg:grid-cols-12 pb-12 border-b border-slate-900">
+          <div className="lg:col-span-5 space-y-4">
+            <div className="flex items-center gap-2.5 font-black text-lg text-slate-100">
+              <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-500 text-slate-950 font-extrabold text-sm">
+                M
+              </span>
+              Matsumoto Mining Platform
+            </div>
+            <p className="text-xs leading-relaxed text-slate-400 max-w-md">
+              {t('footer.brandDesc')}
+            </p>
+            <div className="flex items-center gap-3 pt-2 text-xs">
+              <span className="rounded-full bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 font-mono text-emerald-400 font-semibold">
+                BNB Chain Mainnet Active
+              </span>
+            </div>
+          </div>
+
+          <div className="lg:col-span-7 grid grid-cols-2 gap-8 sm:grid-cols-3 text-xs">
+            <div>
+              <h4 className="font-bold uppercase tracking-wider text-slate-200 mb-3">
+                {t('footer.quickLinks')}
+              </h4>
+              <ul className="space-y-2 text-slate-400">
+                <li><a href="#how" className="hover:text-amber-400">Features</a></li>
+                <li><a href="#boosters" className="hover:text-amber-400">Booster Nodes</a></li>
+                <li><a href="#calculator" className="hover:text-amber-400">Yield Calculator</a></li>
+                <li><a href="#referrals" className="hover:text-amber-400">Referral Multipliers</a></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold uppercase tracking-wider text-slate-200 mb-3">
+                {t('footer.ecosystem')}
+              </h4>
+              <ul className="space-y-2 text-slate-400">
+                <li><span className="text-amber-400 font-mono font-bold">$Matsumoto BEP-20</span></li>
+                <li><span className="text-slate-400">Binance Smart Chain</span></li>
+                <li><span className="text-slate-400">Decentralized Payouts</span></li>
+                <li><span className="text-slate-400">Anti-Sybil Engine</span></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold uppercase tracking-wider text-slate-200 mb-3">
+                {t('footer.legal')}
+              </h4>
+              <ul className="space-y-2 text-slate-400">
+                <li><span className="text-slate-400">100 Pts Min Payout</span></li>
+                <li><span className="text-slate-400">Mandatory KYC Fair Policy</span></li>
+                <li><span className="text-slate-400">Weekly Payout Settlement</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-7xl pt-8 text-center text-[11px] text-slate-500 space-y-3">
+          <p className="mx-auto max-w-3xl leading-relaxed">
+            {t('footer.disclaimer')}
+          </p>
+          <p className="font-medium text-slate-400">
+            {t('footer.copyright')}
+          </p>
+        </div>
       </footer>
     </div>
   );
 }
 
-function Section({
+function SectionHeading({
   title,
   subtitle,
-  children,
 }: {
   title: string;
   subtitle: string;
-  children: React.ReactNode;
 }) {
   return (
-    <section className="mx-auto max-w-6xl px-5 py-14">
-      <h2 className="text-2xl font-bold sm:text-3xl">{title}</h2>
-      <p className="mb-8 mt-2 text-slate-400">{subtitle}</p>
-      {children}
-    </section>
+    <div className="mb-10 text-center">
+      <h2 className="text-2xl font-black sm:text-4xl text-slate-100">{title}</h2>
+      <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-400 sm:text-base leading-relaxed">
+        {subtitle}
+      </p>
+    </div>
   );
 }
 
-function Figure({ value, label }: { value: string; label: string }) {
+function Figure({
+  value,
+  label,
+  subLabel,
+  icon,
+}: {
+  value: string;
+  label: string;
+  subLabel?: string;
+  icon: string;
+}) {
   return (
-    <div className="card p-5">
-      <div className="text-2xl font-extrabold text-amber-400">{value}</div>
-      <div className="mt-1 text-xs uppercase tracking-wide text-slate-400">
+    <div className="card card-lift p-5">
+      <div className="flex items-center justify-between">
+        <span className="text-2xl">{icon}</span>
+        <div className="font-mono text-2xl font-black text-amber-400">{value}</div>
+      </div>
+      <div className="mt-3 text-xs uppercase font-bold tracking-wider text-slate-300">
         {label}
       </div>
+      {subLabel && (
+        <div className="mt-1 text-[11px] text-slate-500 font-mono">{subLabel}</div>
+      )}
     </div>
   );
 }

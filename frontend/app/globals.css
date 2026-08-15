@@ -2,29 +2,80 @@
 @tailwind components;
 @tailwind utilities;
 
-/*
- * Landing-page visuals. Everything here is pure CSS 3D — no image assets,
- * no WebGL, nothing to download — so the hero renders instantly and the PWA
- * stays light.
- */
+@layer base {
+  :root {
+    --gold-primary: #f59e0b;
+    --gold-glow: rgba(245, 158, 11, 0.4);
+    --cyan-glow: rgba(6, 182, 212, 0.35);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #030712;
+    color: #f8fafc;
+    overflow-x: hidden;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Custom high-tech scrollbar */
+  ::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #030712;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 4px;
+    border: 1px solid #334155;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #f59e0b;
+  }
+}
 
 @layer components {
-  /* ── Ambient background glow ─────────────────────────────── */
+  /* ── Cybernetic Background Grid & Glow ────────────────────────── */
   .glow-field {
     background:
       radial-gradient(
-        60rem 40rem at 70% -10%,
-        rgba(245, 158, 11, 0.18),
+        75rem 45rem at 50% -15%,
+        rgba(245, 158, 11, 0.22),
+        transparent 65%
+      ),
+      radial-gradient(
+        50rem 35rem at 85% 25%,
+        rgba(6, 182, 212, 0.15),
         transparent 60%
       ),
       radial-gradient(
-        40rem 30rem at 10% 20%,
-        rgba(56, 189, 248, 0.12),
+        50rem 35rem at 15% 45%,
+        rgba(234, 179, 8, 0.12),
         transparent 60%
+      ),
+      radial-gradient(
+        60rem 40rem at 50% 85%,
+        rgba(245, 158, 11, 0.14),
+        transparent 65%
       );
   }
 
-  /* ── Rotating 3D coin ────────────────────────────────────── */
+  .bg-cyber-grid {
+    background-image: 
+      linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .bg-radial-vignette {
+    mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, #000 70%, transparent 100%);
+  }
+
+  /* ── Rotating 3D Coin ────────────────────────────────────── */
   .coin-stage {
     perspective: 1200px;
   }
@@ -34,7 +85,7 @@
     width: 13rem;
     height: 13rem;
     transform-style: preserve-3d;
-    animation: coin-spin 9s linear infinite;
+    animation: coin-spin 10s linear infinite;
   }
 
   .coin-face {
@@ -44,102 +95,190 @@
     display: grid;
     place-items: center;
     backface-visibility: hidden;
-    background: linear-gradient(145deg, #fde68a 0%, #f59e0b 45%, #b45309 100%);
+    background: linear-gradient(145deg, #fef08a 0%, #f59e0b 45%, #b45309 100%);
     box-shadow:
-      inset 0 0 0 0.6rem rgba(120, 53, 15, 0.35),
-      inset 0 1rem 2rem rgba(255, 255, 255, 0.45),
-      0 1.5rem 3rem rgba(245, 158, 11, 0.25);
+      inset 0 0 0 0.55rem rgba(120, 53, 15, 0.4),
+      inset 0 1rem 2rem rgba(255, 255, 255, 0.6),
+      0 1.5rem 3.5rem rgba(245, 158, 11, 0.35);
     color: #451a03;
-    font-weight: 800;
+    font-weight: 900;
   }
 
   .coin-face--back {
     transform: rotateY(180deg);
   }
 
-  /* Stacked slices fake the coin's thickness as it turns edge-on. */
   .coin-edge {
     position: absolute;
     inset: 0;
     border-radius: 9999px;
-    background: linear-gradient(90deg, #92400e, #f59e0b, #92400e);
+    background: linear-gradient(90deg, #78350f, #f59e0b, #78350f);
   }
 
-  /* ── Orbiting rings ──────────────────────────────────────── */
+  /* ── Orbiting Rings ──────────────────────────────────────── */
   .orbit {
     position: absolute;
     border-radius: 9999px;
-    border: 1px solid rgba(245, 158, 11, 0.35);
+    border: 1px solid rgba(245, 158, 11, 0.4);
     transform-style: preserve-3d;
     animation: orbit-tilt 16s linear infinite;
   }
 
   .orbit--wide {
-    border-color: rgba(56, 189, 248, 0.28);
-    animation-duration: 24s;
+    border-color: rgba(6, 182, 212, 0.35);
+    animation-duration: 22s;
     animation-direction: reverse;
   }
 
-  /* ── Cards ───────────────────────────────────────────────── */
+  /* ── Cards & Glassmorphism ───────────────────────────────── */
   .card {
-    border-radius: 1rem;
-    border: 1px solid rgb(30 41 59);
+    border-radius: 1.25rem;
+    border: 1px solid rgba(51, 65, 85, 0.6);
     background: linear-gradient(
       160deg,
-      rgba(15, 23, 42, 0.9),
-      rgba(2, 6, 23, 0.9)
+      rgba(15, 23, 42, 0.85) 0%,
+      rgba(2, 6, 23, 0.95) 100%
     );
+    backdrop-filter: blur(16px);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+  }
+
+  .card-glow-gold {
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.15);
+  }
+
+  .card-glow-cyan {
+    border: 1px solid rgba(6, 182, 212, 0.35);
+    box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.15);
   }
 
   .card-lift {
-    transition:
-      transform 0.25s ease,
-      border-color 0.25s ease;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .card-lift:hover {
-    transform: translateY(-4px);
-    border-color: rgba(245, 158, 11, 0.5);
+    transform: translateY(-5px);
+    border-color: rgba(245, 158, 11, 0.6);
+    box-shadow: 0 15px 35px -5px rgba(245, 158, 11, 0.25);
+  }
+
+  /* ── Cyber Terminal Elements ─────────────────────────────── */
+  .terminal-box {
+    border-radius: 1.25rem;
+    background: #090e17;
+    border: 1px solid #1e293b;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8), 0 0 35px rgba(245, 158, 11, 0.12);
+  }
+
+  .scanline {
+    background: linear-gradient(
+      to bottom,
+      rgba(255,255,255,0),
+      rgba(255,255,255,0) 50%,
+      rgba(0, 0, 0, 0.3) 50%,
+      rgba(0, 0, 0, 0.3)
+    );
+    background-size: 100% 4px;
+  }
+
+  /* ── Glowing Buttons ─────────────────────────────────────── */
+  .btn-gold {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+    color: #1c1917;
+    font-weight: 700;
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+    transition: all 0.2s ease;
+  }
+
+  .btn-gold:hover {
+    background: linear-gradient(135deg, #fcd34d 0%, #fbbf24 50%, #f59e0b 100%);
+    box-shadow: 0 0 30px rgba(245, 158, 11, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+    transform: translateY(-1px);
+  }
+
+  .btn-gold:active {
+    transform: translateY(1px);
+  }
+
+  /* ── Live Pulse Dots ─────────────────────────────────────── */
+  .pulse-dot {
+    position: relative;
+    display: inline-block;
+  }
+  .pulse-dot::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 9999px;
+    background: inherit;
+    opacity: 0.75;
+    animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
   }
 }
 
 @keyframes coin-spin {
   from {
-    transform: rotateY(0deg) rotateX(12deg);
+    transform: rotateY(0deg) rotateX(10deg);
   }
   to {
-    transform: rotateY(360deg) rotateX(12deg);
+    transform: rotateY(360deg) rotateX(10deg);
   }
 }
 
 @keyframes orbit-tilt {
   from {
-    transform: rotateX(72deg) rotateZ(0deg);
+    transform: rotateX(74deg) rotateZ(0deg);
   }
   to {
-    transform: rotateX(72deg) rotateZ(360deg);
+    transform: rotateX(74deg) rotateZ(360deg);
   }
 }
 
 @keyframes float-y {
-  0%,
-  100% {
+  0%, 100% {
     transform: translateY(0);
   }
   50% {
-    transform: translateY(-10px);
+    transform: translateY(-12px);
   }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite linear;
 }
 
 .animate-float {
   animation: float-y 6s ease-in-out infinite;
 }
 
-/* Respect users who ask for less motion — the hero still reads fine static. */
 @media (prefers-reduced-motion: reduce) {
   .coin,
   .orbit,
-  .animate-float {
+  .animate-float,
+  .animate-shimmer {
     animation: none !important;
   }
 }
