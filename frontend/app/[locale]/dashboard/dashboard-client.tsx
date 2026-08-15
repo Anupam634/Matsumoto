@@ -30,7 +30,7 @@ import { useMiningFX } from '../../../lib/use-mining-fx';
 /** How often the live accrual counter repaints. 10fps reads as smooth. */
 const TICK_MS = 100;
 /** Background refresh so the server stays the source of truth. */
-const REFRESH_MS = 60_000;
+const REFRESH_MS = 15_000;
 
 export default function DashboardClient() {
   const t = useTranslations('dashboard');
