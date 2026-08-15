@@ -30,8 +30,6 @@ import {
   type TreeNode,
   listAdminTasks,
   updateAdminTask,
-  createAdminTask,
-  deleteAdminTask,
   type AdminTaskItem,
   type AdminQuizQuestion,
 } from '../../../lib/admin-api';
@@ -84,8 +82,8 @@ function LoginGate({ onDone }: { onDone: () => void }) {
         <div className="mb-6 flex items-center gap-3 border-b border-white/[0.08] pb-4">
           <LogoMark size={36} priority />
           <div>
-            <h1 className="text-xl font-black tracking-tight text-white">Matsumoto Operator Console</h1>
-            <p className="text-xs font-semibold text-amber-400">Restricted Administration Access</p>
+            <h1 className="text-xl font-black tracking-tight text-white">Matsumoto Command Console</h1>
+            <p className="text-xs font-semibold text-amber-400">Enterprise Operator Administration</p>
           </div>
         </div>
 
@@ -105,7 +103,7 @@ function LoginGate({ onDone }: { onDone: () => void }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="username"
-            placeholder="admin@matsumoto.io"
+            placeholder="matsumoto@gmail.com"
             required
           />
         </label>
@@ -155,13 +153,13 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
 
   useEffect(() => {
     loadStats();
-    const interval = setInterval(loadStats, 30_000);
+    const interval = setInterval(loadStats, 20_000);
     return () => clearInterval(interval);
   }, [loadStats]);
 
   return (
     <div className="glow-field min-h-dvh bg-slate-950 text-slate-100">
-      {/* Top Console Navigation */}
+      {/* Top Header */}
       <header className="sticky top-0 z-30 border-b border-white/[0.08] bg-slate-950/80 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6">
           <div className="flex items-center gap-3">
@@ -170,10 +168,10 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
               <div className="flex items-center gap-2">
                 <span className="font-black tracking-tight text-white sm:text-lg">Matsumoto Command Center</span>
                 <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-400">
-                  Cluster v2.4 Live
+                  Cloud Mining Cluster Active
                 </span>
               </div>
-              <p className="text-[11px] font-mono text-slate-400">BNB Chain Mainnet Node Controller</p>
+              <p className="text-[11px] font-mono text-slate-400">BNB Chain BEP-20 Mainnet Controller</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -204,7 +202,7 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
                 : 'border border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200'
             }`}
           >
-            📊 Analytics & Insights
+            📊 Platform Analytics
           </button>
           <button
             onClick={() => setTab('miners')}
@@ -259,7 +257,7 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
                 : 'border border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200'
             }`}
           >
-            🎯 Tasks & Bounties
+            🎯 Tasks & Bounties Editor
           </button>
         </div>
 
@@ -277,22 +275,28 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
   );
 }
 
-/* ─────────────────────────── TAB 1: Analytics & Insights ─────────────────────────── */
+/* ─────────────────────────── TAB 1: Enterprise Analytics ─────────────────────────── */
 
 function AnalyticsTab({ stats, onRefresh }: { stats: AdminStats | null; onRefresh: () => void }) {
   const totalBalance = stats?.totalBalancePoints ?? 0;
   const tokenEquivalent = totalBalance / 3;
-  const estUsdValue = tokenEquivalent * 0.15; // Benchmark estimated valuation
+  const estUsdValue = tokenEquivalent * 0.15; // Estimated asset market benchmark
 
   const topCountries = useMemo(() => {
     if (!stats?.usersByCountry) return [];
     const sorted = [...stats.usersByCountry].sort((a, b) => b.users - a.users);
     const max = sorted[0]?.users || 1;
-    return sorted.map((c) => ({
-      ...c,
-      percentage: Math.round((c.users / (stats.totalUsers || 1)) * 100),
-      barWidth: Math.round((c.users / max) * 100),
-    }));
+    return sorted.map((c) => {
+      const isUnknown = !c.countryCode || c.countryCode.toLowerCase() === 'unknown';
+      return {
+        ...c,
+        displayName: isUnknown ? 'International / Unspecified' : countryName(c.countryCode),
+        displayFlag: isUnknown ? '🌐' : countryFlag(c.countryCode),
+        displayCode: isUnknown ? 'Global' : c.countryCode.toUpperCase(),
+        percentage: Math.round((c.users / (stats.totalUsers || 1)) * 100),
+        barWidth: Math.round((c.users / max) * 100),
+      };
+    });
   }, [stats]);
 
   return (
@@ -301,7 +305,7 @@ function AnalyticsTab({ stats, onRefresh }: { stats: AdminStats | null; onRefres
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-black text-white">Platform Health & Yield Analytics</h2>
-          <p className="text-xs text-slate-400">Real-time telemetry and network accrual overview</p>
+          <p className="text-xs text-slate-400">Real-time network telemetry, liquidity metrics, and miner analytics</p>
         </div>
         <button
           onClick={onRefresh}
@@ -321,7 +325,7 @@ function AnalyticsTab({ stats, onRefresh }: { stats: AdminStats | null; onRefres
           <div className="mt-2 text-3xl font-black tabular-nums text-white">
             {stats?.totalUsers ?? 0}
           </div>
-          <div className="mt-1 text-xs text-slate-500">Registered cloud mining nodes</div>
+          <div className="mt-1 text-xs text-slate-500">Registered cloud mining accounts</div>
         </div>
 
         <div className="card border-slate-800 bg-slate-900/70 p-5 backdrop-blur-md">
@@ -333,7 +337,7 @@ function AnalyticsTab({ stats, onRefresh }: { stats: AdminStats | null; onRefres
             {stats?.activeMiners ?? 0}
           </div>
           <div className="mt-1 text-xs text-slate-500">
-            {stats ? Math.round(((stats.activeMiners) / (stats.totalUsers || 1)) * 100) : 0}% 24h retention rate
+            {stats ? Math.round(((stats.activeMiners) / (stats.totalUsers || 1)) * 100) : 0}% 24h mining retention
           </div>
         </div>
 
@@ -370,10 +374,10 @@ function AnalyticsTab({ stats, onRefresh }: { stats: AdminStats | null; onRefres
         <div className="card border-slate-800 bg-slate-900/70 p-6 lg:col-span-7 backdrop-blur-md">
           <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
             <h3 className="text-sm font-black uppercase tracking-wider text-white">
-              🌍 Global Node Distribution
+              🌍 Global Miner Distribution
             </h3>
             <span className="text-xs text-slate-400 font-mono">
-              {topCountries.length} Countries Active
+              {topCountries.length} Regions Active
             </span>
           </div>
 
@@ -381,16 +385,16 @@ function AnalyticsTab({ stats, onRefresh }: { stats: AdminStats | null; onRefres
             {topCountries.length === 0 ? (
               <p className="text-xs text-slate-500">No geo-distribution data recorded yet.</p>
             ) : (
-              topCountries.slice(0, 7).map((c) => (
-                <div key={c.countryCode} className="space-y-1">
+              topCountries.slice(0, 8).map((c, idx) => (
+                <div key={idx} className="space-y-1">
                   <div className="flex items-center justify-between text-xs font-semibold">
                     <div className="flex items-center gap-2">
-                      <span>{countryFlag(c.countryCode || 'US')}</span>
-                      <span className="text-slate-200">{countryName(c.countryCode || 'US')}</span>
-                      <span className="font-mono text-slate-500">({c.countryCode || '—'})</span>
+                      <span>{c.displayFlag}</span>
+                      <span className="text-slate-200">{c.displayName}</span>
+                      <span className="font-mono text-slate-500">({c.displayCode})</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-amber-400">{c.users} nodes</span>
+                      <span className="font-mono font-bold text-amber-400">{c.users} miners</span>
                       <span className="text-slate-500">({c.percentage}%)</span>
                     </div>
                   </div>
@@ -410,7 +414,7 @@ function AnalyticsTab({ stats, onRefresh }: { stats: AdminStats | null; onRefres
         <div className="card border-slate-800 bg-slate-900/70 p-6 lg:col-span-5 backdrop-blur-md">
           <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
             <h3 className="text-sm font-black uppercase tracking-wider text-white">
-              🛡️ Security & Liquidity
+              🛡️ Security & Liquidity Telemetry
             </h3>
             <span className="text-xs text-emerald-400 font-bold">Audited</span>
           </div>
@@ -443,7 +447,7 @@ function AnalyticsTab({ stats, onRefresh }: { stats: AdminStats | null; onRefres
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
               <div className="text-xs font-bold uppercase text-slate-400">Sybil & Device Defense</div>
               <div className="mt-2 text-xs leading-relaxed text-slate-300">
-                Self-referral detection is active via fingerprinting & shared IP throttling. Banned users cannot tap or request withdrawals.
+                Self-referral defense active via hardware fingerprinting & IP throttling. Suspended miners cannot tap or submit withdrawals.
               </div>
             </div>
           </div>
@@ -470,8 +474,7 @@ function MinersTab({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Active Modals state
-  const [selectedUser, setSelectedUser] = useState<AdminUserRow | null>(null);
+  // Active Modals
   const [inspectUserId, setInspectUserId] = useState<string | null>(null);
   const [rateModalUser, setRateModalUser] = useState<AdminUserRow | null>(null);
   const [airdropModalUser, setAirdropModalUser] = useState<AdminUserRow | null>(null);
@@ -496,7 +499,6 @@ function MinersTab({
     load();
   }, [load]);
 
-  // Client-side filtering on current dataset
   const filteredRows = useMemo(() => {
     return rows.filter((u) => {
       if (filter === 'BLOCKED') return u.isBlocked;
@@ -574,13 +576,13 @@ function MinersTab({
                 filteredRows.map((u) => (
                   <tr key={u.id} className="transition hover:bg-slate-800/40">
                     <td className="p-3.5">
-                      <div className="font-bold text-white">{u.email ?? 'No email (wallet user)'}</div>
+                      <div className="font-bold text-white">{u.email ?? 'Wallet Account'}</div>
                       <div className="font-mono text-[10px] text-slate-500">{u.id}</div>
                     </td>
                     <td className="p-3.5">
                       <span className="inline-flex items-center gap-1.5 font-semibold">
-                        <span>{u.countryCode ? countryFlag(u.countryCode) : '🌐'}</span>
-                        <span>{u.countryCode ?? '—'}</span>
+                        <span>{u.countryCode && u.countryCode !== 'unknown' ? countryFlag(u.countryCode) : '🌐'}</span>
+                        <span>{u.countryCode && u.countryCode !== 'unknown' ? u.countryCode : 'Global'}</span>
                       </span>
                     </td>
                     <td className="p-3.5">
@@ -693,7 +695,7 @@ function MinersTab({
         </div>
       </div>
 
-      {/* ───────────────── MODAL: Deep Account Inspection Drawer ───────────────── */}
+      {/* MODALS */}
       {inspectUserId && (
         <InspectUserModal
           userId={inspectUserId}
@@ -705,7 +707,6 @@ function MinersTab({
         />
       )}
 
-      {/* ───────────────── MODAL: Suspend / Ban Account ───────────────── */}
       {banModalUser && (
         <BanUserModal
           user={banModalUser}
@@ -718,7 +719,6 @@ function MinersTab({
         />
       )}
 
-      {/* ───────────────── MODAL: Hash Rate Adjustment ───────────────── */}
       {rateModalUser && (
         <RateAdjustModal
           user={rateModalUser}
@@ -731,7 +731,6 @@ function MinersTab({
         />
       )}
 
-      {/* ───────────────── MODAL: Airdrop Points ───────────────── */}
       {airdropModalUser && (
         <AirdropModal
           user={airdropModalUser}
@@ -872,7 +871,6 @@ function RateAdjustModal({
           />
         </div>
 
-        {/* Preset speed pills */}
         <div className="mt-3 flex flex-wrap gap-2 text-xs">
           {[0, 1.0, 2.0, 5.0, -0.5].map((v) => (
             <button
@@ -1074,7 +1072,6 @@ function InspectUserModal({
           <div className="py-12 text-center text-xs text-slate-500">Loading comprehensive account telemetry…</div>
         ) : (
           <div className="mt-6 space-y-6">
-            {/* Account Profile Summary */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
                 <div className="text-[10px] font-bold uppercase text-slate-500">Email</div>
@@ -1094,7 +1091,6 @@ function InspectUserModal({
               </div>
             </div>
 
-            {/* 6-Level Referral Downline Hierarchy */}
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -1117,7 +1113,6 @@ function InspectUserModal({
               </div>
             </div>
 
-            {/* Ledger Transactions History */}
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                 📜 Recent Ledger Transactions (Audit Trail)
@@ -1190,17 +1185,14 @@ function WithdrawalsTab({
   const [statusFilter, setStatusFilter] = useState<string>('PENDING');
   const [rows, setRows] = useState<AdminWithdrawal[]>([]);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setBusy(true);
     try {
       const data = await listWithdrawals(statusFilter === 'ALL' ? undefined : statusFilter);
       setRows(data);
-      setError(null);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) return onUnauthorized();
-      setError(err instanceof ApiError ? err.message : 'Cannot reach the server.');
     } finally {
       setBusy(false);
     }
@@ -1347,9 +1339,9 @@ function KycTab({ onUnauthorized }: { onUnauthorized: () => void }) {
     load();
   }, [load]);
 
-  async function openDetail(id: string) {
+  async function openDetail(userId: string) {
     try {
-      const detail = await getKycDetail(id);
+      const detail = await getKycDetail(userId);
       setSelected(detail);
     } catch {
       alert('Failed to load KYC document details.');
@@ -1600,7 +1592,7 @@ function SupportTab({ onUnauthorized }: { onUnauthorized: () => void }) {
   );
 }
 
-/* ─────────────────────────── TAB 6: Tasks & Bounties ─────────────────────────── */
+/* ─────────────────────────── TAB 6: Comprehensive Tasks & Bounties Editor ─────────────────────────── */
 
 function TasksTab({ onUnauthorized }: { onUnauthorized: () => void }) {
   const [tasks, setTasks] = useState<AdminTaskItem[]>([]);
@@ -1635,38 +1627,73 @@ function TasksTab({ onUnauthorized }: { onUnauthorized: () => void }) {
   }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-black text-white">Daily Tasks, Quizzes & Bounties Configuration</h2>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-black text-white">Dynamic Tasks & Bounties Configuration</h2>
+          <p className="text-xs text-slate-400">
+            Full visual management for Web3 Quiz questions, Lucky Wheel slices, and Social Media engagement bounties
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
         {tasks.map((task) => (
-          <div key={task.id} className="card border-slate-800 bg-slate-900/80 p-5">
-            <div className="flex items-center justify-between">
-              <span className="rounded-full bg-indigo-500/15 border border-indigo-500/30 px-2 py-0.5 text-[10px] font-black uppercase text-indigo-300">
-                {task.type}
-              </span>
-              <span className="font-mono text-sm font-bold text-amber-400">+{task.rewardPoints} PTS</span>
+          <div key={task.id} className="card border-slate-800 bg-slate-900/80 p-5 backdrop-blur-md flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="rounded-full bg-indigo-500/15 border border-indigo-500/30 px-2.5 py-0.5 text-[10px] font-black uppercase text-indigo-300">
+                  {task.type}
+                </span>
+                <span className="font-mono text-sm font-bold text-amber-400">+{task.rewardPoints} PTS</span>
+              </div>
+              <h3 className="mt-3 text-base font-bold text-white">{task.title}</h3>
+              <p className="mt-1 text-xs text-slate-400">
+                Cooldown: <strong className="text-slate-200">{task.cooldownHours}h</strong> • Status:{' '}
+                <span className={`font-bold ${task.active ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {task.active ? 'Active' : 'Disabled'}
+                </span>
+              </p>
+
+              {task.type === 'QUIZ' && task.quizQuestions && (
+                <div className="mt-3 rounded-lg bg-slate-950 p-2.5 text-[11px] text-slate-400 border border-slate-800">
+                  🧠 <strong>{task.quizQuestions.length} Questions</strong> configured
+                </div>
+              )}
+
+              {task.type === 'SPIN_WHEEL' && task.wheelSegments && (
+                <div className="mt-3 rounded-lg bg-slate-950 p-2.5 text-[11px] text-slate-400 border border-slate-800">
+                  🎡 <strong>{task.wheelSegments.length} Slices</strong>: [{task.wheelSegments.join(', ')}] PTS
+                </div>
+              )}
+
+              {task.actionUrl && (
+                <div className="mt-3 truncate rounded-lg bg-slate-950 p-2.5 text-[11px] text-slate-400 border border-slate-800">
+                  🔗 <span className="font-mono text-cyan-400">{task.actionUrl}</span>
+                </div>
+              )}
             </div>
-            <h3 className="mt-3 font-bold text-white">{task.title}</h3>
-            <p className="mt-1 text-xs text-slate-400">Cooldown: {task.cooldownHours}h • Status: {task.active ? 'Active' : 'Disabled'}</p>
 
             <button
               onClick={() => setEditTask(task)}
-              className="btn-gold mt-4 w-full rounded-xl py-2 text-xs font-black uppercase text-slate-950"
+              className="btn-gold mt-5 w-full rounded-xl py-2.5 text-xs font-black uppercase text-slate-950 shadow-md"
             >
-              ⚙️ Configure Task
+              ⚙️ Full Task Editor →
             </button>
           </div>
         ))}
       </div>
 
       {editTask && (
-        <EditTaskModal task={editTask} onClose={() => setEditTask(null)} onSave={handleSaveTask} />
+        <FullTaskEditorModal task={editTask} onClose={() => setEditTask(null)} onSave={handleSaveTask} />
       )}
     </div>
   );
 }
 
-function EditTaskModal({
+/* ─────────────────────────── Full Dedicated Task Editor Modal ─────────────────────────── */
+
+function FullTaskEditorModal({
   task,
   onClose,
   onSave,
@@ -1681,6 +1708,72 @@ function EditTaskModal({
   const [active, setActive] = useState(task.active);
   const [actionUrl, setActionUrl] = useState(task.actionUrl ?? '');
 
+  // 1. Web3 Quiz Questions State
+  const [quizQuestions, setQuizQuestions] = useState<AdminQuizQuestion[]>(
+    task.quizQuestions && task.quizQuestions.length > 0
+      ? task.quizQuestions
+      : [
+          {
+            id: 1,
+            question: 'What is Matsumoto protocol token standard?',
+            options: ['BEP-20 (BNB Chain)', 'ERC-20', 'TRC-20', 'SPL Token'],
+            correctIndex: 0,
+            explanation: 'Matsumoto is built natively on BNB Smart Chain utilizing the BEP-20 token standard.',
+          },
+        ]
+  );
+
+  // 2. Lucky Spin Wheel Slices State
+  const [wheelSegments, setWheelSegments] = useState<number[]>(
+    task.wheelSegments && task.wheelSegments.length > 0
+      ? task.wheelSegments
+      : [10, 25, 50, 100, 250, 500, 1000, 5]
+  );
+
+  function handleAddQuestion() {
+    setQuizQuestions([
+      ...quizQuestions,
+      {
+        id: Date.now(),
+        question: 'New Question Title',
+        options: ['Choice A', 'Choice B', 'Choice C', 'Choice D'],
+        correctIndex: 0,
+        explanation: 'Explanation for correct choice.',
+      },
+    ]);
+  }
+
+  function handleRemoveQuestion(idx: number) {
+    setQuizQuestions(quizQuestions.filter((_, i) => i !== idx));
+  }
+
+  function handleUpdateQuestion(idx: number, field: keyof AdminQuizQuestion, val: any) {
+    const updated = [...quizQuestions];
+    (updated[idx] as any)[field] = val;
+    setQuizQuestions(updated);
+  }
+
+  function handleUpdateOption(qIdx: number, optIdx: number, val: string) {
+    const updated = [...quizQuestions];
+    updated[qIdx].options[optIdx] = val;
+    setQuizQuestions(updated);
+  }
+
+  function handleUpdateWheelSegment(idx: number, val: number) {
+    const updated = [...wheelSegments];
+    updated[idx] = val;
+    setWheelSegments(updated);
+  }
+
+  function handleAddWheelSlice() {
+    setWheelSegments([...wheelSegments, 50]);
+  }
+
+  function handleRemoveWheelSlice(idx: number) {
+    if (wheelSegments.length <= 4) return alert('Wheel needs at least 4 slices.');
+    setWheelSegments(wheelSegments.filter((_, i) => i !== idx));
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     onSave({
@@ -1689,57 +1782,201 @@ function EditTaskModal({
       cooldownHours: Number(cooldownHours),
       active,
       actionUrl: actionUrl || undefined,
+      quizQuestions: task.type === 'QUIZ' ? quizQuestions : undefined,
+      wheelSegments: task.type === 'SPIN_WHEEL' ? wheelSegments : undefined,
     });
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md">
-      <form onSubmit={submit} className="card w-full max-w-md border-slate-800 bg-slate-900 p-6 shadow-2xl">
-        <h3 className="text-lg font-black text-white">Configure Task: {task.type}</h3>
+      <form onSubmit={submit} className="card max-h-[90vh] w-full max-w-3xl overflow-y-auto border-slate-800 bg-slate-900 p-6 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
+          <div>
+            <h3 className="text-xl font-black text-white">Full Task Editor: {task.type}</h3>
+            <p className="text-xs text-slate-400">Configure questions, rewards, slice probabilities and URLs</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white">✕ Close</button>
+        </div>
 
-        <div className="mt-4 space-y-3">
-          <div>
-            <label className="block text-xs font-bold uppercase text-slate-400">Task Title</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs text-white"
-              required
-            />
+        <div className="mt-5 space-y-5">
+          {/* General Task Info */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-400">Task Title</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs text-white"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-400">Base Reward (PTS)</label>
+              <input
+                type="number"
+                value={rewardPoints}
+                onChange={(e) => setRewardPoints(e.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs font-bold text-amber-400"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-400">Cooldown (Hours)</label>
+              <input
+                type="number"
+                value={cooldownHours}
+                onChange={(e) => setCooldownHours(e.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs text-white"
+                required
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-bold uppercase text-slate-400">Reward (PTS)</label>
-            <input
-              type="number"
-              value={rewardPoints}
-              onChange={(e) => setRewardPoints(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs text-white font-mono font-bold text-amber-400"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold uppercase text-slate-400">Cooldown (Hours)</label>
-            <input
-              type="number"
-              value={cooldownHours}
-              onChange={(e) => setCooldownHours(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs text-white"
-              required
-            />
-          </div>
+
+          {/* Social Bounties URL */}
           {task.type !== 'QUIZ' && task.type !== 'SPIN_WHEEL' && (
             <div>
-              <label className="block text-xs font-bold uppercase text-slate-400">Social Action URL</label>
+              <label className="block text-xs font-bold uppercase text-slate-400">Target Social Action Link</label>
               <input
                 type="url"
                 value={actionUrl}
                 onChange={(e) => setActionUrl(e.target.value)}
-                placeholder="https://x.com/..."
-                className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs text-white"
+                placeholder="https://x.com/intent/post?text=..."
+                className="mt-1.5 w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs text-cyan-400 font-mono"
               />
             </div>
           )}
+
+          {/* ───────────────── WEB3 QUIZ QUESTIONS EDITOR ───────────────── */}
+          {task.type === 'QUIZ' && (
+            <div className="rounded-2xl border border-indigo-500/30 bg-slate-950/60 p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div>
+                  <h4 className="text-sm font-black text-indigo-300">🧠 Web3 Quiz Questions ({quizQuestions.length})</h4>
+                  <p className="text-[11px] text-slate-400">Edit question text, 4 choices, and select the correct answer index</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddQuestion}
+                  className="rounded-xl border border-indigo-500/40 bg-indigo-950/40 px-3 py-1.5 text-xs font-bold text-indigo-300 hover:bg-indigo-900/60"
+                >
+                  + Add Question
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {quizQuestions.map((q, qIdx) => (
+                  <div key={q.id || qIdx} className="rounded-xl border border-slate-800 bg-slate-900/90 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-amber-400">Question #{qIdx + 1}</span>
+                      {quizQuestions.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveQuestion(qIdx)}
+                          className="text-xs text-red-400 hover:underline"
+                        >
+                          ✕ Delete
+                        </button>
+                      )}
+                    </div>
+
+                    <input
+                      type="text"
+                      value={q.question}
+                      onChange={(e) => handleUpdateQuestion(qIdx, 'question', e.target.value)}
+                      placeholder="Question prompt…"
+                      className="w-full rounded-lg border border-slate-800 bg-slate-950 p-2 text-xs text-white"
+                      required
+                    />
+
+                    {/* 4 Choices */}
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {q.options.map((opt, optIdx) => (
+                        <div key={optIdx} className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name={`correct_${qIdx}`}
+                            checked={q.correctIndex === optIdx}
+                            onChange={() => handleUpdateQuestion(qIdx, 'correctIndex', optIdx)}
+                            title="Mark as correct answer"
+                          />
+                          <input
+                            type="text"
+                            value={opt}
+                            onChange={(e) => handleUpdateOption(qIdx, optIdx, e.target.value)}
+                            placeholder={`Choice ${String.fromCharCode(65 + optIdx)}`}
+                            className="flex-1 rounded-lg border border-slate-800 bg-slate-950 p-1.5 text-xs text-slate-200"
+                            required
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] uppercase font-bold text-slate-500">Explanation</label>
+                      <input
+                        type="text"
+                        value={q.explanation ?? ''}
+                        onChange={(e) => handleUpdateQuestion(qIdx, 'explanation', e.target.value)}
+                        placeholder="Educational explanation shown after submitting answer…"
+                        className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950 p-1.5 text-xs text-slate-300"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ───────────────── LUCKY WHEEL SLICES EDITOR ───────────────── */}
+          {task.type === 'SPIN_WHEEL' && (
+            <div className="rounded-2xl border border-amber-500/30 bg-slate-950/60 p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div>
+                  <h4 className="text-sm font-black text-amber-300">🎡 Lucky Wheel Slices Configuration</h4>
+                  <p className="text-[11px] text-slate-400">Configure each slice point reward on the 360° wheel</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddWheelSlice}
+                  className="rounded-xl border border-amber-500/40 bg-amber-950/40 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-900/60"
+                >
+                  + Add Slice
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {wheelSegments.map((val, sIdx) => (
+                  <div key={sIdx} className="rounded-xl border border-slate-800 bg-slate-900 p-3 text-center">
+                    <div className="flex items-center justify-between text-[10px] font-bold uppercase text-slate-500 mb-1">
+                      <span>Slice #{sIdx + 1}</span>
+                      {wheelSegments.length > 4 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveWheelSlice(sIdx)}
+                          className="text-red-400 hover:underline"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-center gap-1">
+                      <input
+                        type="number"
+                        min="1"
+                        value={val}
+                        onChange={(e) => handleUpdateWheelSegment(sIdx, Number(e.target.value))}
+                        className="w-20 rounded-lg border border-slate-800 bg-slate-950 p-1.5 text-center font-mono text-sm font-black text-amber-400"
+                        required
+                      />
+                      <span className="text-[10px] font-bold text-slate-400">PTS</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <label className="flex items-center gap-2 pt-2 text-xs font-bold text-slate-300">
             <input
               type="checkbox"
@@ -1747,13 +1984,13 @@ function EditTaskModal({
               onChange={(e) => setActive(e.target.checked)}
               className="rounded"
             />
-            <span>Active & Visible to Miners</span>
+            <span>Active & Claimable by Miners</span>
           </label>
         </div>
 
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="mt-6 flex justify-end gap-3 border-t border-slate-800 pt-4">
           <button type="button" onClick={onClose} className="rounded-xl border border-slate-800 px-4 py-2 text-xs font-bold text-slate-400">Cancel</button>
-          <button type="submit" className="btn-gold rounded-xl px-5 py-2 text-xs font-black uppercase text-slate-950">Save Settings</button>
+          <button type="submit" className="btn-gold rounded-xl px-6 py-2.5 text-xs font-black uppercase text-slate-950">Save Full Configuration</button>
         </div>
       </form>
     </div>
