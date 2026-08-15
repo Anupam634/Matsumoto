@@ -29,7 +29,9 @@
       "ctaSecondary": "打开 Web3 终端",
       "honesty": "Matsumoto 采用定时收益累积机制（无硬件损耗与电力消耗）。累积的积分可直接在 BNB 智能链上兑换为真实的 $Matsumoto 代币。",
       "activeMinersBadge": "已有 48,290+ 名矿工正在实时挖矿",
-      "verifiedNode": "KYC 认证安全保障 · 24小时即时提现"
+      "verifiedNode": "KYC 认证安全保障 · 24小时即时提现",
+      "playVideo": "播放介绍视频",
+      "pauseVideo": "暂停介绍视频"
     },
     "simulator": {
       "title": "交互式云端矿机终端",
@@ -64,6 +66,11 @@
       "boosterBuy": "激活了",
       "mined": "领取了 24小时收益",
       "kyc": "通过 KYC 认证"
+    },
+    "chain": {
+      "builtOn": "构建于",
+      "tagline": "安全 · 透明 · 奖励由您掌控",
+      "learnMore": "了解更多"
     },
     "how": {
       "title": "Matsumoto 挖矿运作方式",
@@ -181,7 +188,11 @@
       "audit": "安全审计报告",
       "whitepaper": "平台白皮书",
       "disclaimer": "免责声明：Matsumoto 为定时收益模拟平台（云端模拟），无需工作量证明实体硬件。Matsumoto 积分为平台内部记账单位，在完成 KYC 验证与安全审核后可兑换为 BNB 链上的 $Matsumoto BEP-20 代币。",
-      "copyright": "© Matsumoto 挖矿平台. 专为 BNB 链生态打造. 保留所有权利."
+      "copyright": "© Matsumoto 挖矿平台. 专为 BNB 链生态打造. 保留所有权利.",
+      "faq": "常见问题",
+      "support": "客服支持",
+      "terms": "服务条款",
+      "privacy": "隐私政策"
     }
   },
   "dashboard": {
@@ -202,7 +213,58 @@
     "kycRequired": "KYC 状态：{status}。提现前需先通过审核。",
     "signOut": "退出登录",
     "loading": "加载中…",
-    "offline": "无法连接服务器，请重试。"
+    "offline": "无法连接服务器，请重试。",
+    "copy": "复制",
+    "copied": "已复制",
+    "ready": "可以挖矿",
+    "accruing": "累积中",
+    "tasksTitle": "任务",
+    "tasksSubtitle": "赚取额外积分",
+    "claim": "领取",
+    "cooldownShort": "还需",
+    "pointsShort": "积分",
+    "working": "请稍候…",
+    "verifyCta": "去验证",
+    "buyBoosters": "购买加速包",
+    "cloudMining": "云端挖矿",
+    "heroBody": "矿机每小时累积 Matsumoto 积分，每天点一次「挖矿」即可入账。",
+    "totalEarnings": "累计获得",
+    "atRate": "3 积分 = 1",
+    "kycVerified": "身份已验证——可以提现。",
+    "minWithdrawal": "最低提现",
+    "navDashboard": "挖矿",
+    "navBoosters": "加速包",
+    "navProfile": "个人资料",
+    "plansTitle": "加速包",
+    "plansSubtitle": "30 天内提升每小时速率，可叠加。",
+    "viewAll": "查看全部",
+    "popular": "热门",
+    "resultingRate": "生效后速率",
+    "duration": "时长",
+    "days": "天",
+    "getStarted": "立即开始",
+    "f1t": "0.9 积分 / 小时",
+    "f1b": "所有免费账户的基础速率。",
+    "f2t": "24 小时周期",
+    "f2b": "每天点一次「挖矿」以持续累积。",
+    "f3t": "3 积分 = 1 $Matsumoto",
+    "f3b": "提现时按固定比例兑换。",
+    "f4t": "人工审核出金",
+    "f4b": "链上转账前需通过 KYC 审核。",
+    "recentTitle": "最近动态",
+    "reason": {
+      "MINING": "挖矿奖励",
+      "TASK_REWARD": "任务奖励",
+      "REFERRAL_BONUS": "邀请奖励",
+      "BOOSTER_PURCHASE": "购买加速包",
+      "WITHDRAWAL": "提现",
+      "AIRDROP": "空投",
+      "ADMIN_ADJUST": "管理员调整"
+    },
+    "poweredByBnb": "由 BNB Chain 提供支持",
+    "bnbRewards": "BNB Chain 上的奖励",
+    "chainIndicator": "BNB Chain",
+    "navWithdraw": "提现"
   },
   "auth": {
     "signIn": "登录",
@@ -217,7 +279,12 @@
     "working": "请稍候…",
     "networkError": "无法连接服务器，请重试。",
     "referralRejected": "账户已创建，但邀请码未生效：邀请人与您使用同一设备或网络。",
-    "backHome": "返回首页"
+    "backHome": "返回首页",
+    "showPassword": "显示密码",
+    "hidePassword": "隐藏密码",
+    "country": "国家/地区",
+    "countryPlaceholder": "请选择您的国家/地区",
+    "countryRequired": "请选择您的国家/地区。"
   },
   "tasks": {
     "title": "赏金任务",
@@ -226,14 +293,304 @@
     "repost": "转发置顶公告",
     "youtube": "观看 YouTube 挖矿教程",
     "quiz": "完成 Web3 知识答题",
-    "spin": "每日幸运大转盘"
+    "spin": "每日幸运大转盘",
+    "wheelTitle": "转动转盘",
+    "wheelBody": "按下中间开始转动，停在哪里就得到多少。",
+    "wheelWon": "您赢得 {points} 积分",
+    "collect": "领取",
+    "close": "关闭",
+    "mute": "静音",
+    "unmute": "取消静音",
+    "wheelAria": "有 {n} 个区段的奖品转盘",
+    "offline": "无法连接服务器，请重试。"
   },
   "withdraw": {
     "title": "提现",
-    "amount": "数量（积分）",
-    "address": "BNB 链地址",
-    "min": "最低 100 积分",
-    "weekly": "每周 1 次申请",
-    "submit": "申请提现"
+    "subtitle": "将积分兑换为 $Matsumoto 并发送到 BNB Chain 钱包。",
+    "paidOnChain": "通过 BNB Chain 支付",
+    "backToDashboard": "返回仪表板",
+    "offline": "无法连接服务器，请重试。",
+    "available": "可提现",
+    "pointsShort": "积分",
+    "kycRequired": "首次提现前需要完成身份验证。",
+    "verifyCta": "去验证",
+    "needMore": "提现至少需要 {min} 积分。",
+    "cooldown": "每周只能提现一次，您可在 {date} 再次申请。",
+    "amount": "金额",
+    "minNote": "最低 {min} 积分",
+    "useMax": "全部",
+    "toAddress": "收款钱包",
+    "addressNote": "BNB Chain (BEP-20) 地址。请仔细核对 — 转账无法撤销。",
+    "youReceive": "您将收到",
+    "conversionNote": "3 积分 = 1",
+    "submit": "申请提现",
+    "submitting": "正在提交…",
+    "submitted": "申请已提交。管理员审核后将执行转账。",
+    "reviewNote": "申请后积分将立即扣除。如果被拒绝，积分将退回您的余额。",
+    "historyTitle": "您的提现记录",
+    "rejectedReason": "原因",
+    "status": {
+      "PENDING": "等待审核",
+      "APPROVED": "已批准",
+      "PAID": "已支付",
+      "REJECTED": "已拒绝"
+    }
+  },
+  "kyc": {
+    "title": "身份验证",
+    "why": "首次提现前需要完成 KYC 验证，以确保代币公平分发。",
+    "backToDashboard": "返回仪表板",
+    "formTitle": "提交您的证件",
+    "formHint": "工作人员将进行人工审核，结果将在此显示。",
+    "fullName": "姓名",
+    "documentType": "证件类型",
+    "documentNumber": "证件号码",
+    "country": "国家/地区",
+    "front": "证件正面",
+    "back": "证件背面",
+    "selfie": "自拍",
+    "optional": "可选",
+    "tapToUpload": "点击上传",
+    "imageError": "无法读取该图片",
+    "needImages": "请上传证件正面照片和自拍照。",
+    "privacy": "照片仅用于本次审核，申请被拒绝时将被删除。",
+    "submit": "提交审核",
+    "submitting": "正在提交…",
+    "reason": "原因",
+    "pendingBody": "您的证件正在审核中，通常很快完成。",
+    "approvedBody": "您已通过验证，达到最低金额后即可提现。",
+    "offline": "无法连接服务器，请重试。",
+    "status": {
+      "NONE": "尚未验证",
+      "PENDING": "审核中",
+      "APPROVED": "已验证",
+      "REJECTED": "已拒绝 — 您可以重新提交"
+    },
+    "docType": {
+      "PASSPORT": "护照",
+      "NATIONAL_ID": "身份证",
+      "DRIVERS_LICENSE": "驾驶证"
+    },
+    "countryPlaceholder": "请选择您的国家/地区"
+  },
+  "boosters": {
+    "title": "加速包",
+    "subtitle": "加速包可在 30 天内提升每小时挖矿速率，可任意叠加购买。",
+    "backToDashboard": "返回仪表板",
+    "activeTitle": "生效中的加速包",
+    "expires": "到期时间",
+    "historyTitle": "最近购买记录",
+    "resultingRate": "生效后速率",
+    "days": "天",
+    "stackable": "可叠加",
+    "buy": "购买",
+    "working": "请稍候…",
+    "offline": "无法连接服务器，请重试。",
+    "paymentsDisabled": "加速包购买暂未开放 — 服务器尚未配置收款钱包。",
+    "payTitle": "发送付款",
+    "payBody": "请从您输入的钱包地址转出此确切金额，然后将交易哈希粘贴在下方。",
+    "amount": "金额",
+    "payTo": "转账到此地址",
+    "payFrom": "付款钱包",
+    "copy": "复制",
+    "txHash": "交易哈希 (TxHash)",
+    "verify": "验证付款",
+    "verifying": "正在验证…",
+    "close": "取消",
+    "payWarning": "付款会在 BNB Chain 上自动验证 — 无需人工审核。需要等待 {confirmations} 个确认，若提示「正在等待确认」，请过一分钟后重试。",
+    "poweredByBnb": "由 BNB Chain 提供支持",
+    "chainName": "BNB Chain",
+    "fromTitle": "您将使用哪个钱包付款？",
+    "fromBody": "请输入您转账所用的 BNB Chain 钱包。转账必须来自此地址，以防止他人冒领您的交易。",
+    "fromLabel": "您的钱包地址",
+    "fromInvalid": "格式不正确（应为 0x 开头的 42 位 BNB Chain 地址）。",
+    "continue": "下一步",
+    "step": "第 {n} 步，共 2 步",
+    "scanNote": "扫码可在钱包应用中填入收款地址 — 转账金额请按上方手动输入。"
+  },
+  "profile": {
+    "title": "个人资料",
+    "subtitle": "您的账户、余额与推荐情况。",
+    "backToDashboard": "返回仪表板",
+    "offline": "无法连接服务器，请重试。",
+    "balance": "余额",
+    "pointsShort": "积分",
+    "chainName": "BNB Chain",
+    "withdrawCta": "提现",
+    "withdrawNeedsKyc": "提现前需完成身份验证。",
+    "withdrawNeedsBalance": "提现至少需要 {min} 积分。",
+    "accountTitle": "账户信息",
+    "email": "邮箱",
+    "country": "国家/地区",
+    "memberSince": "注册时间",
+    "userId": "用户 ID",
+    "identityTitle": "身份认证",
+    "viewKyc": "查看验证",
+    "completeKyc": "完成验证",
+    "kycStatus": {
+      "NONE": "尚未验证 — 首次提现前必须完成。",
+      "PENDING": "审核中。审核完成后此处将更新状态。",
+      "APPROVED": "✓ 已验证 — 可以提现。",
+      "REJECTED": "已拒绝。请点击查看原因并重新提交。"
+    },
+    "referralTitle": "推荐奖励",
+    "referralCode": "您的邀请码",
+    "invited": "已邀请",
+    "tier": "等级",
+    "copy": "复制",
+    "signOut": "退出登录",
+    "helpTitle": "帮助与支持",
+    "contactSupport": "联系客服",
+    "readFaq": "查看常见问题",
+    "terms": "服务条款",
+    "privacy": "隐私政策"
+  },
+  "support": {
+    "title": "客服支持",
+    "subtitle": "关于账户、挖矿或付款有任何问题，随时向我们提问。",
+    "backToDashboard": "返回仪表板",
+    "offline": "无法连接服务器，请重试。",
+    "tryFaq": "大多数问题在常见问题中已有解答。",
+    "readFaq": "查看常见问题",
+    "newTicket": "新建工单",
+    "atCap": "您有 {max} 个处理中的工单，请在现有工单中沟通或等待回复。",
+    "empty": "您尚未发起过客服咨询。",
+    "subject": "主题",
+    "subjectPlaceholder": "简要描述您遇到的问题",
+    "message": "内容",
+    "messagePlaceholder": "发生了什么？如有相关的交易哈希或时间，请一并附上。",
+    "cancel": "取消",
+    "send": "发送",
+    "sending": "正在发送…",
+    "reply": "回复",
+    "replyPlaceholder": "继续补充说明…",
+    "messageCount": "{n} 条消息",
+    "fromSupport": "客服",
+    "fromYou": "您",
+    "closedNote": "该工单已关闭。如需帮助请新建工单。",
+    "status": {
+      "OPEN": "等待客服回复",
+      "ANSWERED": "客服已回复",
+      "CLOSED": "已关闭"
+    }
+  },
+  "faq": {
+    "title": "常见问题",
+    "backHome": "返回首页",
+    "intro": "关于挖矿、加速包、验证与提现的实际运作机制。",
+    "q": {
+      "mining": {
+        "q": "Matsumoto 上的「挖矿」是什么意思？",
+        "a": "它是按时间计划累积奖励，而非实体硬件挖矿。您的账户按小时速率赚取 Matsumoto 积分，背后没有计算机为您计算哈希。\n\n积分为平台内部单位，只有在提现时才会兑换为链上 $Matsumoto。"
+      },
+      "cooldown": {
+        "q": "为什么每天只能点击一次「挖矿」？",
+        "a": "点击「挖矿」会将已累积的积分存入余额，并开启 24 小时倒计时。在两次点击之间积分持续累积，最多累积 24 小时。晚一点来点也不会损失，但达到 24 小时上限后将暂停累积。"
+      },
+      "conversion": {
+        "q": "多少积分可以兑换 1 个 $Matsumoto？",
+        "a": "3 个积分兑换 1 个 $Matsumoto。兑换比例在平台内固定，在您发起提现时按此比例结算。"
+      },
+      "minWithdrawal": {
+        "q": "最低提现额度是多少？",
+        "a": "最低 100 积分，每个账户每周可申请一次。提现前必须先完成身份验证。"
+      },
+      "withdrawTime": {
+        "q": "提现需要多长时间？",
+        "a": "发起提现时积分会立即从余额扣除，以防重复使用。之后由工作人员审核，通过后执行链上转账。\n\n若申请被拒绝，积分将退回您的余额，并在提现页面显示原因。"
+      },
+      "kyc": {
+        "q": "为什么需要验证身份？",
+        "a": "首次提现前需进行验证，以确保奖励发给真实、独立的用户，而不是由一人操纵的数百个刷奖账户。\n\n挖矿、做任务、买加速包无需验证，只有提现才受此限制。"
+      },
+      "boosters": {
+        "q": "加速包如何运作？",
+        "a": "加速包可在 30 天内提升每小时挖矿速率，并且可以叠加 — 购买两个将同时享受两者的速率加成。加速包直接使用您钱包中的 USDT 在 BNB Chain 上支付。"
+      },
+      "boosterFailed": {
+        "q": "我付了加速包的款，但没有生效。",
+        "a": "付款由链上自动核验。如果币种错误、收款地址错误、付款地址与填写的地址不一致、金额低于标价或确认数不足，交易将被拒绝。\n\n「等待确认」通常稍后会自动解决 — 请在一分钟后重新提交相同的交易哈希。其他情况请提交工单并附上哈希。"
+      },
+      "referrals": {
+        "q": "邀请好友有什么好处？",
+        "a": "邀请好友可提升挖矿速率的倍数。当前生效的等级和倍数会在仪表盘和个人资料中显示。"
+      },
+      "tasks": {
+        "q": "什么是任务？",
+        "a": "可重复完成的简单操作，完成后直接发放积分。每个任务都有其奖励和冷却时间，均标在卡片上。"
+      }
+    }
+  },
+  "terms": {
+    "title": "服务条款",
+    "backHome": "返回首页",
+    "intro": "使用 Matsumoto 的规则说明。语言通俗明了，无隐藏套路。",
+    "updated": "本条款为工作草案，未经法律顾问审核。",
+    "q": {
+      "service": {
+        "q": "本服务的内容",
+        "a": "Matsumoto 是一个奖励平台。此处的「挖矿」指账户中按计划累积的奖励，不包含实体挖矿硬件，也不保证任何收益。"
+      },
+      "eligibility": {
+        "q": "使用资格",
+        "a": "您须达到所在地法定签订合同的年龄，且在当地使用本服务属于合法行为。每人仅限一个账户，以刷取奖励为目的创建的账户可能会被限制或关闭。"
+      },
+      "points": {
+        "q": "关于积分",
+        "a": "积分为平台内部记账单位，在提现前在平台外不具价值。速率、加成与兑换比例可能会进行调整，调整仅对未来生效，不具追溯力。"
+      },
+      "payouts": {
+        "q": "提现规则",
+        "a": "提现须完成身份验证并达到最低余额，且限制为每周一次。提现申请在付款前会经过审核。\n\n链上转账不可撤销。您须对填写的收款地址负责，因地址填错而丢失的资金无法找回。"
+      },
+      "conduct": {
+        "q": "禁止行为",
+        "a": "禁止多开或使用自动化程序、伪造验证文件，以及任何操纵累积、推荐或付款验证的企图。在调查期间我们可能会暂停账户并扣留提现。"
+      },
+      "liability": {
+        "q": "责任限制",
+        "a": "本服务按「现状」提供。因网络中断、区块链拥堵、第三方钱包或您自身丢失账户/钱包访问权限而导致的损失，我们概不负责。"
+      },
+      "changes": {
+        "q": "条款修改",
+        "a": "本条款可能会更新。在修改后继续使用本服务即表示您接受更新后的版本。"
+      }
+    }
+  },
+  "privacy": {
+    "title": "隐私政策",
+    "backHome": "返回首页",
+    "intro": "我们收集哪些信息、收集原因以及保留期限。",
+    "updated": "本政策为工作草案，未经法律顾问审核。",
+    "q": {
+      "collect": {
+        "q": "我们收集的信息",
+        "a": "您的邮箱地址、所选国家/地区，以及用于检测重复账户的设备指纹。我们还会记录您在平台上的活动：累积、点击、任务、推荐、购买加速包和提现申请。"
+      },
+      "kycData": {
+        "q": "身份验证文件",
+        "a": "如果您验证身份，我们会收集您的姓名、证件类型及号码、国家/地区、证件照片及自拍。\n\n这是我们持有的最敏感数据，仅用于审核您的验证申请以及履行出金相关的合规义务。"
+      },
+      "use": {
+        "q": "信息的使用方式",
+        "a": "用于运营您的账户、计算奖励、防范作弊与重复账户、审核身份验证以及处理提现。我们不会出售您的数据。"
+      },
+      "share": {
+        "q": "谁能看到这些信息",
+        "a": "提现的钱包地址和金额会写入公开区块链，所有人均可永久查阅。您的其他信息均不会被公开。\n\n我们使用基础设施供应商托管服务，他们代表我们处理数据。"
+      },
+      "retain": {
+        "q": "信息保留期限",
+        "a": "账户和交易记录在您的账户存续期间保留，并在注销后根据出金记录保存要求保留相应时间。验证文件仅保留至完成目的所需的最短时间。"
+      },
+      "rights": {
+        "q": "您的权利",
+        "a": "您可以查询我们保存的关于您的数据、申请更正或申请删除。删除申请受法定记录保存义务的限制，且无法删除已写入区块链的内容。"
+      },
+      "contact": {
+        "q": "联系我们",
+        "a": "在个人资料中提交工单，并注明为隐私相关请求。"
+      }
+    }
   }
 }

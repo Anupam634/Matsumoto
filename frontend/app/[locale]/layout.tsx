@@ -1,3 +1,4 @@
+import type { Viewport } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { locales } from '../../i18n';
@@ -11,6 +12,19 @@ export const metadata = {
   title: 'Matsumoto Mining',
   description: 'Cloud mining rewards on BNB Chain',
   manifest: '/manifest.webmanifest',
+  icons: {
+    icon: '/favicon.png',
+    shortcut: '/favicon.png',
+    apple: '/apple-icon.png',
+  },
+};
+
+// viewport-fit=cover lets the auth/dashboard screens pad around the notch
+// and home-indicator with env(safe-area-inset-*) instead of sitting under them.
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default async function LocaleLayout({
@@ -25,7 +39,7 @@ export default async function LocaleLayout({
   const messages = await getMessages();
   return (
     <html lang={locale}>
-      <body className="min-h-screen bg-slate-950 text-slate-100">
+      <body className="min-h-dvh bg-slate-950 text-slate-100">
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>

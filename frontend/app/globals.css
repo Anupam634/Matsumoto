@@ -64,6 +64,20 @@
       );
   }
 
+  .glow-field-light {
+    background:
+      radial-gradient(
+        60rem 40rem at 70% -10%,
+        rgba(99, 102, 241, 0.2),
+        transparent 60%
+      ),
+      radial-gradient(
+        40rem 30rem at 10% 20%,
+        rgba(56, 189, 248, 0.14),
+        transparent 60%
+      );
+  }
+
   .bg-cyber-grid {
     background-image: 
       linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
@@ -201,6 +215,70 @@
     transform: translateY(1px);
   }
 
+  /* App Shell & Standard UI Buttons */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+    padding: 0.625rem 1.25rem;
+    font-weight: 700;
+    color: #1c1917;
+    transition: all 0.2s ease;
+  }
+
+  .btn-primary:hover {
+    opacity: 0.95;
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.625rem 1.25rem;
+    font-weight: 600;
+    color: #f8fafc;
+    transition: all 0.2s ease;
+  }
+
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(245, 158, 11, 0.5);
+  }
+
+  .input-field {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.75rem 1rem;
+    color: #f8fafc;
+    outline: none;
+    transition: all 0.2s ease;
+  }
+
+  .input-field:focus {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+  }
+
+  .field-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    color: rgb(148, 163, 184);
+    margin-bottom: 0.35rem;
+  }
+
   /* ── Live Pulse Dots ─────────────────────────────────────── */
   .pulse-dot {
     position: relative;
@@ -272,6 +350,65 @@
 
 .animate-float {
   animation: float-y 6s ease-in-out infinite;
+}
+
+/* BNB Chain branding */
+.bnb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: rgba(240, 185, 11, 0.1);
+  border: 1px solid rgba(240, 185, 11, 0.3);
+  color: #f0b90b;
+  white-space: nowrap;
+}
+
+.chain-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgba(240, 185, 11, 0.85);
+}
+
+/* Language picker */
+.locale-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(15, 23, 42, 0.8);
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgb(226, 232, 240);
+  white-space: nowrap;
+}
+
+.locale-switch:focus-within {
+  border-color: #f59e0b;
+  color: #fbbf24;
+}
+
+.locale-switch select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.locale-switch option {
+  background: #0b0e17;
+  color: #e2e8f0;
 }
 
 @media (prefers-reduced-motion: reduce) {

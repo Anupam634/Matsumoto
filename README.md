@@ -36,18 +36,18 @@ npm run dev                 # http://localhost:3000
 
 ## Core modules (backend `src/`)
 
-| Module | Purpose |
-|---|---|
-| `auth/` | Email + password (scrypt), JWT sessions, `JwtAuthGuard`, referral capture |
-| `mining/` | Reward accrual engine — base rate × boosters × referral multiplier |
-| `boosters/` | Paid booster plans ($1/$5/$10/$50, 30d, stackable) |
-| `referrals/` | Invite tree + multiplier tiers |
-| `tasks/` | Tweet/follow/repost/YouTube/quiz/spin-wheel rewards |
-| `withdrawals/` | Points → $Matsumoto (3:1), min 100, 1/week, admin-approved |
-| `wallet/` | **Swappable** chain layer (offchain ↔ testnet ↔ mainnet) |
-| `admin/` | Miners, referral tree, block, per-country, rate adjust, airdrop |
-| `antiabuse/` | Multi-account / same-IP / same-device / bot-farm guards |
-| `kyc/` | Mandatory KYC gate |
+| Module | Purpose | Built? |
+|---|---|---|
+| `auth/` | Email + password (scrypt), JWT sessions, `JwtAuthGuard`, referral capture | ✅ |
+| `mining/` | Reward accrual engine — base rate × boosters × referral multiplier | ✅ |
+| `boosters/` | Paid booster plans ($1/$5/$10/$50, 30d, stackable) | ✅ — bought with on-chain crypto, verified automatically, no admin step |
+| `referrals/` | Invite tree + multiplier tiers | ✅ — no separate module; capture lives in `auth/`, the multiplier in `mining/`, the tree in `admin/` |
+| `tasks/` | Tweet/follow/repost/YouTube/quiz/spin-wheel rewards (honour-system claims) | ✅ |
+| `withdrawals/` | Points → $Matsumoto (3:1), min 100, 1/week, admin-approved | ✅ |
+| `wallet/` | **Swappable** chain layer (offchain ↔ testnet ↔ mainnet) | ✅ — `offchain` until the token contract details arrive |
+| `admin/` | Miners, referral tree, block, per-country, rate adjust, airdrop | ✅ |
+| `antiabuse/` | Multi-account / same-IP / same-device / bot-farm guards | ✅ |
+| `kyc/` | Mandatory KYC gate — in-house manual document review | ✅ |
 
 ## API (built so far)
 
@@ -63,8 +63,35 @@ All routes are under `/api`. Everything except register/login needs
 | POST | `/mining/claim` | Tap "Mine" — settles accrued points |
 | POST | `/withdrawals` | `{ points, toAddress }` — min 100 pts, 1/week, KYC-gated |
 | GET | `/withdrawals` | Caller's own request history |
+| GET | `/tasks` | Active tasks with the caller's cooldown state |
+| POST | `/tasks/:id/claim` | Credit a task reward (per-task cooldown) |
+| GET | `/kyc` | Caller's own verification status |
+| POST | `/kyc` | Submit identity documents for manual review |
+| GET | `/boosters` | Plan catalogue, your active boosters, recent purchases |
+| POST | `/boosters/purchase` | Quote a plan — pins price, payee and payer wallet |
+| POST | `/boosters/purchase/:id/submit` | Submit the tx hash; verified on chain, activates on success |
 
-Admin routes (approval queue, block, airdrop) land with the `admin/` module.
+### Admin panel (`/api/admin`, SPEC §6)
+
+Separate token type — `typ: 'admin'`; a miner token is rejected on every route
+below. Create the first operator with `npm run admin:create -- <email> <pass>`.
+
+| Method | Route | Notes |
+|---|---|---|
+| POST | `/admin/login` | Returns an admin-scoped `accessToken` |
+| GET | `/admin/stats` | Active miners (24h), totals, per-country counts |
+| GET | `/admin/users` | Paginated + searchable miner list with live rates |
+| GET | `/admin/users/:id` | Detail, referral tree (6 levels), ledger |
+| POST | `/admin/users/:id/block` | Block / unblock |
+| POST | `/admin/users/:id/rate` | Manual hash-rate adjustment |
+| POST | `/admin/users/:id/airdrop` | Manual point grant |
+| GET | `/admin/kyc` | KYC review queue, filterable by status |
+| GET | `/admin/kyc/:userId` | Applicant detail, including document images |
+| POST | `/admin/kyc/:userId/decision` | Approve or reject an application |
+| GET | `/admin/withdrawals` | Approval queue, filterable by status |
+| POST | `/admin/withdrawals/:id/decision` | Approve (pays out) or reject (refunds) |
+
+UI lives at `/<locale>/admin`.
 
 ## Design principles (kept honest)
 

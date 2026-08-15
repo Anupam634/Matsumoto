@@ -29,7 +29,9 @@
       "ctaSecondary": "Open Web3 Terminal",
       "honesty": "Matsumoto utilizes a scheduled reward accrual model (zero electricity & zero hardware wear). Accrued points convert directly to on-chain $Matsumoto on BNB Smart Chain.",
       "activeMinersBadge": "48,290+ Active Miners Accruing Now",
-      "verifiedNode": "KYC Verified Security · Instant 24h Payouts"
+      "verifiedNode": "KYC Verified Security · Instant 24h Payouts",
+      "playVideo": "Play intro video",
+      "pauseVideo": "Pause intro video"
     },
     "simulator": {
       "title": "Interactive Mining Rig Terminal",
@@ -64,6 +66,11 @@
       "boosterBuy": "Activated",
       "mined": "Claimed 24h Yield",
       "kyc": "KYC Approved"
+    },
+    "chain": {
+      "builtOn": "Built on",
+      "tagline": "Secure · Transparent · You own your rewards",
+      "learnMore": "Learn more"
     },
     "how": {
       "title": "How Matsumoto Mining Works",
@@ -181,7 +188,11 @@
       "audit": "Security Audit Report",
       "whitepaper": "Platform Whitepaper",
       "disclaimer": "Disclaimer: Matsumoto is a scheduled reward accrual platform (\"cloud mining simulation\") operating without proof-of-work hardware requirements. Matsumoto points are platform accounting units convertible to on-chain $Matsumoto BEP-20 tokens subject to KYC verification and security review.",
-      "copyright": "© Matsumoto Mining Platform. Built for the BNB Chain Ecosystem. All rights reserved."
+      "copyright": "© Matsumoto Mining Platform. Built for the BNB Chain Ecosystem. All rights reserved.",
+      "faq": "FAQ",
+      "support": "Support",
+      "terms": "Terms",
+      "privacy": "Privacy"
     }
   },
   "dashboard": {
@@ -202,7 +213,58 @@
     "kycRequired": "KYC status: {status}. Approval is required before you can withdraw.",
     "signOut": "Sign out",
     "loading": "Loading…",
-    "offline": "Can't reach the server. Try again."
+    "offline": "Can't reach the server. Try again.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "ready": "Ready to mine",
+    "accruing": "Accruing",
+    "tasksTitle": "Tasks",
+    "tasksSubtitle": "Earn extra points",
+    "claim": "Claim",
+    "cooldownShort": "in",
+    "pointsShort": "pts",
+    "working": "Please wait…",
+    "verifyCta": "Verify identity",
+    "buyBoosters": "Buy boosters",
+    "cloudMining": "Cloud Mining",
+    "heroBody": "Your rig accrues Matsumoto points every hour. Tap Mine once a day to bank them.",
+    "totalEarnings": "Total earned",
+    "atRate": "3 pts = 1",
+    "kycVerified": "Identity verified — withdrawals unlocked.",
+    "minWithdrawal": "Min. withdrawal",
+    "navDashboard": "Mining",
+    "navBoosters": "Boosters",
+    "navProfile": "Profile",
+    "plansTitle": "Booster packages",
+    "plansSubtitle": "Add hourly rate for 30 days. Boosters stack.",
+    "viewAll": "View all",
+    "popular": "POPULAR",
+    "resultingRate": "Resulting rate",
+    "duration": "Duration",
+    "days": "days",
+    "getStarted": "Get started",
+    "f1t": "0.9 pts / hour",
+    "f1b": "Base rate on every free account.",
+    "f2t": "24-hour window",
+    "f2b": "Tap Mine once a day to keep accruing.",
+    "f3t": "3 pts = 1 $Matsumoto",
+    "f3b": "Fixed conversion when you withdraw.",
+    "f4t": "Reviewed payouts",
+    "f4b": "KYC approval before any on-chain transfer.",
+    "recentTitle": "Recent activity",
+    "reason": {
+      "MINING": "Mining reward",
+      "TASK_REWARD": "Task reward",
+      "REFERRAL_BONUS": "Referral bonus",
+      "BOOSTER_PURCHASE": "Booster purchase",
+      "WITHDRAWAL": "Withdrawal",
+      "AIRDROP": "Airdrop",
+      "ADMIN_ADJUST": "Admin adjustment"
+    },
+    "poweredByBnb": "Powered by BNB Chain",
+    "bnbRewards": "Rewards on BNB Chain",
+    "chainIndicator": "BNB Chain",
+    "navWithdraw": "Withdraw"
   },
   "auth": {
     "signIn": "Sign In",
@@ -217,7 +279,12 @@
     "working": "Please wait…",
     "networkError": "Can't reach the server. Try again.",
     "referralRejected": "Your account was created, but the referral code wasn't applied because the inviter shares this device or network.",
-    "backHome": "Back to home"
+    "backHome": "Back to home",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "country": "Country",
+    "countryPlaceholder": "Select your country",
+    "countryRequired": "Please select your country."
   },
   "tasks": {
     "title": "Tasks & Bounties",
@@ -226,14 +293,304 @@
     "repost": "Repost Pinned Announcement",
     "youtube": "Watch YouTube Mining Guide",
     "quiz": "Complete Web3 Knowledge Quiz",
-    "spin": "Daily Lucky Reward Wheel"
+    "spin": "Daily Lucky Reward Wheel",
+    "wheelTitle": "Spin the wheel",
+    "wheelBody": "Press the middle to spin. Where it stops is what you get.",
+    "wheelWon": "You won {points, plural, one {# point} other {# points}}",
+    "collect": "Collect",
+    "close": "Close",
+    "mute": "Mute sound",
+    "unmute": "Unmute sound",
+    "wheelAria": "Prize wheel with {n} segments",
+    "offline": "Can't reach the server. Try again."
   },
   "withdraw": {
     "title": "Withdraw",
-    "amount": "Amount (points)",
-    "address": "BNB Chain address",
-    "min": "Minimum 100 points",
-    "weekly": "1 request per week",
-    "submit": "Request Withdrawal"
+    "subtitle": "Convert your points to $Matsumoto and send them to a BNB Chain wallet.",
+    "paidOnChain": "Paid on BNB Chain",
+    "backToDashboard": "Back to dashboard",
+    "offline": "Can't reach the server. Try again.",
+    "available": "Available to withdraw",
+    "pointsShort": "pts",
+    "kycRequired": "Identity verification is required before your first withdrawal.",
+    "verifyCta": "Verify",
+    "needMore": "You need at least {min} points before you can withdraw.",
+    "cooldown": "One withdrawal per week. You can request again on {date}.",
+    "amount": "Amount",
+    "minNote": "Minimum {min} points",
+    "useMax": "Use max",
+    "toAddress": "Destination wallet",
+    "addressNote": "A BNB Chain (BEP-20) address. Double-check it — payouts can't be reversed.",
+    "youReceive": "You receive",
+    "conversionNote": "3 pts = 1",
+    "submit": "Request withdrawal",
+    "submitting": "Sending…",
+    "submitted": "Request submitted. An admin reviews it before the payout is sent.",
+    "reviewNote": "Points are held as soon as you request. If a request is rejected they're returned to your balance.",
+    "historyTitle": "Your requests",
+    "rejectedReason": "Reason",
+    "status": {
+      "PENDING": "Pending review",
+      "APPROVED": "Approved",
+      "PAID": "Paid",
+      "REJECTED": "Rejected"
+    }
+  },
+  "kyc": {
+    "title": "Identity verification",
+    "why": "KYC is required before your first withdrawal, so coins are distributed fairly.",
+    "backToDashboard": "Back to dashboard",
+    "formTitle": "Submit your documents",
+    "formHint": "A reviewer checks these manually. You'll see the result here.",
+    "fullName": "Full name",
+    "documentType": "Document type",
+    "documentNumber": "Document number",
+    "country": "Country",
+    "front": "Document front",
+    "back": "Document back",
+    "selfie": "Selfie",
+    "optional": "optional",
+    "tapToUpload": "Tap to upload",
+    "imageError": "Couldn't read that image",
+    "needImages": "Please add the document front and a selfie.",
+    "privacy": "Photos are stored only for this review and are deleted if your application is rejected.",
+    "submit": "Submit for review",
+    "submitting": "Submitting…",
+    "reason": "Reason",
+    "pendingBody": "Your documents are under review. This usually takes a short while.",
+    "approvedBody": "You're verified and can withdraw once you meet the minimum.",
+    "offline": "Can't reach the server. Try again.",
+    "status": {
+      "NONE": "Not verified yet",
+      "PENDING": "Under review",
+      "APPROVED": "Verified",
+      "REJECTED": "Rejected — you can re-submit"
+    },
+    "docType": {
+      "PASSPORT": "Passport",
+      "NATIONAL_ID": "National ID",
+      "DRIVERS_LICENSE": "Driver's licence"
+    },
+    "countryPlaceholder": "Select your country"
+  },
+  "boosters": {
+    "title": "Booster packages",
+    "subtitle": "Boosters raise your hourly mining rate for 30 days and stack — buy as many as you like.",
+    "backToDashboard": "Back to dashboard",
+    "activeTitle": "Your active boosters",
+    "expires": "expires",
+    "historyTitle": "Recent purchases",
+    "resultingRate": "Resulting rate",
+    "days": "days",
+    "stackable": "stackable",
+    "buy": "Buy",
+    "working": "Please wait…",
+    "offline": "Can't reach the server. Try again.",
+    "paymentsDisabled": "Booster purchases aren't available yet — the payment wallet hasn't been configured on the server.",
+    "payTitle": "Send the payment",
+    "payBody": "Send this exact amount from the wallet you entered, then paste the transaction hash below.",
+    "amount": "Amount",
+    "payTo": "Pay to this address",
+    "payFrom": "Paying from",
+    "copy": "Copy",
+    "txHash": "Transaction hash",
+    "verify": "Verify payment",
+    "verifying": "Verifying…",
+    "close": "Cancel",
+    "payWarning": "Your payment is verified automatically on BNB Chain — no manual approval. It needs {confirmations} confirmations first, so if it says \"waiting for confirmations\", just try again in a minute.",
+    "poweredByBnb": "Powered by BNB Chain",
+    "chainName": "BNB Chain",
+    "fromTitle": "Which wallet will you pay from?",
+    "fromBody": "Enter the BNB Chain wallet you'll send the payment from. The transfer must come from this address, so nobody else can claim your transaction.",
+    "fromLabel": "Your wallet address",
+    "fromInvalid": "That doesn't look like a BNB Chain address (0x followed by 40 characters).",
+    "continue": "Continue",
+    "step": "Step {n} of 2",
+    "scanNote": "Scan to fill the address in your wallet app — enter the amount above manually."
+  },
+  "profile": {
+    "title": "Profile",
+    "subtitle": "Your account, balance and referrals.",
+    "backToDashboard": "Back to dashboard",
+    "offline": "Can't reach the server. Try again.",
+    "balance": "Balance",
+    "pointsShort": "pts",
+    "chainName": "BNB Chain",
+    "withdrawCta": "Withdraw",
+    "withdrawNeedsKyc": "Identity verification is required before withdrawing.",
+    "withdrawNeedsBalance": "You need at least {min} points to withdraw.",
+    "accountTitle": "Account",
+    "email": "Email",
+    "country": "Country",
+    "memberSince": "Member since",
+    "userId": "User ID",
+    "identityTitle": "Identity",
+    "viewKyc": "View verification",
+    "completeKyc": "Complete verification",
+    "kycStatus": {
+      "NONE": "Not verified yet — required before your first withdrawal.",
+      "PENDING": "Under review. We'll update this once a reviewer decides.",
+      "APPROVED": "✓ Verified — withdrawals unlocked.",
+      "REJECTED": "Rejected. Open verification to see why and resubmit."
+    },
+    "referralTitle": "Referrals",
+    "referralCode": "Your code",
+    "invited": "Invited",
+    "tier": "Tier",
+    "copy": "Copy",
+    "signOut": "Sign out",
+    "helpTitle": "Help",
+    "contactSupport": "Contact support",
+    "readFaq": "Read the FAQ",
+    "terms": "Terms",
+    "privacy": "Privacy"
+  },
+  "support": {
+    "title": "Support",
+    "subtitle": "Ask us anything about your account, mining, or a payment.",
+    "backToDashboard": "Back to dashboard",
+    "offline": "Can't reach the server. Try again.",
+    "tryFaq": "Most questions are answered already.",
+    "readFaq": "Read the FAQ",
+    "newTicket": "New ticket",
+    "atCap": "You have {max} tickets still open. Continue in one of those, or wait for a reply.",
+    "empty": "You haven't contacted support yet.",
+    "subject": "Subject",
+    "subjectPlaceholder": "Short summary of the problem",
+    "message": "Message",
+    "messagePlaceholder": "What happened? Include any transaction hash or dates that might help.",
+    "cancel": "Cancel",
+    "send": "Send",
+    "sending": "Sending…",
+    "reply": "Reply",
+    "replyPlaceholder": "Add to this conversation…",
+    "messageCount": "{n} messages",
+    "fromSupport": "Support",
+    "fromYou": "You",
+    "closedNote": "This ticket is closed. Open a new one if you still need help.",
+    "status": {
+      "OPEN": "Waiting for us",
+      "ANSWERED": "Answered",
+      "CLOSED": "Closed"
+    }
+  },
+  "faq": {
+    "title": "Frequently asked questions",
+    "backHome": "Back to home",
+    "intro": "How mining, boosters, verification and payouts actually work here.",
+    "q": {
+      "mining": {
+        "q": "What does “mining” mean on Matsumoto?",
+        "a": "It is scheduled reward accrual, not physical hardware. Your account earns Matsumoto Points at an hourly rate; no computer anywhere is solving hashes on your behalf.\n\nPoints are internal units. Only a withdrawal converts them to on-chain $Matsumoto."
+      },
+      "cooldown": {
+        "q": "Why can I only tap Mine once a day?",
+        "a": "Tapping Mine banks whatever has accrued and starts a 24-hour cooldown. Points keep accruing between taps, up to a ceiling of 24 hours' worth, so nothing is lost if you come back a little late — but accrual stops once you hit that ceiling."
+      },
+      "conversion": {
+        "q": "How many points is one $Matsumoto?",
+        "a": "Three points convert to one $Matsumoto. The rate is fixed in the platform and applied when you withdraw."
+      },
+      "minWithdrawal": {
+        "q": "What is the minimum withdrawal?",
+        "a": "100 points, and one withdrawal request per week. Your identity must be verified first."
+      },
+      "withdrawTime": {
+        "q": "How long does a withdrawal take?",
+        "a": "Points leave your balance the moment you request, so a pending request cannot be spent twice. An operator then reviews it before the on-chain transfer is sent.\n\nIf a request is rejected, the points are returned to your balance and the reason is shown on the withdrawal page."
+      },
+      "kyc": {
+        "q": "Why do you need my ID?",
+        "a": "Verification is required before your first withdrawal, so payouts go to real, distinct people rather than to hundreds of accounts run by one person.\n\nYou can mine, complete tasks and buy boosters without verifying. Only withdrawal is gated."
+      },
+      "boosters": {
+        "q": "How do boosters work?",
+        "a": "A booster adds to your hourly rate for 30 days, and they stack — buying two adds both bonuses. They are paid in USDT on BNB Chain, directly from your own wallet."
+      },
+      "boosterFailed": {
+        "q": "I paid for a booster but it didn't activate.",
+        "a": "Payments are verified automatically against the chain. A payment is rejected if it used the wrong token, went to the wrong address, came from an address other than the one you entered, was for less than the price, or has not yet reached the required number of confirmations.\n\n“Waiting for confirmations” resolves on its own — submit the same transaction hash again in a minute. For anything else, open a ticket with the hash."
+      },
+      "referrals": {
+        "q": "What do referrals give me?",
+        "a": "Inviting people raises a multiplier on your mining rate. The tier and multiplier currently applied are shown on your dashboard and profile."
+      },
+      "tasks": {
+        "q": "What are tasks?",
+        "a": "Small repeatable actions that credit points directly. Each has its own reward and cooldown, both shown on the card."
+      }
+    }
+  },
+  "terms": {
+    "title": "Terms of service",
+    "backHome": "Back to home",
+    "intro": "The rules for using Matsumoto. Plain language, no surprises.",
+    "updated": "These terms are a working draft and have not been reviewed by a lawyer.",
+    "q": {
+      "service": {
+        "q": "What this service is",
+        "a": "Matsumoto is a rewards platform. “Mining” here means scheduled reward accrual on your account. There is no physical mining hardware, and no guarantee of profit."
+      },
+      "eligibility": {
+        "q": "Who can use it",
+        "a": "You must be old enough to enter a contract where you live, and using the service must be legal there. One account per person. Accounts created to farm rewards may be limited or closed."
+      },
+      "points": {
+        "q": "Points",
+        "a": "Points are internal units with no value outside this platform until withdrawn. Rates, bonuses and conversion may be adjusted, and adjustments apply going forward, not retroactively."
+      },
+      "payouts": {
+        "q": "Payouts",
+        "a": "Withdrawals require verified identity, a minimum balance, and are limited to one request per week. Requests are reviewed before payment.\n\nOn-chain transfers are irreversible. You are responsible for the destination address you provide; funds sent to an address you mistyped cannot be recovered."
+      },
+      "conduct": {
+        "q": "What is not allowed",
+        "a": "Multiple or automated accounts, forged verification documents, and any attempt to manipulate accrual, referrals or payment verification. We may suspend an account and withhold a payout while investigating."
+      },
+      "liability": {
+        "q": "Limits",
+        "a": "The service is provided as-is. We are not liable for losses from network outages, chain congestion, third-party wallets, or your own loss of account or wallet access."
+      },
+      "changes": {
+        "q": "Changes",
+        "a": "These terms may change. Continued use after a change means you accept the updated version."
+      }
+    }
+  },
+  "privacy": {
+    "title": "Privacy policy",
+    "backHome": "Back to home",
+    "intro": "What we collect, why, and how long we keep it.",
+    "updated": "This policy is a working draft and have not been reviewed by a lawyer.",
+    "q": {
+      "collect": {
+        "q": "What we collect",
+        "a": "Your email address, the country you select, and a device fingerprint used to detect duplicate accounts. We also record your activity on the platform: accrual, taps, tasks, referrals, booster purchases and withdrawal requests."
+      },
+      "kycData": {
+        "q": "Verification documents",
+        "a": "If you verify your identity we collect your name, document type and number, country, photographs of that document, and a selfie.\n\nThis is the most sensitive data we hold. It is used only to decide whether to approve your verification and to satisfy the obligations that come with paying people out."
+      },
+      "use": {
+        "q": "How we use it",
+        "a": "To run your account, calculate rewards, detect abuse and duplicate accounts, review verification, and process withdrawals. We do not sell your data."
+      },
+      "share": {
+        "q": "Who else sees it",
+        "a": "The wallet address and amount of a withdrawal are written to a public blockchain and are permanently visible to anyone. Nothing else about you is published.\n\nWe use infrastructure providers to host the service, who process data on our behalf."
+      },
+      "retain": {
+        "q": "How long we keep it",
+        "a": "Account and transaction records are kept while your account exists and afterwards where records of payouts must be retained. Verification documents are kept for as long as required for that purpose and no longer."
+      },
+      "rights": {
+        "q": "Your choices",
+        "a": "You can ask what we hold about you, ask for corrections, or ask for deletion. Deletion requests are limited by records we are required to keep, and cannot remove anything already written to the blockchain."
+      },
+      "contact": {
+        "q": "Contact",
+        "a": "Open a support ticket from your profile and mark it as a privacy request."
+      }
+    }
   }
 }

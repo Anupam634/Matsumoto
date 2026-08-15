@@ -14,6 +14,12 @@ export class MiningController {
     return this.mining.getStatus(userId);
   }
 
+  /** GET /api/mining/history — lifetime earnings + recent ledger activity. */
+  @Get('history')
+  history(@CurrentUser('id') userId: string) {
+    return this.mining.history(userId);
+  }
+
   /** POST /api/mining/claim — tap the Mine button. */
   @Post('claim')
   claim(@CurrentUser('id') userId: string) {

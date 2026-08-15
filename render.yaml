@@ -1,0 +1,56 @@
+# Render Blueprint — the deployment config lives here rather than only in the
+# dashboard, so it cannot silently drift. Render reads this on "New → Blueprint";
+# an existing service keeps whatever its dashboard settings say, so check them
+# against this file after adopting it.
+#
+# Migrations and catalogue seeding run from `npm run start:prod` (see
+# backend/package.json), not from this file, so they happen on every deploy
+# whatever the start command is set to here.
+services:
+  - type: web
+    name: matsumoto-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: matsumoto-db
+          property: connectionString
+      # Secrets are deliberately not committed. `sync: false` makes Render
+      # prompt for them at deploy time instead of expecting a value here.
+      - key: JWT_SECRET
+        sync: false
+      # The first admin panel login, created at boot. Without these a fresh
+      # deployment has no way into its own admin panel: there is no admin
+      # self-signup and the free tier has no shell to run the CLI from.
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: HOT_WALLET_PRIVATE_KEY
+        sync: false
+      # Booster payments stay disabled until these two are set — see DEPLOY.md.
+      - key: BOOSTER_PAY_TO_ADDRESS
+        sync: false
+      - key: BOOSTER_PAY_TOKEN_ADDRESS
+        sync: false
+      - key: WALLET_MODE
+        value: offchain
+      - key: BSC_RPC_URL
+        value: https://bsc-dataseed.binance.org/
+      - key: BOOSTER_PAY_TOKEN
+        value: USDT
+      - key: BOOSTER_PAY_TOKEN_DECIMALS
+        value: "18"
+      - key: BOOSTER_MIN_CONFIRMATIONS
+        value: "6"
+
+databases:
+  - name: matsumoto-db
+    plan: free
+
+envVarGroups: []

@@ -6,10 +6,15 @@ import { AuthModule } from './auth/auth.module';
 import { AntiabuseModule } from './antiabuse/antiabuse.module';
 import { MiningModule } from './mining/mining.module';
 import { WithdrawalsModule } from './withdrawals/withdrawals.module';
+import { AdminModule } from './admin/admin.module';
+import { TasksModule } from './tasks/tasks.module';
+import { KycModule } from './kyc/kyc.module';
+import { BoostersModule } from './boosters/boosters.module';
+import { SupportModule } from './support/support.module';
+import { HealthModule } from './health/health.module';
 
 /**
- * Root module. Feature modules that are still stubs (boosters, referrals,
- * tasks, admin, kyc) get wired here as they are built out.
+ * Root module. Feature modules that are still stubs (referrals) get wired here as they are built out.
  */
 @Module({
   imports: [
@@ -19,6 +24,12 @@ import { WithdrawalsModule } from './withdrawals/withdrawals.module';
     AntiabuseModule,
     MiningModule,
     WithdrawalsModule,
+    AdminModule,
+    TasksModule,
+    KycModule,
+    SupportModule,
+    HealthModule,
+    BoostersModule,
   ],
   providers: [PrismaService],
 })

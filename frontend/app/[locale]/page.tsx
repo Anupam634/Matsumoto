@@ -10,12 +10,9 @@ import { BoosterGrid } from '../../components/BoosterGrid';
 import { ReferralTierMatrix } from '../../components/ReferralTierMatrix';
 import { TasksBountySection } from '../../components/TasksBountySection';
 import { FAQSection } from '../../components/FAQSection';
-
-const LOCALE_LABELS: Record<string, string> = {
-  en: 'EN',
-  zh: '中文',
-  ko: '한국어',
-};
+import { LogoMark } from '../../components/Logo';
+import { LocaleSwitcher } from '../../components/LocaleSwitcher';
+import { NavAuth, AuthAwareCta, HideWhenAuthed } from '../../components/AuthAware';
 
 export default function LandingPage({
   params: { locale },
@@ -37,20 +34,21 @@ function Landing({ locale }: { locale: string }) {
       <NetworkStatusBar />
 
       {/* ─────────────────────────── Nav ─────────────────────────── */}
-      <header className="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4">
-          {/* Logo */}
+      <header className="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3.5">
+          {/* Brand Logo */}
           <Link href={`/${locale}`} className="flex items-center gap-2.5 font-black text-lg">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-amber-300 via-amber-500 to-amber-600 font-extrabold text-slate-950 shadow-md shadow-amber-500/20">
-              M
-            </span>
-            <span className="tracking-tight">
-              Matsumoto <span className="text-amber-400 font-mono text-xs uppercase tracking-widest block font-bold">Mining Platform</span>
-            </span>
+            <LogoMark size={38} priority className="shrink-0" />
+            <div className="leading-none">
+              <span className="text-base font-extrabold tracking-tight text-white">Matsumoto</span>
+              <span className="block font-mono text-[10px] font-bold uppercase tracking-widest text-amber-400">
+                Mining Platform
+              </span>
+            </div>
           </Link>
 
           {/* Nav Links */}
-          <nav className="hidden lg:flex items-center gap-6 text-xs font-semibold uppercase tracking-wider text-slate-400">
+          <nav className="hidden lg:flex items-center gap-6 text-xs font-semibold uppercase tracking-wider text-slate-300">
             <a href="#how" className="transition-colors hover:text-amber-400">
               {t('nav.features')}
             </a>
@@ -75,36 +73,14 @@ function Landing({ locale }: { locale: string }) {
           </nav>
 
           {/* Action CTAs & Language Switcher */}
-          <div className="flex items-center gap-3 text-xs">
-            {/* Language Switcher */}
-            <div className="flex items-center rounded-xl border border-slate-800 bg-slate-900/90 p-1">
-              {locales.map((l) => (
-                <Link
-                  key={l}
-                  href={`/${l}`}
-                  className={`rounded-lg px-2.5 py-1 font-semibold transition-all ${
-                    l === locale
-                      ? 'bg-amber-500 text-slate-950 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {LOCALE_LABELS[l]}
-                </Link>
-              ))}
-            </div>
-
-            <Link
-              href={signIn}
-              className="hidden sm:inline-block rounded-xl border border-slate-700/80 bg-slate-900/60 px-4 py-2 font-semibold text-slate-200 hover:border-amber-500/60 hover:text-amber-400"
-            >
-              {t('nav.signIn')}
-            </Link>
-            <Link
-              href={register}
-              className="btn-gold rounded-xl px-4 py-2 font-bold uppercase tracking-wider text-slate-950"
-            >
-              {t('nav.getStarted')}
-            </Link>
+          <div className="flex items-center gap-2.5 text-xs">
+            <LocaleSwitcher locale={locale} />
+            <NavAuth
+              locale={locale}
+              signInLabel={t('nav.signIn')}
+              getStartedLabel={t('nav.getStarted')}
+              dashboardLabel={t('nav.dashboard')}
+            />
           </div>
         </div>
       </header>
@@ -131,18 +107,21 @@ function Landing({ locale }: { locale: string }) {
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-4">
-              <Link
+              <AuthAwareCta
+                locale={locale}
                 href={register}
+                label={t('hero.ctaPrimary')}
+                dashboardLabel={t('nav.dashboard')}
                 className="btn-gold rounded-xl px-8 py-4 text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-xl shadow-amber-500/20"
-              >
-                {t('hero.ctaPrimary')} →
-              </Link>
-              <Link
-                href={signIn}
-                className="rounded-xl border border-slate-700/80 bg-slate-900/60 px-6 py-4 text-sm font-bold text-slate-200 backdrop-blur-md hover:border-amber-500/60 hover:text-amber-400 transition-colors"
-              >
-                {t('hero.ctaSecondary')}
-              </Link>
+              />
+              <HideWhenAuthed>
+                <Link
+                  href={signIn}
+                  className="rounded-xl border border-slate-700/80 bg-slate-900/60 px-6 py-4 text-sm font-bold text-slate-200 backdrop-blur-md hover:border-amber-500/60 hover:text-amber-400 transition-colors"
+                >
+                  {t('hero.ctaSecondary')}
+                </Link>
+              </HideWhenAuthed>
             </div>
 
             {/* Trust & Verified Node info */}
@@ -320,18 +299,21 @@ function Landing({ locale }: { locale: string }) {
           </p>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-            <Link
+            <AuthAwareCta
+              locale={locale}
               href={register}
+              label={t('cta.buttonPrimary')}
+              dashboardLabel={t('nav.dashboard')}
               className="btn-gold rounded-xl px-8 py-4 text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-xl"
-            >
-              {t('cta.buttonPrimary')} →
-            </Link>
-            <Link
-              href={signIn}
-              className="rounded-xl border border-slate-700 bg-slate-900/80 px-6 py-4 text-sm font-bold text-slate-200 hover:border-amber-500/60 hover:text-amber-400"
-            >
-              {t('cta.buttonSecondary')}
-            </Link>
+            />
+            <HideWhenAuthed>
+              <Link
+                href={signIn}
+                className="rounded-xl border border-slate-700 bg-slate-900/80 px-6 py-4 text-sm font-bold text-slate-200 hover:border-amber-500/60 hover:text-amber-400"
+              >
+                {t('cta.buttonSecondary')}
+              </Link>
+            </HideWhenAuthed>
           </div>
         </div>
       </section>
@@ -341,9 +323,7 @@ function Landing({ locale }: { locale: string }) {
         <div className="mx-auto max-w-7xl grid gap-10 lg:grid-cols-12 pb-12 border-b border-slate-900">
           <div className="lg:col-span-5 space-y-4">
             <div className="flex items-center gap-2.5 font-black text-lg text-slate-100">
-              <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-500 text-slate-950 font-extrabold text-sm">
-                M
-              </span>
+              <LogoMark size={32} />
               Matsumoto Mining Platform
             </div>
             <p className="text-xs leading-relaxed text-slate-400 max-w-md">
@@ -362,10 +342,10 @@ function Landing({ locale }: { locale: string }) {
                 {t('footer.quickLinks')}
               </h4>
               <ul className="space-y-2 text-slate-400">
-                <li><a href="#how" className="hover:text-amber-400">Features</a></li>
-                <li><a href="#boosters" className="hover:text-amber-400">Booster Nodes</a></li>
-                <li><a href="#calculator" className="hover:text-amber-400">Yield Calculator</a></li>
-                <li><a href="#referrals" className="hover:text-amber-400">Referral Multipliers</a></li>
+                <li><a href="#how" className="hover:text-amber-400">{t('nav.features')}</a></li>
+                <li><Link href={`/${locale}/boosters`} className="hover:text-amber-400">{t('nav.boosters')}</Link></li>
+                <li><a href="#calculator" className="hover:text-amber-400">{t('nav.calculator')}</a></li>
+                <li><a href="#referrals" className="hover:text-amber-400">{t('nav.referrals')}</a></li>
               </ul>
             </div>
 
@@ -374,10 +354,10 @@ function Landing({ locale }: { locale: string }) {
                 {t('footer.ecosystem')}
               </h4>
               <ul className="space-y-2 text-slate-400">
-                <li><span className="text-amber-400 font-mono font-bold">$Matsumoto BEP-20</span></li>
-                <li><span className="text-slate-400">Binance Smart Chain</span></li>
-                <li><span className="text-slate-400">Decentralized Payouts</span></li>
-                <li><span className="text-slate-400">Anti-Sybil Engine</span></li>
+                <li><Link href={`/${locale}/dashboard`} className="text-amber-400 font-mono font-bold hover:underline">$Matsumoto BEP-20</Link></li>
+                <li><Link href={`/${locale}/withdraw`} className="hover:text-amber-400">BNB Chain Withdrawals</Link></li>
+                <li><Link href={`/${locale}/kyc`} className="hover:text-amber-400">KYC Verification</Link></li>
+                <li><Link href={`/${locale}/support`} className="hover:text-amber-400">Support Desk</Link></li>
               </ul>
             </div>
 
@@ -386,9 +366,10 @@ function Landing({ locale }: { locale: string }) {
                 {t('footer.legal')}
               </h4>
               <ul className="space-y-2 text-slate-400">
-                <li><span className="text-slate-400">100 Pts Min Payout</span></li>
-                <li><span className="text-slate-400">Mandatory KYC Fair Policy</span></li>
-                <li><span className="text-slate-400">Weekly Payout Settlement</span></li>
+                <li><Link href={`/${locale}/faq`} className="hover:text-amber-400">{t('footer.faq')}</Link></li>
+                <li><Link href={`/${locale}/terms`} className="hover:text-amber-400">{t('footer.terms')}</Link></li>
+                <li><Link href={`/${locale}/privacy`} className="hover:text-amber-400">{t('footer.privacy')}</Link></li>
+                <li><Link href={`/${locale}/support`} className="hover:text-amber-400">{t('footer.support')}</Link></li>
               </ul>
             </div>
           </div>

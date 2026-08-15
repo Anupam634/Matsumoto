@@ -1,0 +1,39 @@
+# Local Postgres + Redis for the backend — everything the app itself needs
+# (NestJS API, Next.js frontend) still runs directly with npm for fast
+# iteration; this just gives them somewhere to talk to.
+#
+# Usage: docker compose up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: matsumoto
+    ports:
+      - '5432:5432'
+    volumes:
+      - matsumoto_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - matsumoto_redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  matsumoto_postgres:
+  matsumoto_redis:

@@ -105,12 +105,51 @@ Limits/detection for: multiple accounts, same IP address, same device (fingerpri
 
 ---
 
-## 9. OPEN QUESTIONS (need client answers before final build)
+## 9. QUESTION LOG
 
-1. **Booster stacking math:** does each additional booster add a flat +rate, or multiply? What's the max reachable rate?
-2. **Accrual model:** continuous server-side accrual, or only counts when user is within a claimed 24h window?
-3. **Withdrawal fee:** any % or flat fee deducted? Gas paid by user or platform?
-4. **Token details:** real contract address, ABI, decimals — or build against a testnet mock for now?
-5. **Deposit/payment rail:** how do users pay for boosters — direct BNB/USDT transfer, on-page wallet payment, or a payment processor?
-6. **KYC provider:** which service (Sumsub, Onfido, manual doc upload)?
-7. **Task verification:** how strict — real API checks (X/YouTube) or honor-system + admin spot-check?
+### 9a. Answered by the client (Jul 3 call)
+
+| # | Question | Answer |
+|---|---|---|
+| 1 | Real mining hardware or simulation? | Simulation, "like periacoin com" |
+| 2 | Accrual model | User taps "Mine" once per 24h. Implemented as continuous server-side accrual capped at a 24h window, settled by the tap. |
+| 3 | Booster quantity | "user can buy maximum booster they wish" — unlimited, stackable, 30 days each |
+| 4 | Referral structure | Not a % commission — an invite-count → mining-rate multiplier (§2 table) |
+| 5 | Withdrawal minimum / frequency | 100 Matsumoto Points, 1 request per week |
+| 6 | Withdrawal approval | Manual admin review |
+| 7 | Conversion rate | 3 Matsumoto Points = 1 mainnet $Matsumoto |
+| 8 | KYC scope | Mandatory for all users, "for fairness of coin distribution" |
+| 9 | Listing | After 500k users (business milestone, not engineering) |
+| 10 | UI/UX + branding assets | None supplied — "its all your imagization to start with" |
+
+### 9b. BLOCKING — still unanswered, needed before a real-money launch
+
+1. **Token details:** client says the BEP-20 is "created already" on BNB Chain, but has not supplied the **contract address, ABI, or decimals**. Until then `WALLET_MODE=offchain` is the only honest setting — no real payout can be wired.
+2. **Deposit / payment rail:** "people use real money to buy booster plans" — but *how*? Direct BNB/USDT transfer, on-page wallet payment, or a card processor? Nothing can be charged until this is chosen.
+3. **Withdrawal fee:** asked, not answered. Any % or flat deduction? Who pays gas — user or platform?
+4. **KYC provider:** mandatory KYC confirmed, but no provider named (Sumsub / Onfido / manual doc upload). Gates every payout.
+5. **Task verification depth:** task types confirmed (tweet, follow, repost, YouTube, quiz, spin wheel) but not whether they need real X/YouTube API checks or honour-system + admin spot-check.
+
+### 9c. AMBIGUOUS — our reading, needs confirmation
+
+**Does the referral multiplier apply to booster bonuses, or only to the base rate?**
+
+The client's only worked example (`$1 booster → 2.9/hr`) was given at 0 invites, where the
+multiplier is ×1 — so it does **not** disambiguate the two readings. The financial
+difference is very large:
+
+| Reading | Formula | $50 booster + 31 invites |
+|---|---|---|
+| **A — current implementation** | `(base + Σ bonuses) × multiplier` | **727.2 /hr** |
+| B — multiplier on base only | `(base × multiplier) + Σ bonuses` | 97.2 /hr |
+
+Reading A is ~7.5× more expensive to the platform, and because boosters are **unlimited and
+stackable** the effective rate is unbounded: 10 × $50 boosters at 31+ invites yields
+~7,207 points/hr ≈ 57,650 $Matsumoto/day for a $500 outlay. Confirm the intended formula and
+whether a rate cap is wanted before any real-money launch.
+
+### 9d. CONTRADICTION — resolved in favour of the client's direct answer
+
+The job post asks for "**instant** withdrawal" with "automated transaction processing", but
+in conversation the client said withdrawals "undergo admin preview manually". Built as
+manual admin approval (§4). Worth re-confirming, since the two statements conflict.
