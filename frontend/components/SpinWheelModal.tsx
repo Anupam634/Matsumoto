@@ -122,9 +122,13 @@ export function SpinWheelModal({
       return;
     }
 
-    const target = FULL_TURNS * 360 - (outcome.index * slice + slice / 2);
+    const currentNormalized = ((angle % 360) + 360) % 360;
+    const winningAngle = (((360 - (outcome.index * slice + slice / 2)) % 360) + 360) % 360;
+    const diff = (((winningAngle - currentNormalized) % 360) + 360) % 360;
+    const target = angle + FULL_TURNS * 360 + (diff === 0 ? 360 : diff);
+
     const reduced = prefersReducedMotion();
-    setAngle(reduced ? -(outcome.index * slice + slice / 2) : target);
+    setAngle(reduced ? winningAngle : target);
 
     if (reduced) {
       setResult(outcome);
@@ -138,7 +142,7 @@ export function SpinWheelModal({
       const progress = elapsed / SPIN_MS;
       if (progress >= 1) return;
       tick();
-      const gap = 50 + 380 * Math.pow(progress, 2.5);
+      const gap = 55 + 350 * Math.pow(progress, 2.2);
       elapsed += gap;
       window.setTimeout(schedule, gap);
     };
@@ -278,12 +282,13 @@ export function SpinWheelModal({
 
             {/* 3. Rotating Wheel Group */}
             <g
+              transform={`rotate(${angle} 0 0)`}
               style={{
                 transform: `rotate(${angle}deg)`,
-                transformOrigin: 'center',
+                transformOrigin: '0px 0px',
                 transition: spinning
-                  ? `transform ${SPIN_MS}ms cubic-bezier(.12,.88,.2,1)`
-                  : undefined,
+                  ? `transform ${SPIN_MS}ms cubic-bezier(0.12, 0.88, 0.2, 1)`
+                  : 'none',
               }}
             >
               {segments.map((value, i) => {
