@@ -8,5 +8,10 @@ export default createMiddleware({
 });
 
 export const config = {
-  matcher: ['/', '/(en|zh|ko)/:path*'],
+  // Match all request paths except for:
+  // - /api routes
+  // - /_next (Next.js internals)
+  // - /_vercel (Vercel internals)
+  // - all static files (e.g. favicon.ico, images, fonts, etc.)
+  matcher: ['/((?!api|_next|_vercel|.*\\..*).*)'],
 };
