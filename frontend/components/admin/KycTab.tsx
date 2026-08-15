@@ -46,13 +46,8 @@ export function KycTab({ onUnauthorized }: KycTabProps) {
     }
   }
 
-  async function handleDecide(approve: boolean) {
+  async function handleDecide(approve: boolean, note?: string) {
     if (!selected) return;
-    const note = prompt(
-      approve ? 'Approval note (optional):' : 'Rejection reason:',
-      approve ? 'Verified' : 'Document unreadable',
-    );
-    if (note === null) return;
     try {
       await decideKyc(selected.userId, approve, note);
       setSelected(null);

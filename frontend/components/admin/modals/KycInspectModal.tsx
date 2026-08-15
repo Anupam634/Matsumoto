@@ -6,7 +6,7 @@ import type { AdminKycDetail } from '../../../lib/admin-api';
 interface KycInspectModalProps {
   selected: AdminKycDetail;
   onClose: () => void;
-  onDecide: (approve: boolean) => void;
+  onDecide: (approve: boolean, note?: string) => Promise<void>;
 }
 
 export function KycInspectModal({
@@ -18,8 +18,38 @@ export function KycInspectModal({
   const [rotation, setRotation] = useState<number>(0);
   const [zoom, setZoom] = useState<number>(1);
 
+  // Custom Decision State (Replaces browser prompt)
+  const [decisionType, setDecisionType] = useState<'APPROVE' | 'REJECT'>('APPROVE');
+  const [reviewerNote, setReviewerNote] = useState<string>('Verified & Valid Government ID');
+  const [submitting, setSubmitting] = useState<boolean>(false);
+
   const docs = selected.documents ?? [];
   const currentDoc = fullscreenIndex !== null ? docs[fullscreenIndex] : null;
+
+  const approvalPresets = [
+    'Verified & Valid Government ID',
+    'Passport Details Cleared',
+    'National Identity Card Cleared',
+    'Manual Operator Fast-Track',
+  ];
+
+  const rejectionPresets = [
+    'Document photo unreadable or blurry',
+    'Full legal name does not match document',
+    'Expired document presented',
+    'Selfie does not match photo on document',
+    'Suspected digital alteration',
+  ];
+
+  // Sync preset note when switching decision type
+  function selectDecision(type: 'APPROVE' | 'REJECT') {
+    setDecisionType(type);
+    if (type === 'APPROVE') {
+      setReviewerNote(approvalPresets[0]);
+    } else {
+      setReviewerNote(rejectionPresets[0]);
+    }
+  }
 
   // Keyboard shortcut listener
   useEffect(() => {
@@ -62,6 +92,16 @@ export function KycInspectModal({
     setFullscreenIndex(null);
     setRotation(0);
     setZoom(1);
+  }
+
+  async function handleSubmitDecision(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await onDecide(decisionType === 'APPROVE', reviewerNote.trim());
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -186,22 +226,130 @@ export function KycInspectModal({
             )}
           </div>
 
-          {/* Action Buttons for Pending State */}
-          {selected.status === 'PENDING' && (
-            <div className="mt-8 flex items-center justify-end gap-3 border-t border-slate-800 pt-4">
-              <button
-                onClick={() => onDecide(false)}
-                className="rounded-xl border border-red-500/40 bg-red-950/40 px-5 py-2.5 text-xs font-bold text-red-300 hover:bg-red-900/60 transition"
-              >
-                ✕ Reject Applicant
-              </button>
-              <button
-                onClick={() => onDecide(true)}
-                className="btn-gold rounded-xl px-6 py-2.5 text-xs font-black uppercase text-slate-950 shadow-lg shadow-amber-500/20"
-              >
-                ✓ Approve Identity
-              </button>
-            </div>
+          {/* ───────────────── Sleek In-Modal Verification Verdict Panel ───────────────── */}
+          {selected.status === 'PENDING' ? (
+            <form
+              onSubmit={handleSubmitDecision}
+              className="mt-8 rounded-2xl border border-slate-800 bg-slate-950/80 p-5 space-y-4 shadow-xl"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                <div>
+                  <h4 className="text-sm font-black text-white uppercase tracking-wider">
+                    ⚖️ Identity Review Decision
+                  </h4>
+                  <p className="text-xs text-slate-400">
+                    Select verdict and provide reviewer notes (logged on-chain and sent to applicant)
+                  </p>
+                </div>
+
+                {/* Verdict Choice Switcher */}
+                <div className="flex rounded-xl border border-slate-800 bg-slate-900 p-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => selectDecision('APPROVE')}
+                    className={`rounded-lg px-4 py-2 font-black uppercase transition ${
+                      decisionType === 'APPROVE'
+                        ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                        : 'text-slate-400 hover:text-emerald-400'
+                    }`}
+                  >
+                    ✓ Approve Identity
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => selectDecision('REJECT')}
+                    className={`rounded-lg px-4 py-2 font-black uppercase transition ${
+                      decisionType === 'REJECT'
+                        ? 'bg-red-500 text-white shadow-md shadow-red-500/20'
+                        : 'text-slate-400 hover:text-red-400'
+                    }`}
+                  >
+                    ✕ Reject Applicant
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Presets */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1.5">
+                  Quick Note Presets ({decisionType === 'APPROVE' ? 'Approval' : 'Rejection Reasons'})
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {(decisionType === 'APPROVE' ? approvalPresets : rejectionPresets).map(
+                    (preset, pIdx) => (
+                      <button
+                        key={pIdx}
+                        type="button"
+                        onClick={() => setReviewerNote(preset)}
+                        className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${
+                          reviewerNote === preset
+                            ? decisionType === 'APPROVE'
+                              ? 'border-emerald-500 bg-emerald-950/60 text-emerald-300'
+                              : 'border-red-500 bg-red-950/60 text-red-300'
+                            : 'border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        {preset}
+                      </button>
+                    ),
+                  )}
+                </div>
+              </div>
+
+              {/* Reviewer Note Input */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1">
+                  Reviewer Note & Audit Trail
+                </label>
+                <input
+                  type="text"
+                  value={reviewerNote}
+                  onChange={(e) => setReviewerNote(e.target.value)}
+                  placeholder={
+                    decisionType === 'APPROVE'
+                      ? 'e.g. Verified & Clear passport'
+                      : 'e.g. Document unreadable / Name mismatch'
+                  }
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-2.5 text-xs text-white outline-none focus:border-amber-500"
+                  required
+                />
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-xl border border-slate-800 px-4 py-2.5 text-xs font-bold text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className={`rounded-xl px-6 py-2.5 text-xs font-black uppercase tracking-wider transition ${
+                    decisionType === 'APPROVE'
+                      ? 'btn-gold text-slate-950 shadow-lg shadow-amber-500/20'
+                      : 'bg-red-600 text-white hover:bg-red-500 shadow-lg shadow-red-600/20'
+                  } disabled:opacity-50`}
+                >
+                  {submitting
+                    ? 'Submitting Verdict…'
+                    : decisionType === 'APPROVE'
+                    ? '✓ Confirm & Approve Identity'
+                    : '✕ Confirm Rejection'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            selected.reviewerNote && (
+              <div className="mt-6 rounded-xl border border-slate-800 bg-slate-950 p-4">
+                <div className="text-[10px] font-bold uppercase text-slate-500">
+                  Recorded Reviewer Audit Note
+                </div>
+                <div className="mt-1 text-xs text-slate-200">{selected.reviewerNote}</div>
+              </div>
+            )
           )}
         </div>
       </div>

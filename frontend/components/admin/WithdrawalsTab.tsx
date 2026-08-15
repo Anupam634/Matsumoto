@@ -8,15 +8,28 @@ import {
   type AdminWithdrawal,
 } from '../../lib/admin-api';
 
-interface WithdrawalsTabProps {
+export function WithdrawalsTab({
+  onChanged,
+  onUnauthorized,
+}: {
   onChanged: () => void;
   onUnauthorized: () => void;
-}
-
-export function WithdrawalsTab({ onChanged, onUnauthorized }: WithdrawalsTabProps) {
+}) {
   const [statusFilter, setStatusFilter] = useState<string>('PENDING');
   const [rows, setRows] = useState<AdminWithdrawal[]>([]);
   const [busy, setBusy] = useState(false);
+
+  // Reject Modal State (Replaces browser prompt)
+  const [rejectingWithdrawal, setRejectingWithdrawal] = useState<AdminWithdrawal | null>(null);
+  const [rejectReason, setRejectReason] = useState('Suspicious multi-accounting activity');
+  const [submittingReject, setSubmittingReject] = useState(false);
+
+  const rejectionPresets = [
+    'Suspicious multi-accounting activity',
+    'Invalid recipient BEP-20 wallet address',
+    'KYC verification discrepancy',
+    'Points earned via automated bot traffic',
+  ];
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -36,24 +49,35 @@ export function WithdrawalsTab({ onChanged, onUnauthorized }: WithdrawalsTabProp
     load();
   }, [load]);
 
-  async function handleDecision(id: string, approve: boolean) {
-    let note: string | undefined;
-    if (!approve) {
-      const promptNote = prompt(
-        'Reason for rejecting withdrawal (refunds user PTS):',
-        'Suspicious activity',
-      );
-      if (promptNote === null) return;
-      note = promptNote;
+  async function handleApprove(w: AdminWithdrawal) {
+    if (!confirm(`Confirm on-chain payout of ${w.tokenAmount} MATSU to wallet ${w.toAddress}?`)) {
+      return;
     }
     setBusy(true);
     try {
-      await decideWithdrawal(id, approve, note);
+      await decideWithdrawal(w.id, true);
       load();
       onChanged();
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : 'Decision failed.');
+      alert(err instanceof ApiError ? err.message : 'Approval failed.');
+    } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleConfirmReject(e: React.FormEvent) {
+    e.preventDefault();
+    if (!rejectingWithdrawal) return;
+    setSubmittingReject(true);
+    try {
+      await decideWithdrawal(rejectingWithdrawal.id, false, rejectReason.trim());
+      setRejectingWithdrawal(null);
+      load();
+      onChanged();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : 'Rejection failed.');
+    } finally {
+      setSubmittingReject(false);
     }
   }
 
@@ -120,7 +144,7 @@ export function WithdrawalsTab({ onChanged, onUnauthorized }: WithdrawalsTabProp
                     <td className="p-3.5 font-bold text-cyan-400">
                       {w.tokenAmount} MATSU
                     </td>
-                    <td className="p-3.5 text-slate-400 truncate max-w-xs">
+                    <td className="p-3.5 text-slate-400 truncate max-w-xs" title={w.toAddress}>
                       {w.toAddress}
                     </td>
                     <td className="p-3.5 font-sans">
@@ -140,20 +164,25 @@ export function WithdrawalsTab({ onChanged, onUnauthorized }: WithdrawalsTabProp
                       {w.status === 'PENDING' ? (
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => handleDecision(w.id, true)}
+                            onClick={() => handleApprove(w)}
                             className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-black uppercase text-slate-950 hover:bg-emerald-400 transition"
                           >
                             ✓ Approve
                           </button>
                           <button
-                            onClick={() => handleDecision(w.id, false)}
+                            onClick={() => {
+                              setRejectingWithdrawal(w);
+                              setRejectReason(rejectionPresets[0]);
+                            }}
                             className="rounded-lg border border-red-500/40 bg-red-950/40 px-3 py-1.5 text-xs font-bold text-red-300 hover:bg-red-900/60 transition"
                           >
                             ✕ Reject
                           </button>
                         </div>
                       ) : (
-                        <span className="text-slate-500 text-[11px]">—</span>
+                        <span className="text-slate-500 text-[11px]">
+                          {w.adminNote ?? '—'}
+                        </span>
                       )}
                     </td>
                   </tr>
@@ -163,6 +192,86 @@ export function WithdrawalsTab({ onChanged, onUnauthorized }: WithdrawalsTabProp
           </table>
         </div>
       </div>
+
+      {/* ───────────────── Custom In-Modal Rejection Dialog ───────────────── */}
+      {rejectingWithdrawal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md">
+          <form
+            onSubmit={handleConfirmReject}
+            className="card w-full max-w-lg border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-lg font-black text-white">
+                  ✕ Reject Withdrawal Payout
+                </h3>
+                <p className="text-xs text-slate-400">
+                  User will be refunded {rejectingWithdrawal.points} PTS back to their balance
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRejectingWithdrawal(null)}
+                className="rounded-lg p-1.5 text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5">
+                Quick Rejection Reasons
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {rejectionPresets.map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setRejectReason(preset)}
+                    className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${
+                      rejectReason === preset
+                        ? 'border-red-500 bg-red-950/60 text-red-300'
+                        : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
+                Audit Reason (Logged on Ledger)
+              </label>
+              <input
+                type="text"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                className="w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs text-white outline-none focus:border-red-500"
+                required
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setRejectingWithdrawal(null)}
+                className="rounded-xl border border-slate-800 px-4 py-2 text-xs font-bold text-slate-400 hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submittingReject}
+                className="rounded-xl bg-red-600 px-5 py-2 text-xs font-black uppercase text-white hover:bg-red-500 transition disabled:opacity-50"
+              >
+                {submittingReject ? 'Rejecting…' : '✕ Confirm Rejection & Refund'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
