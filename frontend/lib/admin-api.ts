@@ -60,6 +60,25 @@ export interface AdminStats {
   pendingWithdrawals: number;
   withdrawalsByStatus: Record<string, number>;
   usersByCountry: { countryCode: string; users: number }[];
+  growth?: {
+    dailyNewUsers: number;
+    weeklyNewUsers: number;
+    monthlyNewUsers: number;
+    history: { date: string; newUsers: number; pointsMined: number }[];
+  };
+  kycSummary?: {
+    pending: number;
+    approved: number;
+    rejected: number;
+  };
+  boostersActive?: number;
+  recentActivity?: {
+    id: string;
+    userEmail: string;
+    reason: string;
+    points: number;
+    timestamp: string;
+  }[];
 }
 
 export interface AdminUserRow {

@@ -11,6 +11,10 @@ import { WithdrawalsTab } from '../../../components/admin/WithdrawalsTab';
 import { KycTab } from '../../../components/admin/KycTab';
 import { SupportTab } from '../../../components/admin/SupportTab';
 import { TasksTab } from '../../../components/admin/TasksTab';
+import { BoostersAdminTab } from '../../../components/admin/BoostersAdminTab';
+import { ReferralsAdminTab } from '../../../components/admin/ReferralsAdminTab';
+import { SecurityAdminTab } from '../../../components/admin/SecurityAdminTab';
+import { AuditAdminTab } from '../../../components/admin/AuditAdminTab';
 
 export default function AdminClient() {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -72,6 +76,10 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
         {tab === 'kyc' && <KycTab onUnauthorized={onSignOut} />}
         {tab === 'support' && <SupportTab onUnauthorized={onSignOut} />}
         {tab === 'tasks' && <TasksTab onUnauthorized={onSignOut} />}
+        {tab === 'boosters' && <BoostersAdminTab stats={stats} />}
+        {tab === 'referrals' && <ReferralsAdminTab />}
+        {tab === 'security' && <SecurityAdminTab stats={stats} />}
+        {tab === 'audit' && <AuditAdminTab stats={stats} />}
       </main>
     </div>
   );

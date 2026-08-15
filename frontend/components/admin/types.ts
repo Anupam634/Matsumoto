@@ -4,4 +4,8 @@ export type AdminTab =
   | 'withdrawals'
   | 'kyc'
   | 'support'
-  | 'tasks';
+  | 'tasks'
+  | 'boosters'
+  | 'referrals'
+  | 'security'
+  | 'audit';
