@@ -58,14 +58,9 @@
       "boosterDuration": "부스터 유지 기간",
       "boosterDurationSub": "30일 유지 · 무제한 중첩"
     },
-    "liveFeed": {
-      "title": "실시간 네트워크 활동",
-      "subtitle": "검증된 채굴 풀 보상, 부스터 활성화 및 온체인 출금 현황 스트림입니다.",
-      "liveBadge": "실시간 BSC 피드",
-      "payout": "출금 완료",
-      "boosterBuy": "활성화됨",
-      "mined": "24시간 수익 수령",
-      "kyc": "KYC 인증 완료"
+    "architecture": {
+      "title": "온체인 아키텍처 및 토크노믹스",
+      "subtitle": "BNB 스마트 체인 기반 네이티브 구축. 투명한 수학적 알고리즘, 콜드 스토리지 보안 및 공정한 정기 보상 분배."
     },
     "chain": {
       "builtOn": "기반 기술",

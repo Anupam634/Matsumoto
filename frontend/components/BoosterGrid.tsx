@@ -10,8 +10,7 @@ interface BoosterItem {
   boost: string;
   isPopular?: boolean;
   isMax?: boolean;
-  powerMeter: number; // 0 to 100%
-  color: string;
+  powerMeter: number;
 }
 
 const BOOSTERS: BoosterItem[] = [
@@ -21,7 +20,6 @@ const BOOSTERS: BoosterItem[] = [
     nameKey: 'starter',
     boost: '2.0',
     powerMeter: 35,
-    color: 'from-blue-500/20 to-cyan-500/20 border-blue-500/30',
   },
   {
     price: 5,
@@ -29,7 +27,6 @@ const BOOSTERS: BoosterItem[] = [
     nameKey: 'power',
     boost: '10.0',
     powerMeter: 60,
-    color: 'from-amber-500/20 to-yellow-500/20 border-amber-500/30',
   },
   {
     price: 10,
@@ -38,7 +35,6 @@ const BOOSTERS: BoosterItem[] = [
     boost: '20.0',
     isPopular: true,
     powerMeter: 80,
-    color: 'from-amber-500/30 to-orange-500/20 border-amber-400/50',
   },
   {
     price: 50,
@@ -47,7 +43,6 @@ const BOOSTERS: BoosterItem[] = [
     boost: '90.0',
     isMax: true,
     powerMeter: 100,
-    color: 'from-purple-500/30 to-pink-500/20 border-purple-400/50',
   },
 ];
 
@@ -60,8 +55,8 @@ export function BoosterGrid({ locale }: { locale: string }) {
       {BOOSTERS.map((b) => (
         <div
           key={b.price}
-          className={`card card-lift relative flex flex-col justify-between overflow-hidden p-6 ${
-            b.isPopular ? 'ring-2 ring-amber-400/70 shadow-amber-500/20 shadow-xl' : ''
+          className={`glass-panel relative flex flex-col justify-between overflow-hidden p-6 ${
+            b.isPopular ? 'border-amber-400/50 shadow-2xl shadow-amber-500/10' : ''
           }`}
         >
           {/* Top highlight badge */}
@@ -85,17 +80,17 @@ export function BoosterGrid({ locale }: { locale: string }) {
                 </span>
                 <div className="mt-1 text-3xl font-black text-amber-400">
                   ${b.price}
-                  <span className="text-xs font-normal text-slate-400"> / 30d</span>
+                  <span className="text-xs font-medium text-slate-400"> / 30d</span>
                 </div>
               </div>
 
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-900 border border-slate-800 text-lg">
+              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-white/[0.04] border border-white/[0.08] text-lg">
                 ⚡
               </div>
             </div>
 
             {/* Resulting Rate Box */}
-            <div className="my-5 rounded-xl border border-slate-800/80 bg-slate-950/70 p-4">
+            <div className="my-5 rounded-2xl border border-white/[0.08] bg-slate-950/60 p-4 backdrop-blur-md">
               <div className="text-[11px] uppercase font-semibold text-slate-400">
                 {t('resultingRate')}
               </div>
@@ -103,7 +98,7 @@ export function BoosterGrid({ locale }: { locale: string }) {
                 {b.rate}{' '}
                 <span className="text-xs font-medium text-slate-400">MATSU/h</span>
               </div>
-              <div className="mt-1 text-[11px] font-medium text-emerald-400">
+              <div className="mt-1 text-[11px] font-bold text-emerald-400">
                 {t('hashBoost', { rate: b.boost })}
               </div>
             </div>
@@ -123,17 +118,17 @@ export function BoosterGrid({ locale }: { locale: string }) {
             </div>
           </div>
 
-          <div className="mt-6 border-t border-slate-800/80 pt-4">
+          <div className="mt-6 border-t border-white/[0.08] pt-4">
             <div className="text-center text-[11px] text-slate-400">
               {t('terms')}
             </div>
 
             <Link
               href={registerLink}
-              className={`mt-3 block w-full rounded-xl py-2.5 text-center text-xs font-bold uppercase tracking-wider transition-all ${
+              className={`mt-3 block w-full rounded-xl py-3 text-center text-xs font-bold uppercase tracking-wider transition-all ${
                 b.isPopular
                   ? 'btn-gold shadow-lg shadow-amber-500/20'
-                  : 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700'
+                  : 'bg-white/[0.06] hover:bg-white/[0.1] text-slate-100 border border-white/[0.1]'
               }`}
             >
               {t('activateButton')}

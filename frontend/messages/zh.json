@@ -58,14 +58,9 @@
       "boosterDuration": "加速包有效期",
       "boosterDurationSub": "30 天有效 · 无限叠加"
     },
-    "liveFeed": {
-      "title": "全网实时动态",
-      "subtitle": "展示最新的矿池出块奖励、加速包激活及链上提现记录。",
-      "liveBadge": "BSC 实时链上动态",
-      "payout": "成功提现",
-      "boosterBuy": "激活了",
-      "mined": "领取了 24小时收益",
-      "kyc": "通过 KYC 认证"
+    "architecture": {
+      "title": "链上架构与代币经济模型",
+      "subtitle": "原生部署于 BNB 智能链。透明数学算法、冷钱包风控保障及公平的按计划分配。"
     },
     "chain": {
       "builtOn": "构建于",

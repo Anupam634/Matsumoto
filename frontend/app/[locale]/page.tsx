@@ -1,11 +1,10 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
-import { locales } from '../../i18n';
 import { NetworkStatusBar } from '../../components/NetworkStatusBar';
 import { InteractiveMinerVisualizer } from '../../components/InteractiveMinerVisualizer';
 import { MiningCalculator } from '../../components/MiningCalculator';
-import { LiveTransactionsTicker } from '../../components/LiveTransactionsTicker';
+import { OnChainArchitecture } from '../../components/OnChainArchitecture';
 import { BoosterGrid } from '../../components/BoosterGrid';
 import { ReferralTierMatrix } from '../../components/ReferralTierMatrix';
 import { TasksBountySection } from '../../components/TasksBountySection';
@@ -34,23 +33,29 @@ function Landing({ locale }: { locale: string }) {
       <NetworkStatusBar />
 
       {/* ─────────────────────────── Nav ─────────────────────────── */}
-      <header className="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-slate-950/80 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3.5">
           {/* Brand Logo */}
-          <Link href={`/${locale}`} className="flex items-center gap-2.5 font-black text-lg">
-            <LogoMark size={38} priority className="shrink-0" />
+          <Link href={`/${locale}`} className="flex items-center gap-3 font-black text-lg group">
+            <div className="relative">
+              <div className="absolute -inset-1 rounded-xl bg-amber-500/30 blur-sm opacity-70 group-hover:opacity-100 transition-opacity" />
+              <LogoMark size={38} priority className="relative shrink-0" />
+            </div>
             <div className="leading-none">
-              <span className="text-base font-extrabold tracking-tight text-white">Matsumoto</span>
-              <span className="block font-mono text-[10px] font-bold uppercase tracking-widest text-amber-400">
+              <span className="text-base font-black tracking-tight text-white">Matsumoto</span>
+              <span className="block font-mono text-[10px] font-extrabold uppercase tracking-widest text-amber-400">
                 Mining Platform
               </span>
             </div>
           </Link>
 
           {/* Nav Links */}
-          <nav className="hidden lg:flex items-center gap-6 text-xs font-semibold uppercase tracking-wider text-slate-300">
+          <nav className="hidden lg:flex items-center gap-6 text-xs font-bold uppercase tracking-wider text-slate-300">
             <a href="#how" className="transition-colors hover:text-amber-400">
               {t('nav.features')}
+            </a>
+            <a href="#architecture" className="transition-colors hover:text-amber-400">
+              Architecture
             </a>
             <a href="#boosters" className="transition-colors hover:text-amber-400">
               {t('nav.boosters')}
@@ -73,7 +78,7 @@ function Landing({ locale }: { locale: string }) {
           </nav>
 
           {/* Action CTAs & Language Switcher */}
-          <div className="flex items-center gap-2.5 text-xs">
+          <div className="flex items-center gap-3 text-xs">
             <LocaleSwitcher locale={locale} />
             <NavAuth
               locale={locale}
@@ -90,14 +95,14 @@ function Landing({ locale }: { locale: string }) {
         <div className="grid items-center gap-12 lg:grid-cols-12">
           {/* Left Hero Content */}
           <div className="lg:col-span-7">
-            <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wide text-amber-300 backdrop-blur-md">
+            <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-amber-300 backdrop-blur-md shadow-lg shadow-amber-500/10">
               <span className="pulse-dot h-2 w-2 rounded-full bg-amber-400" />
               <span>{t('hero.badge')}</span>
             </div>
 
-            <h1 className="mt-6 text-4xl font-black leading-tight sm:text-5xl lg:text-6xl">
+            <h1 className="mt-6 text-4xl font-black leading-tight sm:text-5xl lg:text-6xl tracking-tight">
               {t('hero.title')}{' '}
-              <span className="bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500 bg-clip-text text-transparent drop-shadow-sm">
+              <span className="bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500 bg-clip-text text-transparent drop-shadow-md">
                 {t('hero.titleAccent')}
               </span>
             </h1>
@@ -112,12 +117,12 @@ function Landing({ locale }: { locale: string }) {
                 href={register}
                 label={t('hero.ctaPrimary')}
                 dashboardLabel={t('nav.dashboard')}
-                className="btn-gold rounded-xl px-8 py-4 text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-xl shadow-amber-500/20"
+                className="btn-gold rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-wider text-slate-950 shadow-2xl shadow-amber-500/20"
               />
               <HideWhenAuthed>
                 <Link
                   href={signIn}
-                  className="rounded-xl border border-slate-700/80 bg-slate-900/60 px-6 py-4 text-sm font-bold text-slate-200 backdrop-blur-md hover:border-amber-500/60 hover:text-amber-400 transition-colors"
+                  className="rounded-2xl border border-white/10 bg-slate-900/60 px-6 py-4 text-sm font-bold text-slate-200 backdrop-blur-xl hover:border-amber-500/60 hover:text-amber-400 transition-all shadow-lg"
                 >
                   {t('hero.ctaSecondary')}
                 </Link>
@@ -125,7 +130,7 @@ function Landing({ locale }: { locale: string }) {
             </div>
 
             {/* Trust & Verified Node info */}
-            <div className="mt-8 flex flex-wrap items-center gap-4 border-t border-slate-800/80 pt-6 text-xs text-slate-400">
+            <div className="mt-8 flex flex-wrap items-center gap-4 border-t border-white/[0.08] pt-6 text-xs text-slate-400">
               <div className="flex items-center gap-2">
                 <span className="text-emerald-400 font-bold">✓</span>
                 <span>{t('hero.verifiedNode')}</span>
@@ -142,7 +147,7 @@ function Landing({ locale }: { locale: string }) {
             </p>
           </div>
 
-          {/* Right Hero: Live Interactive Mining Rig Terminal */}
+          {/* Right Hero: 3D Interactive Mining Rig Terminal Simulator */}
           <div className="lg:col-span-5">
             <InteractiveMinerVisualizer />
           </div>
@@ -179,9 +184,13 @@ function Landing({ locale }: { locale: string }) {
         </div>
       </section>
 
-      {/* ───────────────── Live Activity / Payouts ───────────────── */}
-      <section className="mx-auto max-w-7xl px-5 py-10">
-        <LiveTransactionsTicker />
+      {/* ────────── Real On-Chain Architecture & Tokenomics ──────── */}
+      <section id="architecture" className="mx-auto max-w-7xl px-5 py-16">
+        <SectionHeading
+          title={t('architecture.title')}
+          subtitle={t('architecture.subtitle')}
+        />
+        <OnChainArchitecture />
       </section>
 
       {/* ────────────────────── How It Works ─────────────────────── */}
@@ -192,19 +201,19 @@ function Landing({ locale }: { locale: string }) {
           {(['register', 'mine', 'boost', 'withdraw'] as const).map((step, i) => (
             <div
               key={step}
-              className="card card-lift relative flex flex-col justify-between p-6"
+              className="glass-panel relative flex flex-col justify-between p-6"
             >
               <div>
                 <div className="flex items-center justify-between">
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-500/10 border border-amber-500/20 font-black text-xl text-amber-400">
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-500/10 border border-amber-500/20 font-black text-xl text-amber-400 shadow-inner">
                     0{i + 1}
                   </div>
                   <span className="font-mono text-xs text-slate-500 font-bold">
-                    STEP {i + 1}
+                    PHASE 0{i + 1}
                   </span>
                 </div>
 
-                <h3 className="mt-5 text-lg font-bold text-slate-100">
+                <h3 className="mt-5 text-lg font-extrabold text-slate-100">
                   {t(`how.${step}.title`)}
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-slate-400">
@@ -212,7 +221,7 @@ function Landing({ locale }: { locale: string }) {
                 </p>
               </div>
 
-              <div className="mt-6 h-1 w-12 rounded-full bg-amber-500/30" />
+              <div className="mt-6 h-1 w-12 rounded-full bg-gradient-to-r from-amber-500 to-yellow-300" />
             </div>
           ))}
         </div>
@@ -259,11 +268,11 @@ function Landing({ locale }: { locale: string }) {
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {(['minimum', 'frequency', 'kyc', 'approval'] as const).map((rule, idx) => (
-            <div key={rule} className="card card-lift p-6">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-800 text-lg">
+            <div key={rule} className="glass-panel p-6">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/[0.04] border border-white/[0.08] text-xl">
                 {idx === 0 ? '🔒' : idx === 1 ? '📅' : idx === 2 ? '🛡️' : '⚖️'}
               </div>
-              <h3 className="mt-4 font-bold text-amber-400">
+              <h3 className="mt-5 font-extrabold text-amber-400 text-base">
                 {t(`withdrawals.${rule}.title`)}
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-slate-400">
@@ -282,7 +291,7 @@ function Landing({ locale }: { locale: string }) {
 
       {/* ─────────────────────── Final CTA ───────────────────────── */}
       <section className="mx-auto max-w-7xl px-5 py-20">
-        <div className="card card-glow-gold relative overflow-hidden p-8 sm:p-14 text-center">
+        <div className="relative overflow-hidden rounded-3xl border border-amber-500/40 bg-gradient-to-br from-slate-950 via-slate-900/60 to-amber-950/30 p-8 sm:p-16 text-center shadow-2xl backdrop-blur-2xl">
           <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-amber-500/15 blur-3xl" />
           <div className="pointer-events-none absolute -left-24 -bottom-24 h-72 w-72 rounded-full bg-cyan-500/15 blur-3xl" />
 
@@ -290,7 +299,7 @@ function Landing({ locale }: { locale: string }) {
             {t('cta.badge')}
           </span>
 
-          <h2 className="mt-6 text-3xl font-black sm:text-5xl">
+          <h2 className="mt-6 text-3xl font-black sm:text-5xl tracking-tight text-slate-100">
             {t('cta.title')}
           </h2>
 
@@ -304,12 +313,12 @@ function Landing({ locale }: { locale: string }) {
               href={register}
               label={t('cta.buttonPrimary')}
               dashboardLabel={t('nav.dashboard')}
-              className="btn-gold rounded-xl px-8 py-4 text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-xl"
+              className="btn-gold rounded-2xl px-8 py-4 text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-2xl"
             />
             <HideWhenAuthed>
               <Link
                 href={signIn}
-                className="rounded-xl border border-slate-700 bg-slate-900/80 px-6 py-4 text-sm font-bold text-slate-200 hover:border-amber-500/60 hover:text-amber-400"
+                className="rounded-2xl border border-white/10 bg-slate-900/80 px-6 py-4 text-sm font-bold text-slate-200 hover:border-amber-500/60 hover:text-amber-400 backdrop-blur-md transition-colors"
               >
                 {t('cta.buttonSecondary')}
               </Link>
@@ -319,11 +328,11 @@ function Landing({ locale }: { locale: string }) {
       </section>
 
       {/* ────────────────────────── Footer ───────────────────────── */}
-      <footer className="border-t border-slate-900 bg-slate-950/90 px-5 pt-16 pb-12 text-slate-400">
-        <div className="mx-auto max-w-7xl grid gap-10 lg:grid-cols-12 pb-12 border-b border-slate-900">
+      <footer className="border-t border-white/[0.08] bg-slate-950/90 px-5 pt-16 pb-12 text-slate-400 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl grid gap-10 lg:grid-cols-12 pb-12 border-b border-white/[0.08]">
           <div className="lg:col-span-5 space-y-4">
             <div className="flex items-center gap-2.5 font-black text-lg text-slate-100">
-              <LogoMark size={32} />
+              <LogoMark size={34} />
               Matsumoto Mining Platform
             </div>
             <p className="text-xs leading-relaxed text-slate-400 max-w-md">
@@ -396,8 +405,8 @@ function SectionHeading({
   subtitle: string;
 }) {
   return (
-    <div className="mb-10 text-center">
-      <h2 className="text-2xl font-black sm:text-4xl text-slate-100">{title}</h2>
+    <div className="mb-12 text-center">
+      <h2 className="text-3xl font-black sm:text-4xl text-slate-100 tracking-tight">{title}</h2>
       <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-400 sm:text-base leading-relaxed">
         {subtitle}
       </p>
@@ -417,16 +426,18 @@ function Figure({
   icon: string;
 }) {
   return (
-    <div className="card card-lift p-5">
+    <div className="glass-panel p-6">
       <div className="flex items-center justify-between">
-        <span className="text-2xl">{icon}</span>
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/[0.04] border border-white/[0.08] text-xl">
+          {icon}
+        </span>
         <div className="font-mono text-2xl font-black text-amber-400">{value}</div>
       </div>
-      <div className="mt-3 text-xs uppercase font-bold tracking-wider text-slate-300">
+      <div className="mt-4 text-xs uppercase font-extrabold tracking-wider text-slate-200">
         {label}
       </div>
       {subLabel && (
-        <div className="mt-1 text-[11px] text-slate-500 font-mono">{subLabel}</div>
+        <div className="mt-1 text-[11px] text-slate-400 font-mono">{subLabel}</div>
       )}
     </div>
   );

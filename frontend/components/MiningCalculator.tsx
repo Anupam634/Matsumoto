@@ -30,10 +30,9 @@ function getMultiplier(invites: number): { level: number; mult: number } {
 
 export function MiningCalculator({ locale }: { locale: string }) {
   const t = useTranslations('landing.calculator');
-  const tBoosters = useTranslations('landing.boosters');
 
   const [selectedBooster, setSelectedBooster] = useState<BoosterOpt>(
-    BOOSTER_OPTIONS[3] // Default to Pro ($10)
+    BOOSTER_OPTIONS[3]
   );
   const [inviteCount, setInviteCount] = useState<number>(12);
 
@@ -46,16 +45,16 @@ export function MiningCalculator({ locale }: { locale: string }) {
   const registerLink = `/${locale}/login?mode=register`;
 
   return (
-    <div className="card card-glow-gold relative overflow-hidden p-6 sm:p-10">
-      {/* Background cyber accent */}
-      <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-amber-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl" />
+    <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-slate-900/40 p-6 sm:p-12 shadow-2xl backdrop-blur-2xl">
+      {/* Ambient background cones */}
+      <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-amber-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute -left-20 -bottom-20 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
 
       <div className="grid gap-8 lg:grid-cols-12 lg:items-center">
-        {/* Left column: Controls */}
+        {/* Left column: Interactive Controls */}
         <div className="space-y-6 lg:col-span-7">
           <div>
-            <label className="block text-xs uppercase font-bold tracking-wider text-amber-400">
+            <label className="block text-xs uppercase font-extrabold tracking-wider text-amber-400">
               {t('selectBooster')}
             </label>
             <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-5">
@@ -66,14 +65,14 @@ export function MiningCalculator({ locale }: { locale: string }) {
                     key={b.id}
                     type="button"
                     onClick={() => setSelectedBooster(b)}
-                    className={`rounded-xl border p-3 text-center transition-all ${
+                    className={`rounded-2xl border p-3 text-center transition-all duration-200 ${
                       isSelected
-                        ? 'border-amber-400 bg-amber-500/20 shadow-lg shadow-amber-500/10'
-                        : 'border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-800/50'
+                        ? 'border-amber-400 bg-amber-500/20 shadow-xl shadow-amber-500/10 scale-105'
+                        : 'border-white/[0.06] bg-slate-950/60 hover:border-white/20 hover:bg-slate-900/50'
                     }`}
                   >
-                    <div className="text-xs font-bold text-slate-300">
-                      {b.price === 0 ? 'Free' : `$${b.price}`}
+                    <div className="text-xs font-bold text-slate-200">
+                      {b.price === 0 ? 'Free Base' : `$${b.price}`}
                     </div>
                     <div
                       className={`mt-1 font-mono text-sm font-extrabold ${
@@ -91,7 +90,7 @@ export function MiningCalculator({ locale }: { locale: string }) {
           {/* Referral slider */}
           <div>
             <div className="flex items-center justify-between">
-              <label className="text-xs uppercase font-bold tracking-wider text-amber-400">
+              <label className="text-xs uppercase font-extrabold tracking-wider text-amber-400">
                 {t('selectInvites')}
               </label>
               <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-3 py-0.5 text-xs font-mono font-bold text-amber-300">
@@ -120,59 +119,59 @@ export function MiningCalculator({ locale }: { locale: string }) {
             </div>
           </div>
 
-          {/* Quick formula note */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-xs text-slate-400">
-            <span className="text-amber-400 font-semibold">Reward Formula:</span>{' '}
-            {selectedBooster.rate}/h × ×{tier.mult} (Level {tier.level} Team Multiplier) ={' '}
-            <span className="font-mono text-amber-300 font-bold">{effectiveRate} MATSU/h</span>
+          {/* Real math breakdown note */}
+          <div className="rounded-2xl border border-white/[0.08] bg-slate-950/60 p-4 text-xs text-slate-300 backdrop-blur-md">
+            <span className="text-amber-400 font-bold">Reward Calculation Engine:</span>{' '}
+            {selectedBooster.rate} MATSU/h × ×{tier.mult} (Level {tier.level} Multiplier) ={' '}
+            <span className="font-mono text-amber-300 font-extrabold">{effectiveRate} MATSU/h</span>
           </div>
         </div>
 
         {/* Right column: Results Output Card */}
         <div className="lg:col-span-5">
-          <div className="rounded-2xl border border-amber-500/40 bg-gradient-to-br from-slate-950/90 via-slate-900/90 to-amber-950/20 p-6 shadow-xl backdrop-blur-xl">
-            <div className="text-xs uppercase font-bold tracking-wider text-amber-400/90">
+          <div className="rounded-3xl border border-amber-500/40 bg-gradient-to-br from-slate-950/90 via-slate-900/90 to-amber-950/20 p-6 sm:p-8 shadow-2xl backdrop-blur-2xl">
+            <div className="text-xs uppercase font-extrabold tracking-wider text-amber-400/90">
               {t('estimatedYield')}
             </div>
 
-            <div className="mt-4 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <div className="mt-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
                 <span className="text-sm text-slate-400">{t('hourlyRate')}</span>
                 <span className="font-mono text-lg font-extrabold text-amber-300">
                   {effectiveRate} MATSU/h
                 </span>
               </div>
 
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
                 <span className="text-sm text-slate-400">{t('dailyYield')}</span>
                 <span className="font-mono text-lg font-extrabold text-slate-200">
                   {dailyPoints} PTS
                 </span>
               </div>
 
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
                 <span className="text-sm text-slate-400">{t('monthlyYield')}</span>
-                <span className="font-mono text-xl font-extrabold text-amber-400">
+                <span className="font-mono text-xl font-black text-amber-400">
                   {monthlyPoints.toLocaleString()} PTS
                 </span>
               </div>
 
-              <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3 text-center">
+              <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-4 text-center">
                 <div className="text-xs uppercase font-bold text-amber-300">
                   {t('onChainPayout')}
                 </div>
-                <div className="mt-1 font-mono text-2xl font-black text-amber-400">
+                <div className="mt-1 font-mono text-2xl font-black text-amber-400 sm:text-3xl">
                   ~{monthlyTokens.toLocaleString()} $MATSU
                 </div>
                 <div className="mt-1 text-[11px] text-slate-400">
-                  Direct BEP-20 transfer to your BNB Chain wallet
+                  Direct BEP-20 transfer to your BNB Chain address
                 </div>
               </div>
             </div>
 
             <Link
               href={registerLink}
-              className="btn-gold mt-5 block w-full rounded-xl py-3 text-center text-sm font-bold uppercase tracking-wider text-slate-950 shadow-md"
+              className="btn-gold mt-6 block w-full rounded-2xl py-3.5 text-center text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-xl"
             >
               {t('cta')}
             </Link>

@@ -58,14 +58,9 @@
       "boosterDuration": "Booster Duration",
       "boosterDurationSub": "30 Days · Unlimited Stack"
     },
-    "liveFeed": {
-      "title": "Live Network Activity",
-      "subtitle": "Real-time stream of verified pool rewards, booster activations, and on-chain payouts.",
-      "liveBadge": "LIVE BSC FEED",
-      "payout": "Withdrew",
-      "boosterBuy": "Activated",
-      "mined": "Claimed 24h Yield",
-      "kyc": "KYC Approved"
+    "architecture": {
+      "title": "On-Chain Architecture & Tokenomics",
+      "subtitle": "Built natively on BNB Smart Chain. Transparent mathematics, cold-storage security, and fair scheduled distribution."
     },
     "chain": {
       "builtOn": "Built on",

@@ -5,7 +5,7 @@
 @layer base {
   :root {
     --gold-primary: #f59e0b;
-    --gold-glow: rgba(245, 158, 11, 0.4);
+    --gold-glow: rgba(245, 158, 11, 0.45);
     --cyan-glow: rgba(6, 182, 212, 0.35);
   }
 
@@ -22,8 +22,8 @@
 
   /* Custom high-tech scrollbar */
   ::-webkit-scrollbar {
-    width: 7px;
-    height: 7px;
+    width: 6px;
+    height: 6px;
   }
   ::-webkit-scrollbar-track {
     background: #030712;
@@ -39,59 +39,41 @@
 }
 
 @layer components {
-  /* ── Cybernetic Background Grid & Glow ────────────────────────── */
+  /* ── Cybernetic Background Grid & 3D Lighting ────────────────── */
   .glow-field {
     background:
       radial-gradient(
-        75rem 45rem at 50% -15%,
-        rgba(245, 158, 11, 0.22),
+        80rem 50rem at 50% -10%,
+        rgba(245, 158, 11, 0.2),
         transparent 65%
       ),
       radial-gradient(
-        50rem 35rem at 85% 25%,
-        rgba(6, 182, 212, 0.15),
+        60rem 40rem at 85% 30%,
+        rgba(6, 182, 212, 0.12),
         transparent 60%
       ),
       radial-gradient(
-        50rem 35rem at 15% 45%,
-        rgba(234, 179, 8, 0.12),
+        60rem 40rem at 15% 55%,
+        rgba(234, 179, 8, 0.1),
         transparent 60%
       ),
       radial-gradient(
-        60rem 40rem at 50% 85%,
-        rgba(245, 158, 11, 0.14),
+        70rem 45rem at 50% 90%,
+        rgba(245, 158, 11, 0.12),
         transparent 65%
-      );
-  }
-
-  .glow-field-light {
-    background:
-      radial-gradient(
-        60rem 40rem at 70% -10%,
-        rgba(99, 102, 241, 0.2),
-        transparent 60%
-      ),
-      radial-gradient(
-        40rem 30rem at 10% 20%,
-        rgba(56, 189, 248, 0.14),
-        transparent 60%
       );
   }
 
   .bg-cyber-grid {
     background-image: 
-      linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-    background-size: 32px 32px;
+      linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: 36px 36px;
   }
 
-  .bg-radial-vignette {
-    mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, #000 70%, transparent 100%);
-  }
-
-  /* ── Rotating 3D Coin ────────────────────────────────────── */
+  /* ── 3D Rotating Matsumoto Coin with Specular Polish ────────── */
   .coin-stage {
-    perspective: 1200px;
+    perspective: 1400px;
   }
 
   .coin {
@@ -99,7 +81,8 @@
     width: 13rem;
     height: 13rem;
     transform-style: preserve-3d;
-    animation: coin-spin 10s linear infinite;
+    animation: coin-spin 11s linear infinite;
+    filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.7));
   }
 
   .coin-face {
@@ -109,17 +92,18 @@
     display: grid;
     place-items: center;
     backface-visibility: hidden;
-    background: linear-gradient(145deg, #fef08a 0%, #f59e0b 45%, #b45309 100%);
+    background: radial-gradient(circle at 30% 30%, #fffbeb 0%, #fef08a 25%, #f59e0b 60%, #92400e 100%);
     box-shadow:
-      inset 0 0 0 0.55rem rgba(120, 53, 15, 0.4),
-      inset 0 1rem 2rem rgba(255, 255, 255, 0.6),
-      0 1.5rem 3.5rem rgba(245, 158, 11, 0.35);
+      inset 0 0 0 0.55rem rgba(120, 53, 15, 0.45),
+      inset 0 1rem 2.5rem rgba(255, 255, 255, 0.7),
+      0 1.5rem 4rem rgba(245, 158, 11, 0.4);
     color: #451a03;
     font-weight: 900;
   }
 
   .coin-face--back {
     transform: rotateY(180deg);
+    background: radial-gradient(circle at 70% 30%, #fffbeb 0%, #fef08a 25%, #d97706 60%, #78350f 100%);
   }
 
   .coin-edge {
@@ -129,42 +113,58 @@
     background: linear-gradient(90deg, #78350f, #f59e0b, #78350f);
   }
 
-  /* ── Orbiting Rings ──────────────────────────────────────── */
+  /* ── Orbiting Hologram Rings ──────────────────────────────── */
   .orbit {
     position: absolute;
     border-radius: 9999px;
-    border: 1px solid rgba(245, 158, 11, 0.4);
+    border: 1px solid rgba(245, 158, 11, 0.45);
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);
     transform-style: preserve-3d;
-    animation: orbit-tilt 16s linear infinite;
+    animation: orbit-tilt 18s linear infinite;
   }
 
   .orbit--wide {
-    border-color: rgba(6, 182, 212, 0.35);
-    animation-duration: 22s;
+    border-color: rgba(6, 182, 212, 0.4);
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+    animation-duration: 25s;
     animation-direction: reverse;
   }
 
-  /* ── Cards & Glassmorphism ───────────────────────────────── */
+  /* ── Luxury Transparent 3D Glassmorphism Cards ────────────── */
+  .glass-panel {
+    border-radius: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(
+      145deg,
+      rgba(15, 23, 42, 0.6) 0%,
+      rgba(2, 6, 23, 0.75) 100%
+    );
+    backdrop-filter: blur(24px);
+    box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .glass-panel:hover {
+    border-color: rgba(245, 158, 11, 0.45);
+    transform: translateY(-4px);
+    box-shadow: 0 25px 55px -10px rgba(245, 158, 11, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
   .card {
     border-radius: 1.25rem;
-    border: 1px solid rgba(51, 65, 85, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     background: linear-gradient(
-      160deg,
-      rgba(15, 23, 42, 0.85) 0%,
-      rgba(2, 6, 23, 0.95) 100%
+      150deg,
+      rgba(15, 23, 42, 0.65) 0%,
+      rgba(2, 6, 23, 0.85) 100%
     );
-    backdrop-filter: blur(16px);
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
   .card-glow-gold {
     border: 1px solid rgba(245, 158, 11, 0.35);
-    box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.15);
-  }
-
-  .card-glow-cyan {
-    border: 1px solid rgba(6, 182, 212, 0.35);
-    box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.15);
+    box-shadow: 0 0 35px -5px rgba(245, 158, 11, 0.2), inset 0 1px 0 rgba(245, 158, 11, 0.3);
   }
 
   .card-lift {
@@ -173,65 +173,47 @@
 
   .card-lift:hover {
     transform: translateY(-5px);
-    border-color: rgba(245, 158, 11, 0.6);
-    box-shadow: 0 15px 35px -5px rgba(245, 158, 11, 0.25);
+    border-color: rgba(245, 158, 11, 0.55);
+    box-shadow: 0 20px 45px -5px rgba(245, 158, 11, 0.22);
   }
 
-  /* ── Cyber Terminal Elements ─────────────────────────────── */
-  .terminal-box {
-    border-radius: 1.25rem;
-    background: #090e17;
-    border: 1px solid #1e293b;
-    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8), 0 0 35px rgba(245, 158, 11, 0.12);
-  }
-
-  .scanline {
-    background: linear-gradient(
-      to bottom,
-      rgba(255,255,255,0),
-      rgba(255,255,255,0) 50%,
-      rgba(0, 0, 0, 0.3) 50%,
-      rgba(0, 0, 0, 0.3)
-    );
-    background-size: 100% 4px;
-  }
-
-  /* ── Glowing Buttons ─────────────────────────────────────── */
+  /* ── Cyber Buttons ───────────────────────────────────────── */
   .btn-gold {
-    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+    background: linear-gradient(135deg, #fef08a 0%, #fbbf24 30%, #f59e0b 70%, #d97706 100%);
     color: #1c1917;
-    font-weight: 700;
-    box-shadow: 0 0 20px rgba(245, 158, 11, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.4);
-    transition: all 0.2s ease;
+    font-weight: 800;
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .btn-gold:hover {
-    background: linear-gradient(135deg, #fcd34d 0%, #fbbf24 50%, #f59e0b 100%);
-    box-shadow: 0 0 30px rgba(245, 158, 11, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.6);
-    transform: translateY(-1px);
+    background: linear-gradient(135deg, #ffffff 0%, #fef08a 30%, #fbbf24 70%, #f59e0b 100%);
+    box-shadow: 0 0 35px rgba(245, 158, 11, 0.7), inset 0 1px 2px rgba(255, 255, 255, 0.8);
+    transform: translateY(-2px);
   }
 
   .btn-gold:active {
     transform: translateY(1px);
   }
 
-  /* App Shell & Standard UI Buttons */
   .btn-primary {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
     border-radius: 0.75rem;
-    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+    background: linear-gradient(135deg, #fef08a 0%, #fbbf24 40%, #f59e0b 100%);
     padding: 0.625rem 1.25rem;
-    font-weight: 700;
+    font-weight: 800;
     color: #1c1917;
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.35);
     transition: all 0.2s ease;
   }
 
   .btn-primary:hover {
     opacity: 0.95;
     transform: translateY(-1px);
+    box-shadow: 0 0 30px rgba(245, 158, 11, 0.55);
   }
 
   .btn-secondary {
@@ -245,6 +227,7 @@
     padding: 0.625rem 1.25rem;
     font-weight: 600;
     color: #f8fafc;
+    backdrop-filter: blur(12px);
     transition: all 0.2s ease;
   }
 
@@ -257,7 +240,7 @@
     width: 100%;
     border-radius: 0.75rem;
     border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(15, 23, 42, 0.8);
     padding: 0.75rem 1rem;
     color: #f8fafc;
     outline: none;
@@ -266,7 +249,7 @@
 
   .input-field:focus {
     border-color: #f59e0b;
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
   }
 
   .field-label {
@@ -331,21 +314,6 @@
   50% {
     transform: translateY(-12px);
   }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-.animate-shimmer {
-  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0) 100%);
-  background-size: 200% 100%;
-  animation: shimmer 3s infinite linear;
 }
 
 .animate-float {
@@ -414,8 +382,7 @@
 @media (prefers-reduced-motion: reduce) {
   .coin,
   .orbit,
-  .animate-float,
-  .animate-shimmer {
+  .animate-float {
     animation: none !important;
   }
 }

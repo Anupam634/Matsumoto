@@ -30,18 +30,18 @@ export function TasksBountySection({ locale }: { locale: string }) {
       {TASKS.map((task) => (
         <div
           key={task.id}
-          className="card card-lift flex flex-col justify-between p-5 transition-all hover:border-amber-500/40"
+          className="glass-panel flex flex-col justify-between p-6 transition-all duration-300 hover:border-amber-400/40"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-500/10 border border-amber-500/20 text-2xl">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-500/10 border border-amber-500/20 text-2xl shadow-inner">
                 {task.icon}
               </div>
               <div>
-                <span className="rounded bg-slate-800 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <span className="rounded-md bg-white/[0.06] border border-white/[0.08] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                   {task.category}
                 </span>
-                <h4 className="mt-1 font-bold text-slate-100 text-sm">
+                <h4 className="mt-1 font-extrabold text-slate-100 text-sm">
                   {tTasks(task.nameKey)}
                 </h4>
               </div>
@@ -52,11 +52,11 @@ export function TasksBountySection({ locale }: { locale: string }) {
             </span>
           </div>
 
-          <div className="mt-5 flex items-center justify-between border-t border-slate-800/80 pt-3 text-xs">
+          <div className="mt-6 flex items-center justify-between border-t border-white/[0.08] pt-4 text-xs">
             <span className="text-slate-400 font-medium">{t('instantCredit')}</span>
             <Link
               href={registerLink}
-              className="font-bold text-amber-400 hover:text-amber-300 underline"
+              className="font-bold text-amber-400 hover:text-amber-300 transition-colors"
             >
               {t('actionButton')} →
             </Link>
