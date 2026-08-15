@@ -14,6 +14,7 @@ import {
   type BoosterPurchaseDto,
 } from '../../../lib/api';
 import { AppHeader } from '../../../components/AppHeader';
+import { MobileTabBar } from '../../../components/MobileTabBar';
 import { BnbBadge } from '../../../components/BnbLogo';
 
 export default function BoostersClient() {
@@ -164,6 +165,8 @@ export default function BoostersClient() {
           }}
         />
       )}
+
+      <MobileTabBar locale={params.locale} />
     </div>
   );
 }

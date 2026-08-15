@@ -23,6 +23,7 @@ import TasksSection from './tasks-section';
 import { LogoMark } from '../../../components/Logo';
 import { LocaleSwitcher } from '../../../components/LocaleSwitcher';
 import { ThemeToggle } from '../../../components/ThemeToggle';
+import { MobileTabBar } from '../../../components/MobileTabBar';
 import { BnbBadge, BnbLogo } from '../../../components/BnbLogo';
 
 /** How often the live accrual counter repaints. 10fps reads as smooth. */
@@ -219,7 +220,7 @@ export default function DashboardClient() {
         <ReferralPanel profile={profile} locale={locale} />
       </main>
 
-      <TabBar locale={locale} onMine={mine} ready={ready} claiming={claiming} />
+      <MobileTabBar locale={locale} onMine={mine} ready={ready} claiming={claiming} />
     </div>
   );
 }

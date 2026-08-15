@@ -16,6 +16,7 @@ import {
   type WithdrawalDto,
 } from '../../../lib/api';
 import { AppHeader } from '../../../components/AppHeader';
+import { MobileTabBar } from '../../../components/MobileTabBar';
 import { BnbBadge, BnbLogo } from '../../../components/BnbLogo';
 
 /** SPEC §3: 3 points = 1 mainnet $Matsumoto. */
@@ -96,6 +97,8 @@ export default function WithdrawClient() {
           </>
         )}
       </main>
+
+      <MobileTabBar locale={locale} />
     </div>
   );
 }

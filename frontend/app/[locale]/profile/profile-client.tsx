@@ -13,6 +13,7 @@ import {
   type Profile,
 } from '../../../lib/api';
 import { AppHeader } from '../../../components/AppHeader';
+import { MobileTabBar } from '../../../components/MobileTabBar';
 import { BnbLogo } from '../../../components/BnbLogo';
 import { countryFlag, countryName } from '../../../lib/countries';
 
@@ -93,6 +94,8 @@ export default function ProfileClient() {
           </>
         )}
       </main>
+
+      <MobileTabBar locale={locale} />
     </div>
   );
 }
