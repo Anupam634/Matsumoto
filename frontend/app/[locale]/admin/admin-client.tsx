@@ -1,20 +1,34 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { getAdminToken, adminLogout, getStats, ApiError, type AdminStats } from '../../../lib/admin-api';
+import {
+  getAdminToken,
+  adminLogout,
+  getStats,
+  ApiError,
+  type AdminStats,
+} from '../../../lib/admin-api';
 import type { AdminTab } from '../../../components/admin/types';
 import { AdminLoginGate } from '../../../components/admin/AdminLoginGate';
-import { AdminHeader } from '../../../components/admin/AdminHeader';
+import { AdminSidebar } from '../../../components/admin/AdminSidebar';
+import { AdminTopNav } from '../../../components/admin/AdminTopNav';
+
+// Modular Tabs
 import { AnalyticsTab } from '../../../components/admin/AnalyticsTab';
 import { MinersTab } from '../../../components/admin/MinersTab';
-import { WithdrawalsTab } from '../../../components/admin/WithdrawalsTab';
 import { KycTab } from '../../../components/admin/KycTab';
-import { SupportTab } from '../../../components/admin/SupportTab';
-import { TasksTab } from '../../../components/admin/TasksTab';
+import { MiningEngineTab } from '../../../components/admin/tabs/MiningEngineTab';
 import { BoostersAdminTab } from '../../../components/admin/BoostersAdminTab';
 import { ReferralsAdminTab } from '../../../components/admin/ReferralsAdminTab';
-import { SecurityAdminTab } from '../../../components/admin/SecurityAdminTab';
-import { AuditAdminTab } from '../../../components/admin/AuditAdminTab';
+import { WithdrawalsTab } from '../../../components/admin/WithdrawalsTab';
+import { PaymentsTab } from '../../../components/admin/tabs/PaymentsTab';
+import { BlockchainTab } from '../../../components/admin/tabs/BlockchainTab';
+import { TasksTab } from '../../../components/admin/TasksTab';
+import { SupportTab } from '../../../components/admin/SupportTab';
+import { CmsTab } from '../../../components/admin/tabs/CmsTab';
+import { ReportsTab } from '../../../components/admin/tabs/ReportsTab';
+import { SecurityTab } from '../../../components/admin/tabs/SecurityTab';
+import { SystemTab } from '../../../components/admin/tabs/SystemTab';
 
 export default function AdminClient() {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -34,7 +48,8 @@ export default function AdminClient() {
 }
 
 function Panel({ onSignOut }: { onSignOut: () => void }) {
-  const [tab, setTab] = useState<AdminTab>('analytics');
+  const [tab, setTab] = useState<AdminTab>('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,32 +70,54 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
   }, [loadStats]);
 
   return (
-    <div className="glow-field min-h-dvh bg-slate-950 text-slate-100">
-      <AdminHeader
+    <div className="flex min-h-dvh bg-slate-950 text-slate-100 antialiased selection:bg-amber-500 selection:text-slate-950">
+      {/* Left Collapsible Enterprise Sidebar */}
+      <AdminSidebar
         currentTab={tab}
         onSelectTab={setTab}
         stats={stats}
         onSignOut={onSignOut}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen((o) => !o)}
       />
 
-      <main className="mx-auto max-w-7xl px-4 pb-20 pt-6 sm:px-6">
-        {error && (
-          <div className="mb-5 flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-950/40 p-4 text-xs text-red-300">
-            <span className="font-bold">⚠</span> {error}
-          </div>
-        )}
+      {/* Main Content Area */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Top Header */}
+        <AdminTopNav
+          currentTab={tab}
+          onToggleSidebar={() => setSidebarOpen((o) => !o)}
+          stats={stats}
+          onRefresh={loadStats}
+        />
 
-        {tab === 'analytics' && <AnalyticsTab stats={stats} onRefresh={loadStats} />}
-        {tab === 'miners' && <MinersTab onChanged={loadStats} onUnauthorized={onSignOut} />}
-        {tab === 'withdrawals' && <WithdrawalsTab onChanged={loadStats} onUnauthorized={onSignOut} />}
-        {tab === 'kyc' && <KycTab onUnauthorized={onSignOut} />}
-        {tab === 'support' && <SupportTab onUnauthorized={onSignOut} />}
-        {tab === 'tasks' && <TasksTab onUnauthorized={onSignOut} />}
-        {tab === 'boosters' && <BoostersAdminTab stats={stats} />}
-        {tab === 'referrals' && <ReferralsAdminTab />}
-        {tab === 'security' && <SecurityAdminTab stats={stats} />}
-        {tab === 'audit' && <AuditAdminTab stats={stats} />}
-      </main>
+        {/* Dynamic Tab Body */}
+        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-8">
+          <div className="mx-auto max-w-7xl">
+            {error && (
+              <div className="mb-6 flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-950/40 p-4 text-xs text-red-300">
+                <span className="font-bold">⚠</span> {error}
+              </div>
+            )}
+
+            {tab === 'dashboard' && <AnalyticsTab stats={stats} onRefresh={loadStats} />}
+            {tab === 'users' && <MinersTab onChanged={loadStats} onUnauthorized={onSignOut} />}
+            {tab === 'kyc' && <KycTab onUnauthorized={onSignOut} />}
+            {tab === 'mining-engine' && <MiningEngineTab />}
+            {tab === 'boosters' && <BoostersAdminTab stats={stats} />}
+            {tab === 'referrals' && <ReferralsAdminTab />}
+            {tab === 'withdrawals' && <WithdrawalsTab onChanged={loadStats} onUnauthorized={onSignOut} />}
+            {tab === 'payments' && <PaymentsTab />}
+            {tab === 'blockchain' && <BlockchainTab />}
+            {tab === 'tasks' && <TasksTab onUnauthorized={onSignOut} />}
+            {tab === 'support' && <SupportTab onUnauthorized={onSignOut} />}
+            {tab === 'cms' && <CmsTab />}
+            {tab === 'reports' && <ReportsTab />}
+            {tab === 'security' && <SecurityTab stats={stats} />}
+            {tab === 'system' && <SystemTab />}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

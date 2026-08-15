@@ -1,11 +1,16 @@
 export type AdminTab =
-  | 'analytics'
-  | 'miners'
-  | 'withdrawals'
-  | 'kyc'
-  | 'support'
-  | 'tasks'
+  | 'dashboard'
+  | 'users'
+  | 'mining-engine'
   | 'boosters'
   | 'referrals'
+  | 'withdrawals'
+  | 'blockchain'
+  | 'kyc'
+  | 'tasks'
+  | 'payments'
+  | 'support'
+  | 'cms'
+  | 'reports'
   | 'security'
-  | 'audit';
+  | 'system';
