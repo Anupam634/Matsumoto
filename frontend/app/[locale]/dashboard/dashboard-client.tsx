@@ -192,7 +192,7 @@ export default function DashboardClient() {
                 {t('viewAll')} →
               </Link>
             </div>
-            <div className="rail mt-4">
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {plans.map((p, i) => (
                 <PlanCard
                   key={p.id}
@@ -652,24 +652,51 @@ function PlanCard({
   return (
     <Link
       href={href}
-      className={`panel panel-lift relative overflow-hidden p-4 ${
-        popular ? 'border-indigo-400/50' : ''
+      className={`glass-panel group relative flex flex-col justify-between overflow-hidden p-5 transition-all hover:scale-[1.02] ${
+        popular ? 'border-amber-400/60 shadow-xl shadow-amber-500/10 ring-1 ring-amber-400/30' : ''
       }`}
     >
-      {popular && <span className="ribbon">{t('popular')}</span>}
-      {/* Every card reserves the ribbon's height so the rows line up
-          whether or not a card carries one. */}
-      <div className="mt-4">
-        <div className="text-lg font-extrabold">${plan.priceUsd}</div>
-        <div className="mt-0.5 text-xs text-slate-400">
-          +{plan.rateBonusPerHour} /h
+      {popular && (
+        <div className="absolute right-3 top-3 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-slate-950 shadow-sm">
+          {t('popular')}
+        </div>
+      )}
+
+      <div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="font-mono text-3xl font-black text-amber-400">
+            ${plan.priceUsd}
+          </span>
+          <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
+            / {plan.durationDays}d
+          </span>
+        </div>
+
+        <div className="mt-2 inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-xs font-bold text-emerald-400">
+          +{plan.rateBonusPerHour} MATSU/h
+        </div>
+
+        <div className="mt-4 space-y-2 border-t border-slate-800/80 pt-3 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-400">{t('resultingRate')}</span>
+            <span className="font-mono font-extrabold text-amber-300">
+              {plan.resultingRatePerHour} /h
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-400">{t('duration')}</span>
+            <span className="font-mono font-bold text-slate-300">
+              {plan.durationDays} {t('days')}
+            </span>
+          </div>
         </div>
       </div>
-      <div className="mt-4 space-y-2 text-sm">
-        <Row label={t('resultingRate')} value={`${plan.resultingRatePerHour} /h`} accent />
-        <Row label={t('duration')} value={`${plan.durationDays} ${t('days')}`} />
+
+      <div className="mt-5">
+        <span className="btn-gold block w-full rounded-xl py-2.5 text-center text-xs font-extrabold uppercase tracking-wider text-slate-950 shadow-md">
+          {t('getStarted')} →
+        </span>
       </div>
-      <span className="btn-primary mt-4 w-full py-2 text-sm">{t('getStarted')}</span>
     </Link>
   );
 }

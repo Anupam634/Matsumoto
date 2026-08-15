@@ -183,27 +183,47 @@ function PlanCard({
   const t = useTranslations('boosters');
 
   return (
-    <div className="panel panel-lift flex flex-col p-5 text-center">
-      <div className="text-3xl font-extrabold text-indigo-300">
-        ${plan.priceUsd}
+    <div className="glass-panel relative flex flex-col justify-between overflow-hidden p-5 transition-all hover:scale-[1.02]">
+      <div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="font-mono text-3xl font-black text-amber-400">
+            ${plan.priceUsd}
+          </span>
+          <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
+            / {plan.durationDays}d
+          </span>
+        </div>
+
+        <div className="mt-2 inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-xs font-bold text-emerald-400">
+          +{plan.rateBonusPerHour} MATSU/h
+        </div>
+
+        <div className="mt-4 space-y-2 border-t border-slate-800/80 pt-3 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-400">{t('resultingRate')}</span>
+            <span className="font-mono font-extrabold text-amber-300">
+              {plan.resultingRatePerHour} /h
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-400">{t('duration')}</span>
+            <span className="font-mono font-bold text-slate-300">
+              {plan.durationDays} {t('days')} · {t('stackable')}
+            </span>
+          </div>
+        </div>
       </div>
-      <div className="mt-3 text-xs uppercase tracking-wide text-slate-400">
-        {t('resultingRate')}
+
+      <div className="mt-5">
+        <button
+          type="button"
+          onClick={onBuy}
+          disabled={disabled}
+          className="btn-gold block w-full rounded-xl py-2.5 text-center text-xs font-extrabold uppercase tracking-wider text-slate-950 shadow-md disabled:opacity-40"
+        >
+          {t('buy')} →
+        </button>
       </div>
-      <div className="text-xl font-bold">{plan.resultingRatePerHour} /h</div>
-      <div className="mt-1 text-sm text-emerald-400">
-        +{plan.rateBonusPerHour}/h
-      </div>
-      <div className="mt-3 border-t border-white/10 pt-3 text-xs text-slate-400">
-        {plan.durationDays} {t('days')} · {t('stackable')}
-      </div>
-      <button
-        onClick={onBuy}
-        disabled={disabled}
-        className="btn-primary mt-4 w-full py-2.5 text-sm"
-      >
-        {t('buy')}
-      </button>
     </div>
   );
 }
