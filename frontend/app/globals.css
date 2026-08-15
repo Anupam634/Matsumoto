@@ -22,52 +22,59 @@
     transition: background-color 0.25s ease, color 0.25s ease;
   }
 
-  /* ───────────────── ☀️ Light Luxury Clean Mode ───────────────── */
+  /* ───────────────── ☀️ High-Contrast Luxury Light Mode ───────────────── */
   html.theme-light body {
-    background-color: #f8fafc;
-    color: #0f172a;
+    background-color: #f8fafc !important;
+    color: #0f172a !important;
   }
 
   html.theme-light .glow-field {
     background:
       radial-gradient(80rem 50rem at 50% -10%, rgba(245, 158, 11, 0.15), transparent 65%),
-      radial-gradient(60rem 40rem at 85% 30%, rgba(6, 182, 212, 0.1), transparent 60%),
-      radial-gradient(70rem 45rem at 50% 90%, rgba(245, 158, 11, 0.1), transparent 65%);
+      radial-gradient(60rem 40rem at 85% 30%, rgba(6, 182, 212, 0.08), transparent 60%),
+      radial-gradient(70rem 45rem at 50% 90%, rgba(245, 158, 11, 0.08), transparent 65%) !important;
   }
 
   html.theme-light .bg-cyber-grid {
     background-image: 
-      linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+      linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px) !important;
     background-size: 36px 36px;
   }
 
-  /* Light mode header & nav */
+  /* Header & Navigation */
   html.theme-light header {
-    background: rgba(255, 255, 255, 0.92) !important;
+    background: rgba(255, 255, 255, 0.95) !important;
     border-bottom: 1px solid #e2e8f0 !important;
-    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04) !important;
   }
 
   html.theme-light header nav a {
     color: #334155 !important;
+    font-weight: 700 !important;
   }
   html.theme-light header nav a:hover {
-    color: #d97706 !important;
+    color: #b45309 !important;
   }
 
   html.theme-light header .text-white {
     color: #0f172a !important;
   }
 
-  /* Light mode cards & glass panels */
+  /* All Cards, Panels, and Containers */
   html.theme-light .glass-panel,
   html.theme-light .card,
-  html.theme-light .panel {
+  html.theme-light .panel,
+  html.theme-light [class*="bg-slate-950"],
+  html.theme-light [class*="bg-slate-900"],
+  html.theme-light [class*="bg-slate-850"],
+  html.theme-light [class*="from-slate-950"],
+  html.theme-light [class*="via-slate-900"],
+  html.theme-light [class*="to-slate-950"] {
     background: #ffffff !important;
     border: 1px solid #e2e8f0 !important;
     color: #0f172a !important;
-    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(226, 232, 240, 0.6) !important;
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(226, 232, 240, 0.8) !important;
   }
 
   html.theme-light .glass-panel:hover,
@@ -77,7 +84,19 @@
     box-shadow: 0 20px 45px -5px rgba(245, 158, 11, 0.18), 0 0 0 1px #f59e0b !important;
   }
 
-  /* Light mode high-contrast typography */
+  /* Sub-containers inside cards */
+  html.theme-light .bg-white\/\[0\.03\],
+  html.theme-light .bg-white\/\[0\.04\],
+  html.theme-light .bg-white\/\[0\.06\],
+  html.theme-light .bg-white\/\[0\.08\],
+  html.theme-light .bg-white\/10,
+  html.theme-light [class*="bg-slate-800"] {
+    background-color: #f1f5f9 !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+  }
+
+  /* All text contrast fixes */
   html.theme-light .text-slate-100 {
     color: #0f172a !important;
   }
@@ -94,55 +113,84 @@
     color: #64748b !important;
   }
 
-  /* Gold & Amber accents on light */
+  /* Color accents on light */
   html.theme-light .text-amber-400,
-  html.theme-light .text-amber-300 {
+  html.theme-light .text-amber-300,
+  html.theme-light .text-amber-200 {
     color: #b45309 !important;
   }
 
+  html.theme-light .text-cyan-400,
+  html.theme-light .text-cyan-300 {
+    color: #0284c7 !important;
+  }
+
+  html.theme-light .text-emerald-400,
+  html.theme-light .text-emerald-300 {
+    color: #15803d !important;
+  }
+
   html.theme-light .bg-gradient-to-r.from-amber-200 {
-    background-image: linear-gradient(to right, #b45309, #d97706, #f59e0b) !important;
+    background-image: linear-gradient(to right, #92400e, #b45309, #d97706) !important;
   }
 
-  /* Container overrides in light mode */
-  html.theme-light .bg-slate-950,
-  html.theme-light .bg-slate-950\/70,
-  html.theme-light .bg-slate-950\/80,
-  html.theme-light .bg-slate-950\/90,
-  html.theme-light .bg-slate-950\/95,
-  html.theme-light .bg-slate-900,
-  html.theme-light .bg-slate-900\/40,
-  html.theme-light .bg-slate-900\/50,
-  html.theme-light .bg-slate-900\/60,
-  html.theme-light .bg-slate-900\/70,
-  html.theme-light .bg-slate-900\/80,
-  html.theme-light .bg-slate-900\/90 {
-    background-color: #ffffff !important;
+  /* Badges & Pills in Light Mode */
+  html.theme-light [class*="bg-amber-500\/10"],
+  html.theme-light [class*="bg-amber-500\/15"],
+  html.theme-light [class*="bg-amber-500\/20"] {
+    background-color: #fef3c7 !important;
+    border-color: #fde68a !important;
+    color: #92400e !important;
+  }
+
+  html.theme-light [class*="bg-emerald-500\/10"],
+  html.theme-light [class*="bg-emerald-500\/15"],
+  html.theme-light [class*="bg-emerald-500\/20"] {
+    background-color: #dcfce7 !important;
+    border-color: #bbf7d0 !important;
+    color: #166534 !important;
+  }
+
+  html.theme-light [class*="bg-cyan-500\/10"],
+  html.theme-light [class*="bg-cyan-500\/15"],
+  html.theme-light [class*="bg-cyan-500\/20"] {
+    background-color: #e0f2fe !important;
+    border-color: #bae6fd !important;
+    color: #0369a1 !important;
+  }
+
+  /* Borders */
+  html.theme-light [class*="border-white"],
+  html.theme-light [class*="border-slate-800"],
+  html.theme-light [class*="border-slate-850"],
+  html.theme-light [class*="border-slate-700"] {
     border-color: #e2e8f0 !important;
   }
 
-  html.theme-light .bg-white\/\[0\.04\],
-  html.theme-light .bg-white\/\[0\.06\],
-  html.theme-light .bg-white\/\[0\.08\],
-  html.theme-light .bg-white\/\[0\.03\] {
-    background-color: #f1f5f9 !important;
-    border-color: #e2e8f0 !important;
+  /* Buttons in Light Mode */
+  html.theme-light .btn-gold {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 15px rgba(217, 119, 6, 0.35) !important;
+  }
+  html.theme-light .btn-gold:hover {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
+    color: #ffffff !important;
   }
 
-  html.theme-light .border-white\/10,
-  html.theme-light .border-white\/\[0\.08\],
-  html.theme-light .border-white\/\[0\.06\],
-  html.theme-light .border-slate-800,
-  html.theme-light .border-slate-850 {
-    border-color: #e2e8f0 !important;
+  html.theme-light .btn-secondary {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
   }
 
-  /* Light mode inputs and controls */
+  /* Form Inputs & Selects */
   html.theme-light input,
-  html.theme-light select {
+  html.theme-light select,
+  html.theme-light textarea {
     background-color: #ffffff !important;
     color: #0f172a !important;
-    border-color: #cbd5e1 !important;
+    border: 1px solid #cbd5e1 !important;
   }
   html.theme-light input:focus,
   html.theme-light select:focus {
@@ -150,7 +198,7 @@
     box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25) !important;
   }
 
-  /* Light mode mobile bottom nav bar */
+  /* Mobile Bottom Navigation Bar */
   html.theme-light nav.fixed {
     background: rgba(255, 255, 255, 0.96) !important;
     border-top: 1px solid #e2e8f0 !important;
@@ -160,10 +208,13 @@
     color: #64748b !important;
   }
   html.theme-light nav.fixed .text-amber-400 {
-    color: #d97706 !important;
+    color: #b45309 !important;
+  }
+  html.theme-light nav.fixed .ring-slate-950 {
+    --tw-ring-color: #ffffff !important;
   }
 
-  /* Light mode footer */
+  /* Footer */
   html.theme-light footer {
     background: #f8fafc !important;
     border-top: 1px solid #e2e8f0 !important;
