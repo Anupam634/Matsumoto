@@ -135,6 +135,12 @@
   }
 
   /* Badges & Pills in Light Mode */
+  html.theme-light code {
+    color: #92400e !important;
+    background-color: #fef3c7 !important;
+    border: 1px solid #fde68a !important;
+  }
+
   html.theme-light [class*="bg-amber-500\/10"],
   html.theme-light [class*="bg-amber-500\/15"],
   html.theme-light [class*="bg-amber-500\/20"] {

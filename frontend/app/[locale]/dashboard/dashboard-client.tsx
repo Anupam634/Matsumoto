@@ -823,17 +823,26 @@ function ReferralPanel({
   }
 
   return (
-    <section className="panel mt-4 p-5">
-      <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-        {t('referralLink')}
+    <section className="glass-panel mt-4 p-5 sm:p-6">
+      <div className="flex items-center justify-between">
+        <div className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+          {t('referralLink')}
+        </div>
+        <span className="rounded-lg bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 text-xs font-mono font-bold text-amber-300">
+          CODE: {profile.referralCode}
+        </span>
       </div>
-      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <code className="flex-1 truncate rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-indigo-300">
-          {link}
-        </code>
+
+      <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+        <div className="flex-1 overflow-hidden rounded-xl border border-slate-700/80 bg-slate-950/80 px-3.5 py-3">
+          <code className="block truncate font-mono text-sm font-bold text-amber-400 select-all">
+            {link || `.../${locale}/login?ref=${profile.referralCode}`}
+          </code>
+        </div>
         <button
+          type="button"
           onClick={copy}
-          className="shrink-0 rounded-full border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-indigo-400/50"
+          className="btn-gold shrink-0 rounded-xl px-5 py-3 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md transition-all active:scale-95"
         >
           {copied ? `✓ ${t('copied')}` : t('copy')}
         </button>
