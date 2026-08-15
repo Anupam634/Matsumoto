@@ -3,13 +3,6 @@
 import { useMemo } from 'react';
 import { countryOptions } from '../lib/countries';
 
-/**
- * Every ISO 3166-1 country, named in the current UI language.
- *
- * A plain `<select>` rather than a custom combobox: it gets native
- * type-to-search on desktop and the OS wheel picker on mobile for free,
- * which beats anything hand-rolled at 255 options.
- */
 export function CountrySelect({
   value,
   onChange,
@@ -27,27 +20,25 @@ export function CountrySelect({
   required?: boolean;
   id?: string;
 }) {
-  // Sorting 255 names through a collator is not free; the list only changes
-  // when the language does.
   const options = useMemo(() => countryOptions(locale), [locale]);
 
   return (
     <label className="block" htmlFor={id}>
-      {/* Shared by the light signup page and the dark KYC form, so the
-          label colour comes from a class that follows the surface. */}
-      <span className="field-label">{label}</span>
+      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+        {label}
+      </span>
       <select
         id={id}
-        className="input-field mt-1.5"
+        className="mt-1.5 w-full rounded-xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-sm text-slate-100 outline-none transition-all focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40"
         value={value}
         required={required}
         onChange={(e) => onChange(e.target.value)}
       >
-        <option value="" disabled>
+        <option value="" disabled className="bg-slate-950 text-slate-500">
           {placeholder}
         </option>
         {options.map((c) => (
-          <option key={c.code} value={c.code}>
+          <option key={c.code} value={c.code} className="bg-slate-950 text-slate-100">
             {c.flag} {c.name}
           </option>
         ))}

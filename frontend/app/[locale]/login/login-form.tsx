@@ -11,13 +11,12 @@ import { LocaleSwitcher } from '../../../components/LocaleSwitcher';
 
 type Mode = 'login' | 'register';
 
-/** Quick stats reused from the landing page — same numbers, no new copy. */
 const STAT_KEYS = ['baseRate', 'conversion', 'minWithdrawal', 'boosterDuration'] as const;
 const STAT_VALUES: Record<(typeof STAT_KEYS)[number], string> = {
-  baseRate: '0.9 /h',
+  baseRate: '0.90 /h',
   conversion: '3 : 1',
-  minWithdrawal: '100',
-  boosterDuration: '30d',
+  minWithdrawal: '100 PTS',
+  boosterDuration: '30 Days',
 };
 
 // useSearchParams() needs a Suspense boundary for this route to prerender.
@@ -36,8 +35,6 @@ function AuthForm() {
   const params = useParams<{ locale: string }>();
   const search = useSearchParams();
 
-  // A referral link (/en/login?ref=CODE) pre-fills the invite field, and the
-  // landing page's "Get started" CTA links here with ?mode=register.
   const [mode, setMode] = useState<Mode>(
     search.get('ref') || search.get('mode') === 'register'
       ? 'register'
@@ -51,9 +48,6 @@ function AuthForm() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Already signed in? Don't sit on a sign-up form — go straight through.
-  // A ?ref= link is the exception: it is meant to onboard someone new, so
-  // it still shows the form rather than bouncing the current session away.
   useEffect(() => {
     if (getToken() && !search.get('ref')) {
       router.replace(`/${params.locale}/dashboard`);
@@ -69,9 +63,6 @@ function AuthForm() {
     e.preventDefault();
     setError(null);
 
-    // The form sets noValidate so errors render in our own styling, which
-    // also means `required` on the country select is not enforced by the
-    // browser — check it here rather than letting a blank country through.
     if (mode === 'register' && !countryCode) {
       setError(t('countryRequired'));
       return;
@@ -87,7 +78,6 @@ function AuthForm() {
           countryCode,
         });
         if (res.referralRejected) {
-          // Account exists, but the invite wasn't credited — say so plainly.
           alert(t('referralRejected'));
         }
       } else {
@@ -102,27 +92,41 @@ function AuthForm() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-white text-slate-900 lg:flex-row">
+    <div className="glow-field min-h-dvh flex flex-col bg-cyber-grid bg-slate-950 text-slate-100 lg:flex-row">
       {/* ───────────────── Brand panel — desktop only ───────────────── */}
-      <aside className="glow-field-light relative hidden w-full flex-col justify-between overflow-hidden px-10 py-10 lg:flex lg:w-[46%] xl:w-1/2">
-        <Link href={`/${params.locale}`} className="inline-flex">
-          <LogoLockup width={230} priority />
+      <aside className="relative hidden w-full flex-col justify-between overflow-hidden border-r border-slate-850 bg-slate-950/80 px-10 py-10 lg:flex lg:w-[46%] xl:w-1/2 backdrop-blur-xl">
+        {/* Subtle background glow spheres */}
+        <div className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-amber-500/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -right-20 h-72 w-72 rounded-full bg-cyan-500/15 blur-3xl" />
+
+        <Link href={`/${params.locale}`} className="inline-flex items-center gap-3">
+          <LogoLockup width={220} priority />
         </Link>
 
-        <div className="max-w-md">
-          <h2 className="text-3xl font-extrabold leading-[1.1] tracking-tight">
-            {tLanding('hero.title')}{' '}
-            <span className="text-gradient-brand">{tLanding('hero.titleAccent')}</span>
-          </h2>
-          <p className="mt-4 text-slate-600">{tLanding('hero.subtitle')}</p>
+        <div className="max-w-md space-y-6">
+          <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-amber-300">
+            <span className="pulse-dot h-2 w-2 rounded-full bg-emerald-400" />
+            <span>BNB Chain Cloud Mining Node</span>
+          </div>
 
-          <div className="mt-8 grid grid-cols-2 gap-3">
+          <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl">
+            {tLanding('hero.title')}{' '}
+            <span className="bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500 bg-clip-text text-transparent">
+              {tLanding('hero.titleAccent')}
+            </span>
+          </h2>
+
+          <p className="text-sm leading-relaxed text-slate-300">
+            {tLanding('hero.subtitle')}
+          </p>
+
+          <div className="grid grid-cols-2 gap-3 pt-2">
             {STAT_KEYS.map((key) => (
-              <div key={key} className="card-soft p-4">
-                <div className="text-lg font-extrabold text-indigo-600">
+              <div key={key} className="card card-lift p-4 border-slate-800 bg-slate-900/70 backdrop-blur-sm">
+                <div className="font-mono text-xl font-extrabold text-amber-400">
                   {STAT_VALUES[key]}
                 </div>
-                <div className="mt-0.5 text-xs uppercase tracking-wide text-slate-500">
+                <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                   {tLanding(`figures.${key}`)}
                 </div>
               </div>
@@ -130,11 +134,14 @@ function AuthForm() {
           </div>
         </div>
 
+        <div className="border-t border-slate-800/80 pt-4 text-xs text-slate-500">
+          {tLanding('footer.copyright')}
+        </div>
       </aside>
 
       {/* ───────────────────────── Form panel ───────────────────────── */}
       <main
-        className="flex flex-1 flex-col px-5 pb-8 pt-6 sm:px-10 sm:pt-8 lg:justify-center lg:px-16 lg:py-10 xl:px-24"
+        className="flex flex-1 flex-col px-5 pb-10 pt-6 sm:px-10 sm:pt-8 lg:justify-center lg:px-16 lg:py-10 xl:px-24"
         style={{
           paddingTop: 'max(1.5rem, env(safe-area-inset-top))',
           paddingBottom: 'max(2rem, env(safe-area-inset-bottom))',
@@ -143,116 +150,138 @@ function AuthForm() {
         <div className="mb-8 flex items-center justify-between lg:mb-10">
           <Link
             href={`/${params.locale}`}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-indigo-600"
+            className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 transition hover:text-amber-400"
           >
             ← {t('backHome')}
           </Link>
-          <span className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             <LocaleSwitcher locale={params.locale} />
             <span className="lg:hidden">
-              <LogoMark size={34} priority />
+              <LogoMark size={36} priority />
             </span>
-          </span>
-        </div>
-
-        <div className="mx-auto w-full max-w-sm lg:mx-0">
-          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-            {mode === 'login' ? t('signIn') : t('createAccount')}
-          </h1>
-
-          <div className="tab-switch mt-6 grid w-full grid-cols-2">
-            <button
-              type="button"
-              data-active={mode === 'login'}
-              onClick={() => switchMode('login')}
-            >
-              {t('signIn')}
-            </button>
-            <button
-              type="button"
-              data-active={mode === 'register'}
-              onClick={() => switchMode('register')}
-            >
-              {t('signUp')}
-            </button>
           </div>
-
-          <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
-            <Field
-              label={t('email')}
-              type="email"
-              value={email}
-              onChange={setEmail}
-              autoComplete="email"
-              inputMode="email"
-              enterKeyHint="next"
-              icon={<IconMail />}
-            />
-            <Field
-              label={t('password')}
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={setPassword}
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              enterKeyHint={mode === 'register' ? 'next' : 'done'}
-              icon={<IconLock />}
-              endAdornment={
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? t('hidePassword') : t('showPassword')}
-                  className="text-slate-400 transition hover:text-indigo-600"
-                >
-                  {showPassword ? <IconEyeOff /> : <IconEye />}
-                </button>
-              }
-            />
-            {mode === 'register' && (
-              <CountrySelect
-                id="signup-country"
-                locale={params.locale}
-                value={countryCode}
-                onChange={setCountryCode}
-                label={t('country')}
-                placeholder={t('countryPlaceholder')}
-                required
-              />
-            )}
-            {mode === 'register' && (
-              <Field
-                label={t('referralCode')}
-                type="text"
-                value={referralCode}
-                onChange={setReferralCode}
-                enterKeyHint="done"
-                icon={<IconTicket />}
-                optional
-              />
-            )}
-
-            {mode === 'register' && (
-              <p className="text-xs text-slate-500">{t('passwordHint')}</p>
-            )}
-
-            {error && (
-              <p className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
-                <span aria-hidden>⚠</span>
-                {error}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={busy}
-              className="btn-primary w-full py-3.5 text-base"
-            >
-              {busy && <IconSpinner />}
-              {busy ? t('working') : mode === 'login' ? t('signIn') : t('signUp')}
-            </button>
-          </form>
         </div>
 
-        <p className="mx-auto mt-10 max-w-sm text-center text-xs text-slate-400 lg:hidden">
+        <div className="mx-auto w-full max-w-md lg:mx-0">
+          <div className="card border-slate-800/90 bg-slate-900/80 p-6 sm:p-8 shadow-2xl backdrop-blur-2xl">
+            <h1 className="text-2xl font-black tracking-tight sm:text-3xl text-slate-100">
+              {mode === 'login' ? t('signIn') : t('createAccount')}
+            </h1>
+            <p className="mt-1.5 text-xs text-slate-400">
+              {mode === 'login'
+                ? 'Access your cloud mining terminal & daily yield.'
+                : 'Start earning Matsumoto Points with zero hardware cost.'}
+            </p>
+
+            {/* Mode Switch Tabs */}
+            <div className="mt-6 grid w-full grid-cols-2 rounded-xl border border-slate-800 bg-slate-950/80 p-1">
+              <button
+                type="button"
+                onClick={() => switchMode('login')}
+                className={`rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider transition-all ${
+                  mode === 'login'
+                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {t('signIn')}
+              </button>
+              <button
+                type="button"
+                onClick={() => switchMode('register')}
+                className={`rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider transition-all ${
+                  mode === 'register'
+                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {t('signUp')}
+              </button>
+            </div>
+
+            <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
+              <Field
+                label={t('email')}
+                type="email"
+                value={email}
+                onChange={setEmail}
+                autoComplete="email"
+                inputMode="email"
+                enterKeyHint="next"
+                icon={<IconMail />}
+              />
+              <Field
+                label={t('password')}
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={setPassword}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                enterKeyHint={mode === 'register' ? 'next' : 'done'}
+                icon={<IconLock />}
+                endAdornment={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? t('hidePassword') : t('showPassword')}
+                    className="text-slate-500 transition hover:text-amber-400"
+                  >
+                    {showPassword ? <IconEyeOff /> : <IconEye />}
+                  </button>
+                }
+              />
+              {mode === 'register' && (
+                <CountrySelect
+                  id="signup-country"
+                  locale={params.locale}
+                  value={countryCode}
+                  onChange={setCountryCode}
+                  label={t('country')}
+                  placeholder={t('countryPlaceholder')}
+                  required
+                />
+              )}
+              {mode === 'register' && (
+                <Field
+                  label={t('referralCode')}
+                  type="text"
+                  value={referralCode}
+                  onChange={setReferralCode}
+                  enterKeyHint="done"
+                  icon={<IconTicket />}
+                  optional
+                />
+              )}
+
+              {mode === 'register' && (
+                <p className="text-[11px] text-slate-400">{t('passwordHint')}</p>
+              )}
+
+              {error && (
+                <div className="flex items-start gap-2 rounded-xl border border-red-500/40 bg-red-950/40 p-3 text-xs text-red-300">
+                  <span className="text-red-400 font-bold" aria-hidden>⚠</span>
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={busy}
+                className="btn-gold mt-2 w-full rounded-xl py-3.5 text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-lg shadow-amber-500/20 disabled:opacity-50"
+              >
+                {busy ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <IconSpinner />
+                    <span>{t('working')}</span>
+                  </span>
+                ) : (
+                  <span>{mode === 'login' ? t('signIn') : t('signUp')} →</span>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <p className="mx-auto mt-8 max-w-sm text-center text-[11px] text-slate-500 lg:hidden">
           {tLanding('hero.honesty')}
         </p>
       </main>
@@ -285,15 +314,18 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
         {label}
+        {optional && <span className="ml-1 text-slate-500 font-normal lowercase">(optional)</span>}
       </span>
       <div className="relative mt-1.5">
-        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
           {icon}
         </span>
         <input
-          className={`input-field pl-11 ${endAdornment ? 'pr-11' : ''}`}
+          className={`w-full rounded-xl border border-slate-800 bg-slate-950/80 py-3 pl-10 text-sm text-slate-100 placeholder-slate-600 outline-none transition-all focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 ${
+            endAdornment ? 'pr-11' : 'pr-4'
+          }`}
           type={type}
           value={value}
           required={!optional}
@@ -306,7 +338,7 @@ function Field({
           onChange={(e) => onChange(e.target.value)}
         />
         {endAdornment && (
-          <span className="absolute right-4 top-1/2 -translate-y-1/2">
+          <span className="absolute right-3.5 top-1/2 -translate-y-1/2">
             {endAdornment}
           </span>
         )}
