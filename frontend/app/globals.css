@@ -57,7 +57,8 @@
     color: #b45309 !important;
   }
 
-  html.theme-light header .text-white {
+  html.theme-light .text-white,
+  html.theme-light [class*="text-white"] {
     color: #0f172a !important;
   }
 

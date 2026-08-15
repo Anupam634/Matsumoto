@@ -418,20 +418,20 @@ function HeroPanel({
               </>
             )}
           </div>
-          <div className="mt-2 text-4xl font-extrabold tabular-nums tracking-tight text-white sm:text-5xl">
+          <div className="mt-2 text-4xl font-black tabular-nums tracking-tight text-slate-900 dark:text-white sm:text-5xl">
             {pending.toFixed(4)}
           </div>
-          <div className="mt-1 text-sm text-slate-400">{t('pending')}</div>
+          <div className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">{t('pending')}</div>
 
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-400/25 bg-indigo-500/10 px-3 py-1.5 text-sm font-bold text-indigo-300">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-400/25 bg-indigo-500/10 px-3 py-1.5 text-sm font-bold text-indigo-700 dark:text-indigo-300">
               <IconBolt className="h-3.5 w-3.5" />
               {status.ratePerHour} /h
             </span>
             {!status.canClaim && countdown && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-slate-300">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 dark:border-white/10 px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
                 <IconClock className="h-3.5 w-3.5" />
-                <span className="tabular-nums">{countdown}</span>
+                <span className="tabular-nums font-mono font-bold">{countdown}</span>
               </span>
             )}
           </div>
@@ -504,23 +504,23 @@ function BalancePanel({
   return (
     <section className="panel flex flex-col justify-between gap-5 p-5 sm:p-7">
       <div>
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
           {t('balance')}
         </div>
         <div className="mt-1.5 flex items-baseline gap-2">
-          <span className="text-3xl font-extrabold tabular-nums text-white sm:text-4xl">
+          <span className="text-3xl font-black tabular-nums text-slate-900 dark:text-white sm:text-4xl">
             {balance.toFixed(2)}
           </span>
-          <span className="text-sm font-semibold text-slate-400">
+          <span className="text-sm font-bold text-amber-600 dark:text-amber-400">
             {t('pointsShort')}
           </span>
         </div>
-        <div className="mt-1 text-sm text-slate-400">
-          ≈ {token.toFixed(4)} $Matsumoto
+        <div className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-400">
+          ≈ <strong className="font-mono text-cyan-600 dark:text-cyan-400">{token.toFixed(4)}</strong> $Matsumoto
           <span className="ml-1 text-xs text-slate-500">({t('atRate')})</span>
         </div>
         <div className="mt-2.5">
-          <span className="chain-indicator">
+          <span className="chain-indicator font-semibold">
             <BnbLogo className="h-3 w-3" />
             {t('chainIndicator')}
           </span>
@@ -593,11 +593,11 @@ function StatCard({
         </span>
         {spark && <Sparkline />}
       </div>
-      <div className="mt-3 truncate text-xs font-medium uppercase tracking-wide text-slate-400">
+      <div className="mt-3 truncate text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
         {label}
       </div>
       <div className="mt-1 flex items-baseline gap-1.5">
-        <span className="text-xl font-extrabold tabular-nums sm:text-2xl">
+        <span className="text-xl font-black tabular-nums text-slate-900 dark:text-white sm:text-2xl">
           {animated.toFixed(decimals)}
           {suffix}
         </span>
