@@ -21,8 +21,11 @@ export function ThemeToggle() {
 
   const applyTheme = (mode: ThemeMode) => {
     const root = document.documentElement;
-    root.classList.remove('theme-dark', 'theme-light', 'theme-cyber');
+    root.classList.remove('theme-dark', 'theme-light', 'theme-cyber', 'dark');
     root.classList.add(`theme-${mode}`);
+    if (mode !== 'light') {
+      root.classList.add('dark');
+    }
     localStorage.setItem('matsumoto_theme', mode);
   };
 
