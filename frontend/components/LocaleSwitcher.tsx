@@ -1,73 +1,109 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { locales } from '../i18n';
 
-const LABELS: Record<string, string> = {
-  en: 'EN',
-  zh: '中文',
-  ko: '한국어',
+interface LocaleOption {
+  code: string;
+  label: string;
+  shortLabel: string;
+  flag: string;
+}
+
+const LOCALE_OPTIONS: Record<string, LocaleOption> = {
+  en: { code: 'en', label: 'English', shortLabel: 'EN', flag: '🇬🇧' },
+  zh: { code: 'zh', label: '简体中文', shortLabel: '中文', flag: '🇨🇳' },
+  ko: { code: 'ko', label: '한국어', shortLabel: '한국어', flag: '🇰🇷' },
 };
 
-/**
- * Language picker, available on every screen rather than only the landing
- * page.
- *
- * A native <select> for the same reason CountrySelect uses one: it brings its
- * own keyboard handling and the OS picker on mobile, which beats a hand-rolled
- * menu squeezed into a header. The visible label is drawn separately so the
- * control can stay narrow while the select itself covers it for hit testing.
- */
 export function LocaleSwitcher({ locale }: { locale: string }) {
   const router = useRouter();
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const current = LOCALE_OPTIONS[locale] || {
+    code: locale,
+    label: locale.toUpperCase(),
+    shortLabel: locale.toUpperCase(),
+    flag: '🌐',
+  };
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [open]);
 
   function switchTo(next: string) {
+    setOpen(false);
     if (next === locale) return;
-    // Stay on the page the reader is already on — /en/boosters becomes
-    // /zh/boosters, not the home page.
     const rest = pathname.split('/').slice(2).join('/');
-    // Read the query directly rather than through useSearchParams, which
-    // would opt these statically rendered pages into dynamic rendering.
     const search = typeof window === 'undefined' ? '' : window.location.search;
     router.replace(`/${next}${rest ? `/${rest}` : ''}${search}`);
   }
 
   return (
-    <span className="locale-switch">
-      <IconGlobe />
-      <span className="hidden sm:inline" aria-hidden>
-        {LABELS[locale] ?? locale.toUpperCase()}
-      </span>
-      <select
-        value={locale}
-        onChange={(e) => switchTo(e.target.value)}
-        aria-label="Language"
+    <div className="relative inline-block text-left" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex h-8 items-center gap-1.5 rounded-full border border-white/15 bg-slate-900/80 px-2.5 text-xs font-bold text-slate-200 shadow-sm backdrop-blur-md transition hover:border-blue-500/50 hover:bg-slate-800 hover:text-white"
+        aria-expanded={open}
+        aria-label="Select Language"
       >
-        {locales.map((l) => (
-          <option key={l} value={l}>
-            {LABELS[l]}
-          </option>
-        ))}
-      </select>
-    </span>
-  );
-}
+        <span className="text-sm">{current.flag}</span>
+        <span className="font-semibold">{current.shortLabel}</span>
+        <span className="text-[10px] text-slate-400">▾</span>
+      </button>
 
-function IconGlobe() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      className="h-3.5 w-3.5 shrink-0"
-      aria-hidden
-    >
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" />
-      <path
-        d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"
-        stroke="currentColor"
-        strokeWidth="1.7"
-      />
-    </svg>
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-36 origin-top-right rounded-2xl border border-white/10 bg-slate-900/95 p-1.5 shadow-2xl backdrop-blur-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
+          <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-500">
+            Language
+          </div>
+          <div className="space-y-0.5">
+            {locales.map((code) => {
+              const opt = LOCALE_OPTIONS[code] || {
+                code,
+                label: code.toUpperCase(),
+                shortLabel: code.toUpperCase(),
+                flag: '🌐',
+              };
+              const isSelected = locale === code;
+
+              return (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => switchTo(code)}
+                  className={`flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-xs font-semibold transition ${
+                    isSelected
+                      ? 'bg-blue-600 font-bold text-white shadow-sm shadow-blue-500/30'
+                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">{opt.flag}</span>
+                    <span>{opt.label}</span>
+                  </div>
+                  {isSelected && <span className="text-xs">✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

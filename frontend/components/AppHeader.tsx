@@ -24,7 +24,7 @@ export function AppHeader({
       >
         <Link
           href={`/${locale}/dashboard`}
-          className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 transition hover:text-amber-400"
+          className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 transition hover:text-blue-400"
         >
           ← {backLabel}
         </Link>
