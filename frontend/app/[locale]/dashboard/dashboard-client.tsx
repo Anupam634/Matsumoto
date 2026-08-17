@@ -99,6 +99,28 @@ export default function DashboardClient() {
       playClaimReward();
       setCelebrate(res.earnedPoints);
       setTimeout(() => setCelebrate(null), 1700);
+
+      // Optimistically update balance and mining status immediately for zero-lag UI
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              pointsBalance: prev.pointsBalance + res.earnedPoints,
+            }
+          : prev,
+      );
+      setStatus((prev) =>
+        prev
+          ? {
+              ...prev,
+              pendingPoints: 0,
+              canClaim: false,
+              nextClaimAt: res.nextClaimAt,
+            }
+          : prev,
+      );
+
+      // Synchronize in the background
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('offline'));

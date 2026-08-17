@@ -279,9 +279,16 @@ function RequestForm({
         <button
           type="submit"
           disabled={blocked || busy || !amountValid || !addressValid}
-          className="btn-primary w-full py-3"
+          className="btn-primary flex w-full items-center justify-center gap-2 py-3.5 text-center text-sm font-black uppercase tracking-wider text-white shadow-lg transition-all disabled:opacity-50"
         >
-          {busy ? t('submitting') : t('submit')}
+          {busy ? (
+            <span>⏳ {t('submitting')}</span>
+          ) : (
+            <>
+              <span>💸</span>
+              <span>{t('submit')}</span>
+            </>
+          )}
         </button>
 
         <p className="text-xs text-slate-500">{t('reviewNote')}</p>

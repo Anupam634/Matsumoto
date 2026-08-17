@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   ApiError,
@@ -15,10 +15,18 @@ import {
 import { AppHeader } from '../../../components/AppHeader';
 import { MobileTabBar } from '../../../components/MobileTabBar';
 import { BnbLogo } from '../../../components/BnbLogo';
+import { ThemeToggle } from '../../../components/ThemeToggle';
 import { countryFlag, countryName } from '../../../lib/countries';
+import { locales } from '../../../i18n';
 
-/** SPEC §3: 3 points = 1 mainnet $Matsumoto. */
+/** 3 points = 1 $BONDKOIN BEP-20. */
 const POINTS_PER_TOKEN = 3;
+
+const LANGUAGE_LABELS: Record<string, { label: string; flag: string }> = {
+  en: { label: 'English', flag: '🇬🇧' },
+  zh: { label: '简体中文', flag: '🇨🇳' },
+  ko: { label: '한국어', flag: '🇰🇷' },
+};
 
 export default function ProfileClient() {
   const t = useTranslations('profile');
@@ -55,13 +63,18 @@ export default function ProfileClient() {
       <AppHeader locale={locale} backLabel={t('backToDashboard')} maxWidth="max-w-3xl" />
 
       <main
-        className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6"
-        style={{ paddingBottom: 'max(4rem, env(safe-area-inset-bottom))' }}
+        className="mx-auto max-w-3xl px-4 pb-24 pt-6 sm:px-6"
+        style={{ paddingBottom: 'max(6rem, env(safe-area-inset-bottom))' }}
       >
-        <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-          {t('title')}
-        </h1>
-        <p className="mt-2 text-slate-400">{t('subtitle')}</p>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+              {t('title')}
+            </h1>
+            <p className="mt-1 text-sm text-slate-400">{t('subtitle')}</p>
+          </div>
+          <ThemeToggle />
+        </div>
 
         {error && (
           <p className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
@@ -70,13 +83,15 @@ export default function ProfileClient() {
         )}
 
         {!profile ? (
-          <div className="panel mt-6 space-y-3 p-6">
-            <div className="skeleton h-5 w-32" />
+          <div className="panel mt-6 space-y-4 p-6">
+            <div className="skeleton h-6 w-36" />
+            <div className="skeleton h-28 w-full" />
             <div className="skeleton h-24 w-full" />
           </div>
         ) : (
-          <>
+          <div className="mt-6 space-y-4">
             <BalanceCard profile={profile} locale={locale} />
+            <PreferencesCard locale={locale} />
             <AccountCard profile={profile} locale={locale} />
             <IdentityCard profile={profile} locale={locale} />
             <ReferralCard profile={profile} locale={locale} />
@@ -87,11 +102,12 @@ export default function ProfileClient() {
                 logout();
                 router.replace(`/${locale}/login`);
               }}
-              className="btn-outline-brand mt-4 w-full py-3"
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 py-3.5 text-sm font-bold text-red-400 transition hover:bg-red-500/20 hover:text-red-300"
             >
-              {t('signOut')}
+              <span>🚪</span>
+              <span>{t('signOut')}</span>
             </button>
-          </>
+          </div>
         )}
       </main>
 
@@ -109,33 +125,49 @@ function BalanceCard({ profile, locale }: { profile: Profile; locale: string }) 
     profile.pointsBalance >= WITHDRAWAL_MIN_POINTS;
 
   return (
-    <section className="panel mt-6 p-5 sm:p-6">
-      <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-        {t('balance')}
-      </div>
-      <div className="mt-1.5 flex items-baseline gap-2">
-        <span className="text-3xl font-extrabold tabular-nums text-white sm:text-4xl">
-          {profile.pointsBalance.toFixed(2)}
-        </span>
-        <span className="text-sm font-semibold text-slate-400">
-          {t('pointsShort')}
-        </span>
-      </div>
-      <div className="mt-1 text-sm text-slate-400">
-        ≈ {(profile.pointsBalance / POINTS_PER_TOKEN).toFixed(4)} $BONDKOIN
-      </div>
-      <div className="mt-2.5">
+    <section className="glass-panel p-5 sm:p-7">
+      <div className="flex items-center justify-between">
+        <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          {t('balance')}
+        </div>
         <span className="chain-indicator">
           <BnbLogo className="h-3 w-3" />
           {t('chainName')}
         </span>
       </div>
 
-      <Link href={`/${locale}/withdraw`} className="btn-primary mt-4 w-full py-3">
-        {t('withdrawCta')}
-      </Link>
+      <div className="mt-3 flex items-baseline gap-2">
+        <span className="text-3xl font-black tabular-nums text-white sm:text-4xl">
+          {profile.pointsBalance.toFixed(2)}
+        </span>
+        <span className="text-sm font-bold text-blue-400">
+          {t('pointsShort')}
+        </span>
+      </div>
+
+      <div className="mt-1 text-sm text-slate-400">
+        ≈ <strong className="font-mono text-cyan-400">{(profile.pointsBalance / POINTS_PER_TOKEN).toFixed(4)}</strong> $BONDKOIN
+      </div>
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <Link
+          href={`/${locale}/withdraw`}
+          className="btn-primary flex w-full items-center justify-center gap-2 py-3.5 text-center text-sm font-black uppercase tracking-wider text-white shadow-lg"
+        >
+          <span>💸</span>
+          <span>{t('withdrawCta')}</span>
+        </Link>
+        <Link
+          href={`/${locale}/boosters`}
+          className="btn-secondary flex w-full items-center justify-center gap-2 py-3.5 text-center text-sm font-bold text-slate-200"
+        >
+          <span>🚀</span>
+          <span>Booster Hub</span>
+        </Link>
+      </div>
+
       {!canWithdraw && (
-        <p className="mt-2 text-center text-xs text-slate-500">
+        <p className="mt-3 text-center text-xs text-slate-400">
           {profile.kycStatus !== 'APPROVED'
             ? t('withdrawNeedsKyc')
             : t('withdrawNeedsBalance', { min: WITHDRAWAL_MIN_POINTS })}
@@ -145,13 +177,64 @@ function BalanceCard({ profile, locale }: { profile: Profile; locale: string }) 
   );
 }
 
+/* ──────────────────────────── Preferences & Language ───────────────────────────── */
+
+function PreferencesCard({ locale }: { locale: string }) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  function switchLocale(next: string) {
+    if (next === locale) return;
+    const rest = pathname.split('/').slice(2).join('/');
+    const search = typeof window === 'undefined' ? '' : window.location.search;
+    router.replace(`/${next}${rest ? `/${rest}` : ''}${search}`);
+  }
+
+  return (
+    <section className="glass-panel p-5 sm:p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            🌐 Language & Display Interface
+          </h2>
+          <p className="mt-1 text-xs text-slate-400">
+            Choose your preferred portal language and visual display mode
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-2.5">
+        {locales.map((l) => {
+          const item = LANGUAGE_LABELS[l] || { label: l.toUpperCase(), flag: '🌐' };
+          const isActive = locale === l;
+          return (
+            <button
+              key={l}
+              type="button"
+              onClick={() => switchLocale(l)}
+              className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold transition ${
+                isActive
+                  ? 'border-blue-500 bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                  : 'border-white/[0.08] bg-slate-900/60 text-slate-300 hover:border-white/20 hover:bg-slate-800'
+              }`}
+            >
+              <span className="text-base">{item.flag}</span>
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 /* ──────────────────────────── Account ───────────────────────────── */
 
 function AccountCard({ profile, locale }: { profile: Profile; locale: string }) {
   const t = useTranslations('profile');
   return (
-    <section className="panel mt-4 p-5 sm:p-6">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+    <section className="glass-panel p-5 sm:p-6">
+      <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
         {t('accountTitle')}
       </h2>
       <dl className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -188,18 +271,19 @@ function IdentityCard({ profile, locale }: { profile: Profile; locale: string })
           : 'border-white/10 bg-white/[0.03] text-slate-300';
 
   return (
-    <section className="panel mt-4 p-5 sm:p-6">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+    <section className="glass-panel p-5 sm:p-6">
+      <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
         {t('identityTitle')}
       </h2>
-      <div className={`mt-3 rounded-xl border p-3 text-sm ${tone}`}>
+      <div className={`mt-3 rounded-xl border p-3 text-sm font-medium ${tone}`}>
         {t(`kycStatus.${profile.kycStatus}`)}
       </div>
       <Link
         href={`/${locale}/kyc`}
-        className="btn-outline-brand mt-3 w-full py-2.5 text-sm"
+        className="btn-secondary mt-3 flex w-full items-center justify-center gap-2 py-2.5 text-center text-sm font-bold"
       >
-        {profile.kycStatus === 'APPROVED' ? t('viewKyc') : t('completeKyc')}
+        <span>🪪</span>
+        <span>{profile.kycStatus === 'APPROVED' ? t('viewKyc') : t('completeKyc')}</span>
       </Link>
     </section>
   );
@@ -212,7 +296,6 @@ function ReferralCard({ profile, locale }: { profile: Profile; locale: string })
   const [copied, setCopied] = useState(false);
   const [link, setLink] = useState('');
 
-  // window is not available while prerendering, so build the link on mount.
   useEffect(() => {
     setLink(`${window.location.origin}/${locale}/login?ref=${profile.referralCode}`);
   }, [locale, profile.referralCode]);
@@ -223,13 +306,13 @@ function ReferralCard({ profile, locale }: { profile: Profile; locale: string })
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      /* clipboard blocked — the link is still selectable */
+      /* clipboard blocked */
     }
   }
 
   return (
-    <section className="panel mt-4 p-5 sm:p-6">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+    <section className="glass-panel p-5 sm:p-6">
+      <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
         {t('referralTitle')}
       </h2>
 
@@ -243,14 +326,14 @@ function ReferralCard({ profile, locale }: { profile: Profile; locale: string })
       </dl>
 
       <div className="mt-4 flex items-center gap-2">
-        <code className="flex-1 truncate rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-xs text-slate-300">
+        <code className="flex-1 truncate rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 font-mono text-xs text-slate-300">
           {link || '…'}
         </code>
         <button
           onClick={copy}
-          className="btn-outline-brand shrink-0 px-3 py-2 text-xs"
+          className="btn-primary shrink-0 px-4 py-2 text-xs font-bold uppercase tracking-wider"
         >
-          {copied ? '✓' : t('copy')}
+          {copied ? '✓ Copied' : t('copy')}
         </button>
       </div>
     </section>
@@ -262,20 +345,20 @@ function ReferralCard({ profile, locale }: { profile: Profile; locale: string })
 function HelpCard({ locale }: { locale: string }) {
   const t = useTranslations('profile');
   return (
-    <section className="panel mt-4 p-5 sm:p-6">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+    <section className="glass-panel p-5 sm:p-6">
+      <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
         {t('helpTitle')}
       </h2>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <Link
           href={`/${locale}/support`}
-          className="btn-primary w-full py-2.5 text-center text-sm"
+          className="btn-primary flex w-full items-center justify-center py-2.5 text-center text-sm font-bold"
         >
           {t('contactSupport')}
         </Link>
         <Link
           href={`/${locale}/faq`}
-          className="btn-outline-brand w-full py-2.5 text-center text-sm"
+          className="btn-secondary flex w-full items-center justify-center py-2.5 text-center text-sm font-bold"
         >
           {t('readFaq')}
         </Link>
@@ -305,7 +388,7 @@ function Field({
 }) {
   return (
     <div>
-      <dt className="text-xs uppercase tracking-wide text-slate-500">{label}</dt>
+      <dt className="text-xs uppercase tracking-wide text-slate-500 font-bold">{label}</dt>
       <dd
         className={`mt-0.5 break-all font-medium text-slate-200 ${
           mono ? 'font-mono text-xs' : 'text-sm'
