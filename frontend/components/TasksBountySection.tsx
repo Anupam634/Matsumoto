@@ -30,35 +30,38 @@ export function TasksBountySection({ locale }: { locale: string }) {
       {TASKS.map((task) => (
         <div
           key={task.id}
-          className="glass-panel flex flex-col justify-between p-6 transition-all duration-300 hover:border-amber-400/40"
+          className="glass-panel group flex flex-col justify-between p-6 transition-all duration-300 hover:border-blue-500/40 hover:shadow-xl hover:shadow-blue-500/10"
         >
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-500/10 border border-amber-500/20 text-2xl shadow-inner">
-                {task.icon}
+          <div>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-blue-600/15 border border-blue-500/30 text-2xl shadow-inner transition-transform group-hover:scale-105">
+                  {task.icon}
+                </div>
+                <div>
+                  <span className="rounded-full bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-blue-300">
+                    {task.category}
+                  </span>
+                  <h4 className="mt-1 font-black text-white text-sm tracking-tight group-hover:text-blue-200 transition-colors">
+                    {tTasks(task.nameKey)}
+                  </h4>
+                </div>
               </div>
-              <div>
-                <span className="rounded-md bg-white/[0.06] border border-white/[0.08] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  {task.category}
-                </span>
-                <h4 className="mt-1 font-extrabold text-slate-100 text-sm">
-                  {tTasks(task.nameKey)}
-                </h4>
-              </div>
-            </div>
 
-            <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-xs font-mono font-black text-amber-300 whitespace-nowrap">
-              {t('rewardBadge', { amount: task.reward })}
-            </span>
+              <span className="rounded-full bg-cyan-500/15 border border-cyan-500/30 px-3 py-1 text-xs font-mono font-black text-cyan-300 whitespace-nowrap shadow-sm">
+                {t('rewardBadge', { amount: task.reward })}
+              </span>
+            </div>
           </div>
 
           <div className="mt-6 flex items-center justify-between border-t border-white/[0.08] pt-4 text-xs">
             <span className="text-slate-400 font-medium">{t('instantCredit')}</span>
             <Link
               href={registerLink}
-              className="font-bold text-amber-400 hover:text-amber-300 transition-colors"
+              className="btn-brand inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-wider text-white shadow-md shadow-blue-500/25 transition-all hover:scale-105 active:scale-95"
             >
-              {t('actionButton')} →
+              <span>✨</span>
+              <span>{t('actionButton')}</span>
             </Link>
           </div>
         </div>
