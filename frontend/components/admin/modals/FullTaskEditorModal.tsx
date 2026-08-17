@@ -169,19 +169,24 @@ export function FullTaskEditorModal({
             </div>
           </div>
 
-          {/* Social Bounties URL */}
+          {/* Social Bounties / YouTube Video URL */}
           {task.type !== 'QUIZ' && task.type !== 'SPIN_WHEEL' && (
             <div>
               <label className="block text-xs font-bold uppercase text-slate-400">
-                Target Social Action Link
+                {task.type === 'YOUTUBE' ? '📺 YouTube Video URL or Video ID' : '🔗 Target Social Action Link'}
               </label>
               <input
-                type="url"
+                type="text"
                 value={actionUrl}
                 onChange={(e) => setActionUrl(e.target.value)}
-                placeholder="https://x.com/intent/post?text=..."
+                placeholder={task.type === 'YOUTUBE' ? 'https://www.youtube.com/watch?v=kJQP7kiw5Fk or kJQP7kiw5Fk' : 'https://x.com/intent/post?text=...'}
                 className="mt-1.5 w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs text-cyan-400 font-mono"
               />
+              {task.type === 'YOUTUBE' && (
+                <p className="mt-1 text-[11px] text-slate-400">
+                  Enter any YouTube video link or 11-char ID. Users must watch the full video before the reward unlocks.
+                </p>
+              )}
             </div>
           )}
 

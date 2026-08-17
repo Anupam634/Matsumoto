@@ -138,6 +138,11 @@ export class TasksService {
         quizQuestions = customConfig.quizQuestions || DEFAULT_QUIZ_QUESTIONS;
       }
 
+      let actionUrl: string | null = customConfig.actionUrl || null;
+      if (t.type === 'YOUTUBE' && !actionUrl) {
+        actionUrl = 'https://www.youtube.com/watch?v=kJQP7kiw5Fk';
+      }
+
       return {
         id: t.id,
         type: t.type,
@@ -145,7 +150,7 @@ export class TasksService {
         rewardPoints: t.rewardMilli / 1000,
         wheelSegments,
         quizQuestions,
-        actionUrl: customConfig.actionUrl || null,
+        actionUrl,
         cooldownHours: t.cooldownHours,
         canClaim,
         nextAvailableAt: canClaim ? null : readyAt,

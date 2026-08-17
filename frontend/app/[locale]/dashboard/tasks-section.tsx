@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { SpinWheelModal } from '../../../components/SpinWheelModal';
 import { QuizModal } from '../../../components/QuizModal';
+import { YouTubeTaskModal } from '../../../components/YouTubeTaskModal';
 import { ApiError, claimTask, getTasks, type TaskDto } from '../../../lib/api';
 
 /** i18n key per task type — the labels already exist under `tasks.*`. */
@@ -38,6 +39,7 @@ export default function TasksSection({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [wheelTask, setWheelTask] = useState<TaskDto | null>(null);
   const [quizTask, setQuizTask] = useState<TaskDto | null>(null);
+  const [youtubeTask, setYoutubeTask] = useState<TaskDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [won, setWon] = useState<{ id: string; points: number } | null>(null);
 
@@ -63,6 +65,15 @@ export default function TasksSection({
     if (task.type === 'QUIZ') {
       setQuizTask(task);
       return;
+    }
+
+    if (task.type === 'YOUTUBE') {
+      setYoutubeTask(task);
+      return;
+    }
+
+    if (task.actionUrl) {
+      window.open(task.actionUrl, '_blank', 'noopener,noreferrer');
     }
 
     setBusyId(task.id);
@@ -224,6 +235,21 @@ export default function TasksSection({
             onClaimed();
           }}
           onClose={() => setQuizTask(null)}
+        />
+      )}
+
+      {youtubeTask && (
+        <YouTubeTaskModal
+          rewardPoints={youtubeTask.rewardPoints}
+          videoUrl={youtubeTask.actionUrl}
+          onComplete={async () => {
+            const res = await claimTask(youtubeTask.id);
+            setWon({ id: youtubeTask.id, points: res.earnedPoints });
+            setTimeout(() => setWon(null), 2000);
+            await load();
+            onClaimed();
+          }}
+          onClose={() => setYoutubeTask(null)}
         />
       )}
     </section>
