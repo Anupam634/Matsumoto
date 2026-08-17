@@ -66,14 +66,11 @@ export default function ProfileClient() {
         className="mx-auto max-w-3xl px-4 pb-24 pt-6 sm:px-6"
         style={{ paddingBottom: 'max(6rem, env(safe-area-inset-bottom))' }}
       >
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
-              {t('title')}
-            </h1>
-            <p className="mt-1 text-sm text-slate-400">{t('subtitle')}</p>
-          </div>
-          <ThemeToggle />
+        <div className="mb-6">
+          <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+            {t('title')}
+          </h1>
+          <p className="mt-1 text-sm text-slate-400">{t('subtitle')}</p>
         </div>
 
         {error && (
