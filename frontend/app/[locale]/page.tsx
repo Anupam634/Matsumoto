@@ -43,9 +43,9 @@ function Landing({ locale }: { locale: string }) {
               <LogoMark size={38} priority className="relative shrink-0" />
             </div>
             <div className="leading-none">
-              <span className="text-base font-black tracking-tight text-white">Matsumoto</span>
+              <span className="text-base font-black tracking-tight text-white">BONDKOIN</span>
               <span className="block font-mono text-[10px] font-extrabold uppercase tracking-widest text-amber-400">
-                Mining Platform
+                Labs · BNB Chain
               </span>
             </div>
           </Link>
@@ -335,7 +335,7 @@ function Landing({ locale }: { locale: string }) {
           <div className="lg:col-span-5 space-y-4">
             <div className="flex items-center gap-2.5 font-black text-lg text-slate-100">
               <LogoMark size={34} />
-              Matsumoto Mining Platform
+              BONDKOIN Labs
             </div>
             <p className="text-xs leading-relaxed text-slate-400 max-w-md">
               {t('footer.brandDesc')}
@@ -365,7 +365,7 @@ function Landing({ locale }: { locale: string }) {
                 {t('footer.ecosystem')}
               </h4>
               <ul className="space-y-2 text-slate-400">
-                <li><Link href={`/${locale}/dashboard`} className="text-amber-400 font-mono font-bold hover:underline">$Matsumoto BEP-20</Link></li>
+                <li><Link href={`/${locale}/dashboard`} className="text-amber-400 font-mono font-bold hover:underline">$BONDKOIN BEP-20</Link></li>
                 <li><Link href={`/${locale}/withdraw`} className="hover:text-amber-400">BNB Chain Withdrawals</Link></li>
                 <li><Link href={`/${locale}/kyc`} className="hover:text-amber-400">KYC Verification</Link></li>
                 <li><Link href={`/${locale}/support`} className="hover:text-amber-400">Support Desk</Link></li>

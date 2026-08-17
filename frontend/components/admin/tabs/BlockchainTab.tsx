@@ -5,8 +5,8 @@ import React from 'react';
 export function BlockchainTab() {
   const contractInfo = [
     { label: 'Blockchain Network', value: 'BNB Smart Chain (BSC Mainnet)', chainId: '56', status: 'ONLINE' },
-    { label: 'BEP-20 Matsumoto Token Contract', value: '0x32A4e9b891bF953C35C7e12739343997F4aA5726', link: 'https://bscscan.com/token/0x32A4e9b891bF953C35C7e12739343997F4aA5726', status: 'VERIFIED' },
-    { label: 'Treasury / Hot Payout Wallet', value: '0x71C...B42a', balance: '1,450,200 MATSU', gasBalance: '4.82 BNB', status: 'SUFFICIENT_LIQUIDITY' },
+    { label: 'BEP-20 BONDKOIN Token Contract', value: '0x32A4e9b891bF953C35C7e12739343997F4aA5726', link: 'https://bscscan.com/token/0x32A4e9b891bF953C35C7e12739343997F4aA5726', status: 'VERIFIED' },
+    { label: 'Treasury / Hot Payout Wallet', value: '0x71C...B42a', balance: '1,450,200 BONDKOIN', gasBalance: '4.82 BNB', status: 'SUFFICIENT_LIQUIDITY' },
     { label: 'Decimals & Standard', value: '18 Decimals (BEP-20 Standard)', status: 'COMPLIANT' },
   ];
 

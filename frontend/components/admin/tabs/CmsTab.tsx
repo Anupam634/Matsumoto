@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 
 export function CmsTab() {
-  const [heroTitle, setHeroTitle] = useState('Matsumoto Cloud Mining Protocol');
+  const [heroTitle, setHeroTitle] = useState('BONDKOIN Node Mining Protocol');
   const [heroSubtitle, setHeroSubtitle] = useState('Next-Generation BEP-20 Decentralized Mining Cluster');
   const [faqCount] = useState(12);
   const [saved, setSaved] = useState(false);

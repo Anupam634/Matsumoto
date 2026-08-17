@@ -182,7 +182,7 @@ function RequestForm({
         <div className="text-right text-sm text-slate-400">
           <span className="chain-indicator">
             <BnbLogo className="h-3 w-3" />≈{' '}
-            {(balance / POINTS_PER_TOKEN).toFixed(4)} $Matsumoto
+            {(balance / POINTS_PER_TOKEN).toFixed(4)} $BONDKOIN
           </span>
         </div>
       </div>
@@ -262,7 +262,7 @@ function RequestForm({
           <div className="rounded-xl border border-indigo-400/20 bg-indigo-500/10 p-3 text-sm">
             <span className="text-slate-300">{t('youReceive')}</span>{' '}
             <span className="font-bold text-white tabular-nums">
-              {(amount / POINTS_PER_TOKEN).toFixed(4)} $Matsumoto
+              {(amount / POINTS_PER_TOKEN).toFixed(4)} $BONDKOIN
             </span>
             <span className="ml-1 text-xs text-slate-400">
               ({t('conversionNote')})
@@ -311,7 +311,7 @@ function History({ rows }: { rows: WithdrawalDto[] }) {
               <span className="font-semibold tabular-nums">
                 {w.points.toFixed(2)} {t('pointsShort')}
                 <span className="ml-2 text-sm font-normal text-slate-400">
-                  → {w.tokenAmount} $Matsumoto
+                  → {w.tokenAmount} $BONDKOIN
                 </span>
               </span>
               <StatusBadge status={w.status} />

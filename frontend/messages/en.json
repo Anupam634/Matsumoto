@@ -3,9 +3,9 @@
     "network": {
       "chain": "BNB Smart Chain",
       "mainnetStatus": "Mainnet Engine: Active",
-      "tokenStandard": "Token: $Matsumoto (BEP-20)",
-      "baseRateSpec": "Base Rate: 0.90 MATSU/h",
-      "conversionSpec": "3 Points = 1 $MATSU",
+      "tokenStandard": "Token: $BONDKOIN (BEP-20)",
+      "baseRateSpec": "Base Rate: 0.90 BONDKOIN/h",
+      "conversionSpec": "3 Points = 1 $BONDKOIN",
       "minWithdrawalSpec": "Min Payout: 100 PTS"
     },
     "nav": {
@@ -21,13 +21,13 @@
       "dashboard": "Launch Terminal"
     },
     "hero": {
-      "badge": "⚡ BNB CHAIN · ZERO HARDWARE COST · 24H SCHEDULED ACCRUAL",
-      "title": "Next-Gen Cloud Mining &",
-      "titleAccent": "Simulated Yield on BNB Chain",
-      "subtitle": "Register free in seconds. Tap to initiate your 24-hour mining cycle, upgrade hashrate with stackable cloud boosters, multiply rewards up to ×8 with your referral crew, and convert points directly to on-chain $Matsumoto BEP-20 tokens.",
+      "badge": "⚡ BNB CHAIN · NO BATTERY DRAIN · 24H NODE ACCRUAL",
+      "title": "Next-Gen Node Mining &",
+      "titleAccent": "Yield on BNB Chain",
+      "subtitle": "Register free in seconds. No battery drain. Accumulate digital assets daily. One tap to mine. Tap to initiate your 24-hour mining cycle, upgrade Hashrate with stackable Boosters, Multiply rewards up to ×8 with your Referral Crew, and convert Points directly to on-chain $BONDKOIN BEP-20 Tokens.",
       "ctaPrimary": "Start Mining Free",
       "ctaSecondary": "Open Web3 Terminal",
-      "honesty": "Matsumoto utilizes a scheduled reward accrual model (zero electricity & zero hardware wear). Accrued points convert directly to on-chain $Matsumoto on BNB Smart Chain.",
+      "honesty": "BONDKOIN utilizes a scheduled reward accrual model (zero electricity & zero hardware wear). Accrued points convert directly to on-chain $BONDKOIN on BNB Smart Chain.",
       "activeMinersBadge": "Scheduled 24h Accrual · Zero Hardware Wear",
       "verifiedNode": "Mandatory KYC Security · Direct BEP-20 Payouts",
       "playVideo": "Play intro video",
@@ -37,7 +37,7 @@
       "title": "Interactive Mining Rig Terminal",
       "subtitle": "Test-run the cloud mining algorithm in real-time",
       "networkStatus": "NODE ONLINE",
-      "simulatedRate": "0.90 MATSU/h",
+      "simulatedRate": "0.90 BONDKOIN/h",
       "baseSpeed": "BASE HASHRATE",
       "tapToMine": "Tap to Simulate Mine",
       "miningActive": "Mining in Progress...",
@@ -50,9 +50,9 @@
     },
     "figures": {
       "baseRate": "Base Free Hashrate",
-      "baseRateSub": "0.90 MATSU / hour",
+      "baseRateSub": "0.90 BONDKOIN / hour",
       "conversion": "Conversion Ratio",
-      "conversionSub": "3 Points = 1 $Matsumoto",
+      "conversionSub": "3 Points = 1 $BONDKOIN",
       "minWithdrawal": "Min Withdrawal",
       "minWithdrawalSub": "100 Points threshold",
       "boosterDuration": "Booster Duration",
@@ -68,7 +68,7 @@
       "learnMore": "Learn more"
     },
     "how": {
-      "title": "How Matsumoto Mining Works",
+      "title": "How BONDKOIN Mining Works",
       "subtitle": "A transparent, high-yield reward engine designed for the global Web3 community.",
       "register": {
         "title": "1. Free Account Setup",
@@ -76,15 +76,15 @@
       },
       "mine": {
         "title": "2. Tap to Mine Every 24h",
-        "body": "One tap initializes your 24-hour reward window. Your cloud rig continuously accrues Matsumoto Points on our high-speed cluster."
+        "body": "One tap initializes your 24-hour reward window. Your cloud rig continuously accrues BONDKOIN Points on our high-speed cluster."
       },
       "boost": {
         "title": "3. Boost Hashrate & Invite",
-        "body": "Stack 30-day cloud booster packs for up to +90.0 MATSU/h each, and invite friends to boost your multiplier up to ×8."
+        "body": "Stack 30-day cloud booster packs for up to +65.0 BONDKOIN/h each, and invite friends to boost your multiplier up to ×8."
       },
       "withdraw": {
         "title": "4. On-Chain Payout to BNB Chain",
-        "body": "Convert your points at a guaranteed 3:1 ratio into $Matsumoto BEP-20 tokens sent directly to your self-custody wallet."
+        "body": "Convert your points at a guaranteed 3:1 ratio into $BONDKOIN BEP-20 tokens sent directly to your self-custody wallet."
       }
     },
     "boosters": {
@@ -103,7 +103,7 @@
     },
     "calculator": {
       "title": "Mining Profitability Calculator",
-      "subtitle": "Simulate your estimated Matsumoto points and on-chain $Matsumoto token payouts based on booster tiers and referral multiplier.",
+      "subtitle": "Simulate your estimated BONDKOIN points and on-chain $BONDKOIN token payouts based on booster tiers and referral multiplier.",
       "selectBooster": "Select Cloud Booster Package",
       "selectInvites": "Referral Team Size (Invited Miners)",
       "invitesLabel": "{count} Invited Users (Multiplier: ×{mult})",
@@ -111,7 +111,7 @@
       "hourlyRate": "Effective Hashrate",
       "dailyYield": "Daily 24h Yield",
       "monthlyYield": "30-Day Estimated Yield",
-      "onChainPayout": "Estimated $Matsumoto (BEP-20)",
+      "onChainPayout": "Estimated $BONDKOIN (BEP-20)",
       "cta": "Start Mining With This Config"
     },
     "referrals": {
@@ -126,9 +126,9 @@
     },
     "tasksSection": {
       "title": "Bounty Tasks & Extra Rewards",
-      "subtitle": "Complete daily engagement tasks and social quests to claim instant bonus Matsumoto Points.",
+      "subtitle": "Complete daily engagement tasks and social quests to claim instant bonus BONDKOIN Points.",
       "viewAll": "Explore All Quests",
-      "rewardBadge": "+{amount} MATSU",
+      "rewardBadge": "+{amount} BONDKOIN",
       "actionButton": "Complete Task",
       "instantCredit": "Instant Point Credit"
     },
@@ -154,11 +154,11 @@
     },
     "faq": {
       "title": "Frequently Asked Questions",
-      "subtitle": "Everything you need to know about Matsumoto Cloud Mining, Token Conversion, and On-Chain Payouts.",
-      "q1": "What is Matsumoto Mining and how does it work?",
-      "a1": "Matsumoto is a high-yield cloud reward simulation platform on BNB Smart Chain. You register for free, tap 'Mine' once every 24 hours, and your cloud terminal accrues Matsumoto Points. There is zero hardware wear and zero electricity cost.",
-      "q2": "How does the token conversion to $Matsumoto work?",
-      "a2": "All accrued internal points convert at a fixed 3:1 ratio (3 Points = 1 $Matsumoto BEP-20 token). When you withdraw, $Matsumoto tokens are transferred directly to your connected BNB Chain address.",
+      "subtitle": "Everything you need to know about BONDKOIN Node Mining, Token Conversion, and On-Chain Payouts.",
+      "q1": "What is BONDKOIN Mining and how does it work?",
+      "a1": "BONDKOIN is a high-yield cloud reward simulation platform on BNB Smart Chain. You register for free, tap 'Mine' once every 24 hours, and your cloud terminal accrues BONDKOIN Points. There is zero battery drain and zero electricity cost.",
+      "q2": "How does the token conversion to $BONDKOIN work?",
+      "a2": "All accrued internal points convert at a fixed 3:1 ratio (3 Points = 1 $BONDKOIN BEP-20 token). When you withdraw, $BONDKOIN tokens are transferred directly to your connected BNB Chain address.",
       "q3": "Can I stack multiple booster packages?",
       "a3": "Yes! Cloud booster packages are fully stackable. You can activate multiple $1, $5, $10, or $50 booster rigs simultaneously to achieve massive hourly hashrates.",
       "q4": "How does the referral multiplier work?",
@@ -168,13 +168,13 @@
     },
     "cta": {
       "badge": "LAUNCH YOUR CLOUD RIG IN 30 SECONDS",
-      "title": "Ready to Start Mining $Matsumoto?",
-      "body": "Start earning Matsumoto Points at the 0.90/h base rate for free today with zero upfront hardware investment.",
+      "title": "Ready to Start Mining $BONDKOIN?",
+      "body": "Start earning BONDKOIN Points at the 0.90/h base rate for free today with zero upfront hardware investment.",
       "buttonPrimary": "Create Free Account Now",
       "buttonSecondary": "Sign In to Mining Dashboard"
     },
     "footer": {
-      "brandDesc": "Matsumoto is the premier cloud mining and simulated yield platform on BNB Smart Chain. Enabling global users to earn on-chain cryptocurrency rewards through scheduled daily accrual.",
+      "brandDesc": "BONDKOIN (bondkoinlabs.com) is the premier node mining and simulated yield platform on BNB Smart Chain. Enabling global users to earn on-chain cryptocurrency rewards through scheduled daily accrual.",
       "quickLinks": "Quick Links",
       "ecosystem": "Ecosystem",
       "legal": "Transparency & Security",
@@ -182,8 +182,8 @@
       "bscScan": "BSCScan Explorer",
       "audit": "Security Audit Report",
       "whitepaper": "Platform Whitepaper",
-      "disclaimer": "Disclaimer: Matsumoto is a scheduled reward accrual platform (\"cloud mining simulation\") operating without proof-of-work hardware requirements. Matsumoto points are platform accounting units convertible to on-chain $Matsumoto BEP-20 tokens subject to KYC verification and security review.",
-      "copyright": "© Matsumoto Mining Platform. Built for the BNB Chain Ecosystem. All rights reserved.",
+      "disclaimer": "Disclaimer: BONDKOIN is a scheduled reward accrual platform (\"cloud mining simulation\") operating without proof-of-work hardware requirements. BONDKOIN points are platform accounting units convertible to on-chain $BONDKOIN BEP-20 tokens subject to KYC verification and security review.",
+      "copyright": "© BONDKOIN Labs (bondkoinlabs.com). Built for the BNB Chain Ecosystem. All rights reserved.",
       "faq": "FAQ",
       "support": "Support",
       "terms": "Terms",
@@ -222,7 +222,7 @@
     "verifyCta": "Verify identity",
     "buyBoosters": "Buy boosters",
     "cloudMining": "Cloud Mining",
-    "heroBody": "Your rig accrues Matsumoto points every hour. Tap Mine once a day to bank them.",
+    "heroBody": "Your rig accrues BONDKOIN points every hour. Tap Mine once a day to bank them.",
     "totalEarnings": "Total earned",
     "atRate": "3 pts = 1",
     "kycVerified": "Identity verified — withdrawals unlocked.",
@@ -242,7 +242,7 @@
     "f1b": "Base rate on every free account.",
     "f2t": "24-hour window",
     "f2b": "Tap Mine once a day to keep accruing.",
-    "f3t": "3 pts = 1 $Matsumoto",
+    "f3t": "3 pts = 1 $BONDKOIN",
     "f3b": "Fixed conversion when you withdraw.",
     "f4t": "Reviewed payouts",
     "f4b": "KYC approval before any on-chain transfer.",
@@ -301,7 +301,7 @@
   },
   "withdraw": {
     "title": "Withdraw",
-    "subtitle": "Convert your points to $Matsumoto and send them to a BNB Chain wallet.",
+    "subtitle": "Convert your points to $BONDKOIN and send them to a BNB Chain wallet.",
     "paidOnChain": "Paid on BNB Chain",
     "backToDashboard": "Back to dashboard",
     "offline": "Can't reach the server. Try again.",
@@ -475,16 +475,16 @@
     "intro": "How mining, boosters, verification and payouts actually work here.",
     "q": {
       "mining": {
-        "q": "What does “mining” mean on Matsumoto?",
-        "a": "It is scheduled reward accrual, not physical hardware. Your account earns Matsumoto Points at an hourly rate; no computer anywhere is solving hashes on your behalf.\n\nPoints are internal units. Only a withdrawal converts them to on-chain $Matsumoto."
+        "q": "What does “mining” mean on BONDKOIN?",
+        "a": "It is scheduled reward accrual, not physical hardware. Your account earns BONDKOIN Points at an hourly rate; no computer anywhere is solving hashes on your behalf.\n\nPoints are internal units. Only a withdrawal converts them to on-chain $BONDKOIN."
       },
       "cooldown": {
         "q": "Why can I only tap Mine once a day?",
         "a": "Tapping Mine banks whatever has accrued and starts a 24-hour cooldown. Points keep accruing between taps, up to a ceiling of 24 hours' worth, so nothing is lost if you come back a little late — but accrual stops once you hit that ceiling."
       },
       "conversion": {
-        "q": "How many points is one $Matsumoto?",
-        "a": "Three points convert to one $Matsumoto. The rate is fixed in the platform and applied when you withdraw."
+        "q": "How many points is one $BONDKOIN?",
+        "a": "Three points convert to one $BONDKOIN. The rate is fixed in the platform and applied when you withdraw."
       },
       "minWithdrawal": {
         "q": "What is the minimum withdrawal?",
@@ -519,12 +519,12 @@
   "terms": {
     "title": "Terms of service",
     "backHome": "Back to home",
-    "intro": "The rules for using Matsumoto. Plain language, no surprises.",
+    "intro": "The rules for using BONDKOIN. Plain language, no surprises.",
     "updated": "These terms are a working draft and have not been reviewed by a lawyer.",
     "q": {
       "service": {
         "q": "What this service is",
-        "a": "Matsumoto is a rewards platform. “Mining” here means scheduled reward accrual on your account. There is no physical mining hardware, and no guarantee of profit."
+        "a": "BONDKOIN is a rewards platform. “Mining” here means scheduled reward accrual on your account. There is no physical mining hardware, and no guarantee of profit."
       },
       "eligibility": {
         "q": "Who can use it",

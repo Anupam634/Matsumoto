@@ -44,7 +44,7 @@ export interface AdminTaskConfigDto {
 const DEFAULT_QUIZ_QUESTIONS: QuizQuestionDto[] = [
   {
     id: 1,
-    question: 'Which blockchain network settles Matsumoto ($MATSU) token withdrawals?',
+    question: 'Which blockchain network settles BONDKOIN ($BONDKOIN) token withdrawals?',
     options: [
       'BNB Smart Chain (BEP-20)',
       'Ethereum Mainnet (ERC-20)',
@@ -52,31 +52,31 @@ const DEFAULT_QUIZ_QUESTIONS: QuizQuestionDto[] = [
       'Bitcoin Lightning Network',
     ],
     correctIndex: 0,
-    explanation: 'Matsumoto utilizes the high-speed, low-gas BNB Smart Chain (BEP-20) for automated withdrawals.',
+    explanation: 'BONDKOIN utilizes the high-speed, low-gas BNB Smart Chain (BEP-20) for automated withdrawals.',
   },
   {
     id: 2,
-    question: 'What is the official Matsumoto Point to $MATSU token conversion standard?',
+    question: 'What is the official BONDKOIN Point to $BONDKOIN token conversion standard?',
     options: [
-      '1 Point = 1 $MATSU',
-      '3 Points = 1 $MATSU',
-      '10 Points = 1 $MATSU',
-      '5 Points = 1 $MATSU',
+      '1 Point = 1 $BONDKOIN',
+      '3 Points = 1 $BONDKOIN',
+      '10 Points = 1 $BONDKOIN',
+      '5 Points = 1 $BONDKOIN',
     ],
     correctIndex: 1,
-    explanation: 'According to SPEC §3, 3 Matsumoto Points convert directly to 1 mainnet $MATSU token.',
+    explanation: 'According to tokenomics, 3 BONDKOIN Points convert directly to 1 mainnet $BONDKOIN token.',
   },
   {
     id: 3,
     question: 'What is the standard base cloud mining rate per hour?',
     options: [
-      '0.25 MATSU/h',
-      '0.50 MATSU/h',
-      '0.90 MATSU/h',
-      '1.50 MATSU/h',
+      '0.25 BONDKOIN/h',
+      '0.50 BONDKOIN/h',
+      '0.90 BONDKOIN/h',
+      '1.50 BONDKOIN/h',
     ],
     correctIndex: 2,
-    explanation: 'Every verified miner receives a baseline cloud allocation of 0.90 MATSU points every hour.',
+    explanation: 'Every verified miner receives a baseline node allocation of 0.90 BONDKOIN points every hour.',
   },
   {
     id: 4,

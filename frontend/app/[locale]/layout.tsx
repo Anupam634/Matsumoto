@@ -9,8 +9,8 @@ export function generateStaticParams() {
 }
 
 export const metadata = {
-  title: 'Matsumoto Mining',
-  description: 'Cloud mining rewards on BNB Chain',
+  title: 'BONDKOIN Labs | Next-Gen Node Mining on BNB Chain',
+  description: 'Register free in seconds. No battery drain. Accumulate digital assets daily. Convert points directly to on-chain $BONDKOIN BEP-20 tokens on BNB Chain.',
   manifest: '/manifest.webmanifest',
   icons: {
     icon: '/favicon.png',

@@ -1,10 +1,7 @@
 import Image from 'next/image';
 
 /**
- * The Matsumoto emblem on its own — the circular mark without the wordmark.
- *
- * Used wherever the name is already spelled out beside it (headers, nav) or
- * where there is no room for the full lockup.
+ * The BONDKOIN emblem on its own — the circular mark.
  */
 export function LogoMark({
   size = 36,
@@ -17,21 +14,18 @@ export function LogoMark({
 }) {
   return (
     <Image
-      src="/matsumoto-mark.png"
-      alt="Matsumoto"
+      src="/bondkoin-logo.png"
+      alt="BONDKOIN"
       width={size}
       height={size}
       priority={priority}
-      className={className}
+      className={`rounded-full object-cover ${className}`}
     />
   );
 }
 
 /**
- * The full lockup — emblem stacked over the MATSUMOTO wordmark plate.
- *
- * Only worth using where it can render large enough to read: the auth brand
- * panel and the landing hero.
+ * The full lockup — emblem stacked over the BONDKOIN wordmark plate.
  */
 export function LogoLockup({
   width = 260,
@@ -42,15 +36,14 @@ export function LogoLockup({
   priority?: boolean;
   className?: string;
 }) {
-  // Matches the artwork's own aspect ratio (640 × 579) so it never squashes.
   return (
     <Image
-      src="/matsumoto-logo.png"
-      alt="Matsumoto"
+      src="/bondkoin-logo.png"
+      alt="BONDKOIN"
       width={width}
-      height={Math.round((width * 579) / 640)}
+      height={width}
       priority={priority}
-      className={className}
+      className={`rounded-2xl object-contain ${className}`}
     />
   );
 }

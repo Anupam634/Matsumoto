@@ -128,7 +128,7 @@ export function InteractiveMinerVisualizer() {
             <div className="h-3 w-3 rounded-full bg-amber-500/80 shadow-sm" />
             <div className="h-3 w-3 rounded-full bg-emerald-500/80 shadow-sm" />
             <span className="ml-2 font-mono text-xs text-slate-400 font-semibold">
-              matsumoto://cloud-cluster.bep20
+              bondkoin://cloud-cluster.bep20
             </span>
           </div>
 
@@ -150,7 +150,7 @@ export function InteractiveMinerVisualizer() {
               {isAuthed ? 'BASE HASHRATE' : t('baseSpeed')}
             </div>
             <div className="font-mono text-sm font-black text-amber-400">
-              {isMining ? `${hashPower.toFixed(2)} MATSU/h` : '0.00 MATSU/h'}
+              {isMining ? `${hashPower.toFixed(2)} BONDKOIN/h` : '0.00 BONDKOIN/h'}
             </div>
           </div>
         </div>
@@ -166,7 +166,7 @@ export function InteractiveMinerVisualizer() {
           </div>
           <div className="mt-1.5 flex items-center justify-center gap-2 text-xs text-slate-400">
             <span className="font-mono text-cyan-400 font-semibold">
-              ≈ {(points / 3).toFixed(5)} $MATSU
+              ≈ {(points / 3).toFixed(5)} $BONDKOIN
             </span>
             <span>•</span>
             <span className="text-emerald-400 font-semibold">3:1 Fixed Conversion</span>

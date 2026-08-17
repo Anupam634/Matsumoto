@@ -37,7 +37,7 @@ export function AdminLoginGate({ onDone }: AdminLoginGateProps) {
         <div className="mb-6 flex items-center gap-3 border-b border-white/[0.08] pb-4">
           <LogoMark size={36} priority />
           <div>
-            <h1 className="text-xl font-black tracking-tight text-white">Matsumoto Command Console</h1>
+            <h1 className="text-xl font-black tracking-tight text-white">BONDKOIN Command Console</h1>
             <p className="text-xs font-semibold text-amber-400">Enterprise Operator Administration</p>
           </div>
         </div>
@@ -58,7 +58,7 @@ export function AdminLoginGate({ onDone }: AdminLoginGateProps) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="username"
-            placeholder="matsumoto@gmail.com"
+            placeholder="admin@bondkoinlabs.com"
             required
           />
         </label>

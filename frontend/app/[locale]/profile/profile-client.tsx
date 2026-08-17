@@ -122,7 +122,7 @@ function BalanceCard({ profile, locale }: { profile: Profile; locale: string }) 
         </span>
       </div>
       <div className="mt-1 text-sm text-slate-400">
-        ≈ {(profile.pointsBalance / POINTS_PER_TOKEN).toFixed(4)} $Matsumoto
+        ≈ {(profile.pointsBalance / POINTS_PER_TOKEN).toFixed(4)} $BONDKOIN
       </div>
       <div className="mt-2.5">
         <span className="chain-indicator">

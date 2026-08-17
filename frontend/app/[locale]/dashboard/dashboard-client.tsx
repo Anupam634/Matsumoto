@@ -243,7 +243,7 @@ function TopBar({ locale, onSignOut }: { locale: string; onSignOut: () => void }
           <LogoMark size={40} priority />
           <span className="leading-none">
             <span className="block text-sm font-extrabold tracking-tight">
-              Matsumoto
+              BONDKOIN
             </span>
             <span className="block text-[0.6rem] font-semibold uppercase tracking-[0.14em] text-slate-500">
               {t('cloudMining')}
@@ -516,7 +516,7 @@ function BalancePanel({
           </span>
         </div>
         <div className="mt-1 text-sm text-slate-400">
-          ≈ <strong className="font-mono text-cyan-400">{token.toFixed(4)}</strong> $Matsumoto
+          ≈ <strong className="font-mono text-cyan-400">{token.toFixed(4)}</strong> $BONDKOIN
           <span className="ml-1 text-xs text-slate-500">({t('atRate')})</span>
         </div>
         <div className="mt-2.5">

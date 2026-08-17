@@ -74,7 +74,7 @@ export function AdminHeader({
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-black tracking-tight text-white sm:text-lg">
-                  Matsumoto Command Center
+                  BONDKOIN Command Center
                 </span>
                 <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-400">
                   Cluster v2.4 Active

@@ -91,7 +91,7 @@ export function AdminSidebar({
           <div className="flex items-center gap-3">
             <LogoMark size={32} priority />
             <div>
-              <span className="font-black tracking-tight text-white">Matsumoto</span>
+              <span className="font-black tracking-tight text-white">BONDKOIN</span>
               <span className="ml-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 text-[9px] font-black text-amber-400">
                 PRO
               </span>
@@ -161,7 +161,7 @@ export function AdminSidebar({
               </div>
               <div className="overflow-hidden text-left">
                 <div className="truncate text-xs font-bold text-white">Super Admin</div>
-                <div className="truncate text-[10px] text-slate-400">matsumoto@gmail.com</div>
+                <div className="truncate text-[10px] text-slate-400">admin@bondkoinlabs.com</div>
               </div>
             </div>
             <button

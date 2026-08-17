@@ -287,7 +287,7 @@ function AuthForm() {
                   ? 'Enter the 5-digit verification code sent to your email.'
                   : mode === 'login'
                   ? 'Access your cloud mining terminal & daily yield.'
-                  : 'Start earning Matsumoto Points with zero hardware cost.'}
+                  : 'Start earning BONDKOIN Points with zero hardware cost.'}
               </p>
 
               {/* Mode Switch Tabs (Only in form phase) */}

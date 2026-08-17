@@ -3,9 +3,9 @@
     "network": {
       "chain": "BNB 智能链",
       "mainnetStatus": "主网引擎：运行中",
-      "tokenStandard": "代币：$Matsumoto (BEP-20)",
-      "baseRateSpec": "基础算力：0.90 MATSU/h",
-      "conversionSpec": "3 积分 = 1 $MATSU",
+      "tokenStandard": "代币：$BONDKOIN (BEP-20)",
+      "baseRateSpec": "基础算力：0.90 BONDKOIN/h",
+      "conversionSpec": "3 积分 = 1 $BONDKOIN",
       "minWithdrawalSpec": "最低提现：100 积分"
     },
     "nav": {
@@ -24,10 +24,10 @@
       "badge": "⚡ BNB 链 · 零硬件门槛 · 24小时定时收益",
       "title": "新一代云端挖矿与",
       "titleAccent": "BNB 链积分奖励平台",
-      "subtitle": "数秒内即可免费注册。每 24 小时点击开启一次挖矿周期，通过可叠加的云端加速包提升算力，邀请好友将奖励倍数最高提升至 ×8，所有积分可按 3:1 兑换为链上 $Matsumoto BEP-20 代币并提现到您的钱包。",
+      "subtitle": "数秒内即可免费注册。每 24 小时点击开启一次挖矿周期，通过可叠加的云端加速包提升算力，邀请好友将奖励倍数最高提升至 ×8，所有积分可按 3:1 兑换为链上 $BONDKOIN BEP-20 代币并提现到您的钱包。",
       "ctaPrimary": "免费开启挖矿",
       "ctaSecondary": "打开 Web3 终端",
-      "honesty": "Matsumoto 采用定时收益累积机制（无硬件损耗与电力消耗）。累积的积分可直接在 BNB 智能链上兑换为真实的 $Matsumoto 代币。",
+      "honesty": "BONDKOIN 采用定时收益累积机制（无硬件损耗与电力消耗）。累积的积分可直接在 BNB 智能链上兑换为真实的 $BONDKOIN 代币。",
       "activeMinersBadge": "24小时定时累积机制 · 零硬件损耗",
       "verifiedNode": "KYC 认证安全保障 · 直连 BEP-20 结算",
       "playVideo": "播放介绍视频",
@@ -37,7 +37,7 @@
       "title": "交互式云端矿机终端",
       "subtitle": "实时体验云端挖矿算法与奖励累积",
       "networkStatus": "节点在线",
-      "simulatedRate": "0.90 MATSU/h",
+      "simulatedRate": "0.90 BONDKOIN/h",
       "baseSpeed": "基础算力速率",
       "tapToMine": "点击模拟挖矿",
       "miningActive": "正在挖矿中...",
@@ -50,9 +50,9 @@
     },
     "figures": {
       "baseRate": "免费基础算力",
-      "baseRateSub": "0.90 MATSU / 小时",
+      "baseRateSub": "0.90 BONDKOIN / 小时",
       "conversion": "兑换比例",
-      "conversionSub": "3 积分 = 1 $Matsumoto",
+      "conversionSub": "3 积分 = 1 $BONDKOIN",
       "minWithdrawal": "最低提现门槛",
       "minWithdrawalSub": "满 100 积分即可提现",
       "boosterDuration": "加速包有效期",
@@ -68,7 +68,7 @@
       "learnMore": "了解更多"
     },
     "how": {
-      "title": "Matsumoto 挖矿运作方式",
+      "title": "BONDKOIN 挖矿运作方式",
       "subtitle": "专为全球 Web3 社区打造的公开透明、高收益奖励引擎。",
       "register": {
         "title": "1. 免费注册账户",
@@ -80,11 +80,11 @@
       },
       "boost": {
         "title": "3. 购买加速与邀请好友",
-        "body": "叠加 30 天云端加速包，单个最高增加 +90.0 MATSU/h；邀请好友还可将挖矿倍数最高提升至 ×8。"
+        "body": "叠加 30 天云端加速包，单个最高增加 +90.0 BONDKOIN/h；邀请好友还可将挖矿倍数最高提升至 ×8。"
       },
       "withdraw": {
         "title": "4. 提现至 BNB 链钱包",
-        "body": "按 3:1 固定比例将积分兑换为 $Matsumoto BEP-20 代币，直接转账到您的自托管钱包。"
+        "body": "按 3:1 固定比例将积分兑换为 $BONDKOIN BEP-20 代币，直接转账到您的自托管钱包。"
       }
     },
     "boosters": {
@@ -103,7 +103,7 @@
     },
     "calculator": {
       "title": "挖矿收益估算器",
-      "subtitle": "根据您的加速包配置与推荐团队等级，实时模拟预计的积分产出与 $Matsumoto 链上代币收益。",
+      "subtitle": "根据您的加速包配置与推荐团队等级，实时模拟预计的积分产出与 $BONDKOIN 链上代币收益。",
       "selectBooster": "选择云端加速包配置",
       "selectInvites": "推荐团队人数（邀请矿工数）",
       "invitesLabel": "已邀请 {count} 位矿工（算力倍数：×{mult}）",
@@ -111,7 +111,7 @@
       "hourlyRate": "实际算力速率",
       "dailyYield": "每日 24小时产出",
       "monthlyYield": "30天预估总产出",
-      "onChainPayout": "预计可兑换 $Matsumoto (BEP-20)",
+      "onChainPayout": "预计可兑换 $BONDKOIN (BEP-20)",
       "cta": "以此配置开启挖矿"
     },
     "referrals": {
@@ -126,9 +126,9 @@
     },
     "tasksSection": {
       "title": "赏金任务与额外奖励",
-      "subtitle": "完成每日互动任务与社区社交任务，即可领取额外的即时 Matsumoto 积分奖励。",
+      "subtitle": "完成每日互动任务与社区社交任务，即可领取额外的即时 BONDKOIN 积分奖励。",
       "viewAll": "查看全部任务",
-      "rewardBadge": "+{amount} MATSU",
+      "rewardBadge": "+{amount} BONDKOIN",
       "actionButton": "立即完成",
       "instantCredit": "即时到账"
     },
@@ -154,11 +154,11 @@
     },
     "faq": {
       "title": "常见问题解答",
-      "subtitle": "关于 Matsumoto 云端挖矿、代币兑换以及链上提现的详细解答。",
-      "q1": "什么是 Matsumoto 挖矿？它的运作机制是什么？",
-      "a1": "Matsumoto 是运行在 BNB 智能链上的高收益云端奖励平台。您只需免费注册，每 24 小时点击一次「挖矿」，云端系统便会自动按设定速率为您累积积分，全程无硬件损耗与电力成本。",
-      "q2": "积分如何兑换为 $Matsumoto 代币？",
-      "a2": "平台内所有累积的积分均按 3:1 的固定比例（3 积分 = 1 $Matsumoto BEP-20 代币）进行兑换。发起提现后，代币将直接转账至您的 BNB 链钱包。",
+      "subtitle": "关于 BONDKOIN 云端挖矿、代币兑换以及链上提现的详细解答。",
+      "q1": "什么是 BONDKOIN 挖矿？它的运作机制是什么？",
+      "a1": "BONDKOIN 是运行在 BNB 智能链上的高收益云端奖励平台。您只需免费注册，每 24 小时点击一次「挖矿」，云端系统便会自动按设定速率为您累积积分，全程无硬件损耗与电力成本。",
+      "q2": "积分如何兑换为 $BONDKOIN 代币？",
+      "a2": "平台内所有累积的积分均按 3:1 的固定比例（3 积分 = 1 $BONDKOIN BEP-20 代币）进行兑换。发起提现后，代币将直接转账至您的 BNB 链钱包。",
       "q3": "可以同时购买并叠加多个加速包吗？",
       "a3": "可以！所有云端加速包均支持无限制叠加。您可以同时激活多个 $1、$5、$10 或 $50 加速包，算力将线性累加。",
       "q4": "推荐倍数是如何计算的？",
@@ -168,13 +168,13 @@
     },
     "cta": {
       "badge": "30 秒内快速开启云端矿机",
-      "title": "准备好开始挖取 $Matsumoto 了吗？",
+      "title": "准备好开始挖取 $BONDKOIN 了吗？",
       "body": "立即免费开启 0.90/h 基础算力，无需前期硬件投入，随时开启收益累积。",
       "buttonPrimary": "立即免费注册账户",
       "buttonSecondary": "登录挖矿控制台"
     },
     "footer": {
-      "brandDesc": "Matsumoto 是 BNB 智能链上的领先云端挖矿与收益模拟平台。致力于让全球用户通过每日定时累积轻松赚取链上加密资产奖励。",
+      "brandDesc": "BONDKOIN 是 BNB 智能链上的领先云端挖矿与收益模拟平台。致力于让全球用户通过每日定时累积轻松赚取链上加密资产奖励。",
       "quickLinks": "快捷链接",
       "ecosystem": "生态系统",
       "legal": "透明度与安全性",
@@ -182,8 +182,8 @@
       "bscScan": "BSCScan 区块浏览器",
       "audit": "安全审计报告",
       "whitepaper": "平台白皮书",
-      "disclaimer": "免责声明：Matsumoto 为定时收益模拟平台（云端模拟），无需工作量证明实体硬件。Matsumoto 积分为平台内部记账单位，在完成 KYC 验证与安全审核后可兑换为 BNB 链上的 $Matsumoto BEP-20 代币。",
-      "copyright": "© Matsumoto 挖矿平台. 专为 BNB 链生态打造. 保留所有权利.",
+      "disclaimer": "免责声明：BONDKOIN 为定时收益模拟平台（云端模拟），无需工作量证明实体硬件。BONDKOIN 积分为平台内部记账单位，在完成 KYC 验证与安全审核后可兑换为 BNB 链上的 $BONDKOIN BEP-20 代币。",
+      "copyright": "© BONDKOIN 挖矿平台. 专为 BNB 链生态打造. 保留所有权利.",
       "faq": "常见问题",
       "support": "客服支持",
       "terms": "服务条款",
@@ -222,7 +222,7 @@
     "verifyCta": "去验证",
     "buyBoosters": "购买加速包",
     "cloudMining": "云端挖矿",
-    "heroBody": "矿机每小时累积 Matsumoto 积分，每天点一次「挖矿」即可入账。",
+    "heroBody": "矿机每小时累积 BONDKOIN 积分，每天点一次「挖矿」即可入账。",
     "totalEarnings": "累计获得",
     "atRate": "3 积分 = 1",
     "kycVerified": "身份已验证——可以提现。",
@@ -242,7 +242,7 @@
     "f1b": "所有免费账户的基础速率。",
     "f2t": "24 小时周期",
     "f2b": "每天点一次「挖矿」以持续累积。",
-    "f3t": "3 积分 = 1 $Matsumoto",
+    "f3t": "3 积分 = 1 $BONDKOIN",
     "f3b": "提现时按固定比例兑换。",
     "f4t": "人工审核出金",
     "f4b": "链上转账前需通过 KYC 审核。",
@@ -301,7 +301,7 @@
   },
   "withdraw": {
     "title": "提现",
-    "subtitle": "将积分兑换为 $Matsumoto 并发送到 BNB Chain 钱包。",
+    "subtitle": "将积分兑换为 $BONDKOIN 并发送到 BNB Chain 钱包。",
     "paidOnChain": "通过 BNB Chain 支付",
     "backToDashboard": "返回仪表板",
     "offline": "无法连接服务器，请重试。",
@@ -475,16 +475,16 @@
     "intro": "关于挖矿、加速包、验证与提现的实际运作机制。",
     "q": {
       "mining": {
-        "q": "Matsumoto 上的「挖矿」是什么意思？",
-        "a": "它是按时间计划累积奖励，而非实体硬件挖矿。您的账户按小时速率赚取 Matsumoto 积分，背后没有计算机为您计算哈希。\n\n积分为平台内部单位，只有在提现时才会兑换为链上 $Matsumoto。"
+        "q": "BONDKOIN 上的「挖矿」是什么意思？",
+        "a": "它是按时间计划累积奖励，而非实体硬件挖矿。您的账户按小时速率赚取 BONDKOIN 积分，背后没有计算机为您计算哈希。\n\n积分为平台内部单位，只有在提现时才会兑换为链上 $BONDKOIN。"
       },
       "cooldown": {
         "q": "为什么每天只能点击一次「挖矿」？",
         "a": "点击「挖矿」会将已累积的积分存入余额，并开启 24 小时倒计时。在两次点击之间积分持续累积，最多累积 24 小时。晚一点来点也不会损失，但达到 24 小时上限后将暂停累积。"
       },
       "conversion": {
-        "q": "多少积分可以兑换 1 个 $Matsumoto？",
-        "a": "3 个积分兑换 1 个 $Matsumoto。兑换比例在平台内固定，在您发起提现时按此比例结算。"
+        "q": "多少积分可以兑换 1 个 $BONDKOIN？",
+        "a": "3 个积分兑换 1 个 $BONDKOIN。兑换比例在平台内固定，在您发起提现时按此比例结算。"
       },
       "minWithdrawal": {
         "q": "最低提现额度是多少？",
@@ -519,12 +519,12 @@
   "terms": {
     "title": "服务条款",
     "backHome": "返回首页",
-    "intro": "使用 Matsumoto 的规则说明。语言通俗明了，无隐藏套路。",
+    "intro": "使用 BONDKOIN 的规则说明。语言通俗明了，无隐藏套路。",
     "updated": "本条款为工作草案，未经法律顾问审核。",
     "q": {
       "service": {
         "q": "本服务的内容",
-        "a": "Matsumoto 是一个奖励平台。此处的「挖矿」指账户中按计划累积的奖励，不包含实体挖矿硬件，也不保证任何收益。"
+        "a": "BONDKOIN 是一个奖励平台。此处的「挖矿」指账户中按计划累积的奖励，不包含实体挖矿硬件，也不保证任何收益。"
       },
       "eligibility": {
         "q": "使用资格",

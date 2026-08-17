@@ -3,7 +3,7 @@
 import Image from 'next/image';
 
 /**
- * 3D Matsumoto Token with official logo artwork (/matsumoto-mark.png),
+ * 3D BONDKOIN Token with official logo artwork (/bondkoin-logo.png),
  * multi-axial orbiting particle rings, and holographic ambient depth.
  */
 export function Coin3D() {
@@ -24,34 +24,34 @@ export function Coin3D() {
           <div className="coin-edge" style={{ transform: 'translateZ(-6px)' }} />
           <div className="coin-edge" style={{ transform: 'translateZ(-8px)' }} />
 
-          {/* Front Face: Real Official Matsumoto Logo Mark */}
-          <div className="coin-face overflow-hidden p-3 border-2 border-amber-300/60">
+          {/* Front Face: Real Official BONDKOIN Logo Mark */}
+          <div className="coin-face overflow-hidden p-3 border-2 border-amber-300/60 bg-slate-950">
             <div className="relative h-full w-full flex flex-col items-center justify-center">
               <Image
-                src="/matsumoto-mark.png"
-                alt="Matsumoto Official Emblem"
+                src="/bondkoin-logo.png"
+                alt="BONDKOIN Official Emblem"
                 width={150}
                 height={150}
                 priority
-                className="h-28 w-28 object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.5)]"
+                className="h-28 w-28 rounded-full object-cover drop-shadow-[0_8px_16px_rgba(0,0,0,0.5)]"
               />
-              <span className="text-[9px] font-black uppercase tracking-widest text-amber-950 mt-1 font-mono">
-                $MATSUMOTO
+              <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 mt-1 font-mono">
+                $BONDKOIN
               </span>
             </div>
           </div>
 
-          {/* Back Face: Real Official Matsumoto Logo Mark */}
-          <div className="coin-face coin-face--back overflow-hidden p-3 border-2 border-amber-300/60">
+          {/* Back Face: Real Official BONDKOIN Logo Mark */}
+          <div className="coin-face coin-face--back overflow-hidden p-3 border-2 border-amber-300/60 bg-slate-950">
             <div className="relative h-full w-full flex flex-col items-center justify-center">
               <Image
-                src="/matsumoto-mark.png"
-                alt="Matsumoto BEP-20"
+                src="/bondkoin-logo.png"
+                alt="BONDKOIN BEP-20"
                 width={150}
                 height={150}
-                className="h-28 w-28 object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.5)]"
+                className="h-28 w-28 rounded-full object-cover drop-shadow-[0_8px_16px_rgba(0,0,0,0.5)]"
               />
-              <span className="text-[9px] font-black uppercase tracking-widest text-amber-950 mt-1 font-mono">
+              <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 mt-1 font-mono">
                 BNB CHAIN BEP-20
               </span>
             </div>
