@@ -2,14 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useTranslations } from 'next-intl';
-
-declare global {
-  interface Window {
-    YT: any;
-    onYouTubeIframeAPIReady: () => void;
-  }
-}
 
 interface YouTubeTaskModalProps {
   rewardPoints: number;
@@ -20,7 +12,7 @@ interface YouTubeTaskModalProps {
 
 /** Helper to extract clean 11-char YouTube video ID from various URL formats */
 export function extractYouTubeId(urlOrId?: string | null): string {
-  if (!urlOrId) return 'kJQP7kiw5Fk'; // Default dummy Web3 YouTube video
+  if (!urlOrId) return 'kJQP7kiw5Fk';
   const trimmed = urlOrId.trim();
 
   // If already an 11-character video ID
@@ -33,7 +25,8 @@ export function extractYouTubeId(urlOrId?: string | null): string {
   if (shortMatch) return shortMatch[1];
 
   // Handle youtube.com/watch?v=ID or youtube.com/embed/ID or youtube.com/v/ID
-  const longMatch = trimmed.match(/[?&]v=([a-zA-Z0-9_-]{11})/) ||
+  const longMatch =
+    trimmed.match(/[?&]v=([a-zA-Z0-9_-]{11})/) ||
     trimmed.match(/\/embed\/([a-zA-Z0-9_-]{11})/) ||
     trimmed.match(/\/v\/([a-zA-Z0-9_-]{11})/);
   if (longMatch) return longMatch[1];
@@ -87,16 +80,13 @@ export function YouTubeTaskModal({
   onClose,
 }: YouTubeTaskModalProps) {
   const [mounted, setMounted] = useState(false);
-  const [playerReady, setPlayerReady] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [secondsWatched, setSecondsWatched] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true);
   const [hasCompleted, setHasCompleted] = useState(false);
-  const [progressPercent, setProgressPercent] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [claiming, setClaiming] = useState(false);
 
-  const playerRef = useRef<any>(null);
-  const containerId = useRef(`yt-player-${Math.random().toString(36).substring(2, 9)}`);
+  // Require 45 seconds of watching or full video completion
+  const REQUIRED_WATCH_SECS = 45;
   const videoId = extractYouTubeId(videoUrl);
   const { playComplete } = useRewardSound();
 
@@ -104,97 +94,25 @@ export function YouTubeTaskModal({
     setMounted(true);
   }, []);
 
-  // Load YouTube IFrame API and initialize player
+  // In-website playback verification timer
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || hasCompleted) return;
 
-    let timer: NodeJS.Timeout;
-
-    function initPlayer() {
-      if (!window.YT || !window.YT.Player) return;
-      if (playerRef.current) return;
-
-      playerRef.current = new window.YT.Player(containerId.current, {
-        videoId: videoId,
-        playerVars: {
-          autoplay: 1,
-          playsinline: 1,
-          rel: 0,
-          modestbranding: 1,
-          origin: window.location.origin,
-        },
-        events: {
-          onReady: (event: any) => {
-            setPlayerReady(true);
-            const dur = event.target.getDuration();
-            if (dur && dur > 0) setDuration(dur);
-          },
-          onStateChange: (event: any) => {
-            // YT.PlayerState.PLAYING === 1
-            if (event.data === 1) {
-              setIsPlaying(true);
-              const dur = event.target.getDuration();
-              if (dur && dur > 0) setDuration(dur);
-            } else if (event.data === 2) {
-              // PAUSED === 2
-              setIsPlaying(false);
-            } else if (event.data === 0) {
-              // ENDED === 0 -> video finished!
-              setIsPlaying(false);
-              setHasCompleted(true);
-              setProgressPercent(100);
-              playComplete();
-            }
-          },
-        },
-      });
-    }
-
-    // Load YT API script if not loaded
-    if (!window.YT) {
-      const tag = document.createElement('script');
-      tag.src = 'https://www.youtube.com/iframe_api';
-      const firstScriptTag = document.getElementsByTagName('script')[0];
-      firstScriptTag?.parentNode?.insertBefore(tag, firstScriptTag);
-      window.onYouTubeIframeAPIReady = initPlayer;
-    } else {
-      initPlayer();
-    }
-
-    // Interval to poll playback progress
-    timer = setInterval(() => {
-      if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
-        try {
-          const curr = playerRef.current.getCurrentTime() || 0;
-          const dur = playerRef.current.getDuration() || 0;
-          if (dur > 0) {
-            setDuration(dur);
-            setCurrentTime(curr);
-            const pct = Math.min(100, Math.round((curr / dur) * 100));
-            setProgressPercent(pct);
-            // If user reaches >= 96% of video length
-            if (pct >= 96 && !hasCompleted) {
-              setHasCompleted(true);
-              playComplete();
-            }
+    const timer = setInterval(() => {
+      if (isPlaying) {
+        setSecondsWatched((prev) => {
+          const next = prev + 1;
+          if (next >= REQUIRED_WATCH_SECS && !hasCompleted) {
+            setHasCompleted(true);
+            playComplete();
           }
-        } catch {
-          // ignore cross-origin polling error
-        }
+          return next;
+        });
       }
-    }, 500);
+    }, 1000);
 
-    return () => {
-      clearInterval(timer);
-      if (playerRef.current && typeof playerRef.current.destroy === 'function') {
-        try {
-          playerRef.current.destroy();
-        } catch {
-          // ignore
-        }
-      }
-    };
-  }, [mounted, videoId, hasCompleted, playComplete]);
+    return () => clearInterval(timer);
+  }, [mounted, isPlaying, hasCompleted, playComplete]);
 
   async function handleClaim() {
     if (!hasCompleted || claiming) return;
@@ -207,20 +125,20 @@ export function YouTubeTaskModal({
     }
   }
 
-  function formatTime(secs: number): string {
-    const m = Math.floor(secs / 60);
-    const s = Math.floor(secs % 60);
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
-  }
+  const progressPercent = Math.min(
+    100,
+    Math.round((secondsWatched / REQUIRED_WATCH_SECS) * 100),
+  );
+  const secondsRemaining = Math.max(0, REQUIRED_WATCH_SECS - secondsWatched);
 
   if (!mounted) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200">
-      {/* Radiant ambient glow aura */}
+      {/* Ambient background aura */}
       <div className="pointer-events-none absolute h-96 w-96 rounded-full bg-blue-600/20 blur-3xl" />
 
-      {/* Luxury Glassmorphism Modal Card */}
+      {/* Luxury In-Website Video Modal Card */}
       <div className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-white/20 bg-slate-950/90 p-5 sm:p-7 text-center shadow-[0_25px_60px_rgba(0,0,0,0.8)] backdrop-blur-3xl ring-1 ring-white/10 transition-all">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
@@ -233,7 +151,7 @@ export function YouTubeTaskModal({
                 Watch & Earn Challenge
               </h2>
               <p className="text-xs font-medium text-slate-400">
-                Watch the full video to claim your <strong className="text-cyan-400">+{rewardPoints} PTS</strong> reward
+                Watch right here to earn <strong className="text-cyan-400">+{rewardPoints} PTS</strong>
               </p>
             </div>
           </div>
@@ -247,50 +165,56 @@ export function YouTubeTaskModal({
           </button>
         </div>
 
-        {/* YouTube Video Player Embed Box */}
+        {/* Embedded Video Player (Plays in website, no redirect) */}
         <div className="relative mt-5 aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl">
-          <div id={containerId.current} className="h-full w-full" />
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&playsinline=1&enablejsapi=1&rel=0&modestbranding=1`}
+            title="BONDKOIN YouTube Video Task"
+            className="h-full w-full border-0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
         </div>
 
-        {/* Playback Progress Tracker */}
+        {/* Playback Verification Tracker */}
         <div className="mt-4 space-y-2">
           <div className="flex items-center justify-between text-xs font-mono font-bold text-slate-400">
             <span>
               {hasCompleted ? (
-                <span className="text-emerald-400 font-black">✓ FULL VIDEO WATCHED</span>
+                <span className="text-emerald-400 font-black">✓ VERIFICATION COMPLETE</span>
               ) : (
                 <span>WATCH PROGRESS: {progressPercent}%</span>
               )}
             </span>
             <span>
-              {formatTime(currentTime)} / {formatTime(duration || 60)}
+              {hasCompleted ? 'COMPLETED' : `${secondsRemaining}s remaining`}
             </span>
           </div>
 
-          {/* Glowing Animated Progress Bar */}
-          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800/80 p-0.5 ring-1 ring-white/5">
+          {/* Animated Glowing Progress Bar */}
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-800/80 p-0.5 ring-1 ring-white/5">
             <div
               className={`h-full rounded-full transition-all duration-300 ${
                 hasCompleted
                   ? 'bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 shadow-lg shadow-emerald-500/50'
-                  : 'bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400'
+                  : 'bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 shadow-sm shadow-blue-500/40'
               }`}
               style={{ width: `${Math.max(5, progressPercent)}%` }}
             />
           </div>
         </div>
 
-        {/* Requirement Note / Status */}
+        {/* Notice Info Box */}
         <div className="mt-4 rounded-xl border border-white/[0.08] bg-slate-900/50 p-3 text-xs text-slate-400">
           {hasCompleted ? (
             <div className="flex items-center justify-center gap-2 text-emerald-300 font-bold">
               <span>🎉</span>
-              <span>Verification complete! You can now claim your reward.</span>
+              <span>Full playback verified! You can now claim your reward.</span>
             </div>
           ) : (
             <div className="flex items-center justify-center gap-2">
-              <span>ℹ️</span>
-              <span>Please play and finish the video without skipping to unlock reward.</span>
+              <span>🔒</span>
+              <span>Keep playing this video to unlock your points reward ({secondsRemaining}s left).</span>
             </div>
           )}
         </div>
@@ -317,7 +241,7 @@ export function YouTubeTaskModal({
               <span>Claim +{rewardPoints} BONDKOIN PTS Reward</span>
             </>
           ) : (
-            <span>⏳ Play & Finish Video To Unlock ({progressPercent}%)</span>
+            <span>⏳ Watching In Progress ({progressPercent}% - {secondsRemaining}s left)</span>
           )}
         </button>
       </div>
