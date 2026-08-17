@@ -39,12 +39,12 @@ function Landing({ locale }: { locale: string }) {
           {/* Brand Logo */}
           <Link href={`/${locale}`} className="flex items-center gap-3 font-black text-lg group">
             <div className="relative">
-              <div className="absolute -inset-1 rounded-xl bg-amber-500/30 blur-sm opacity-70 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute -inset-1 rounded-xl bg-blue-600/30 blur-sm opacity-70 group-hover:opacity-100 transition-opacity" />
               <LogoMark size={38} priority className="relative shrink-0" />
             </div>
             <div className="leading-none">
               <span className="text-base font-black tracking-tight text-white">BONDKOIN</span>
-              <span className="block font-mono text-[10px] font-extrabold uppercase tracking-widest text-amber-400">
+              <span className="block font-mono text-[10px] font-extrabold uppercase tracking-widest text-blue-400">
                 Labs · BNB Chain
               </span>
             </div>
@@ -52,28 +52,28 @@ function Landing({ locale }: { locale: string }) {
 
           {/* Nav Links */}
           <nav className="hidden lg:flex items-center gap-6 text-xs font-bold uppercase tracking-wider text-slate-300">
-            <a href="#how" className="transition-colors hover:text-amber-400">
+            <a href="#how" className="transition-colors hover:text-blue-400">
               {t('nav.features')}
             </a>
-            <a href="#architecture" className="transition-colors hover:text-amber-400">
+            <a href="#architecture" className="transition-colors hover:text-blue-400">
               Architecture
             </a>
-            <a href="#boosters" className="transition-colors hover:text-amber-400">
+            <a href="#boosters" className="transition-colors hover:text-blue-400">
               {t('nav.boosters')}
             </a>
-            <a href="#calculator" className="transition-colors hover:text-amber-400">
+            <a href="#calculator" className="transition-colors hover:text-blue-400">
               {t('nav.calculator')}
             </a>
-            <a href="#referrals" className="transition-colors hover:text-amber-400">
+            <a href="#referrals" className="transition-colors hover:text-blue-400">
               {t('nav.referrals')}
             </a>
-            <a href="#tasks" className="transition-colors hover:text-amber-400">
+            <a href="#tasks" className="transition-colors hover:text-blue-400">
               {t('nav.tasks')}
             </a>
-            <a href="#rules" className="transition-colors hover:text-amber-400">
+            <a href="#rules" className="transition-colors hover:text-blue-400">
               {t('nav.rules')}
             </a>
-            <a href="#faq" className="transition-colors hover:text-amber-400">
+            <a href="#faq" className="transition-colors hover:text-blue-400">
               {t('nav.faq')}
             </a>
           </nav>
@@ -97,14 +97,14 @@ function Landing({ locale }: { locale: string }) {
         <div className="grid items-center gap-12 lg:grid-cols-12">
           {/* Left Hero Content */}
           <div className="lg:col-span-7">
-            <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-amber-300 backdrop-blur-md shadow-lg shadow-amber-500/10">
-              <span className="pulse-dot h-2 w-2 rounded-full bg-amber-400" />
+            <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/40 bg-blue-600/10 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-blue-300 backdrop-blur-md shadow-lg shadow-blue-500/10">
+              <span className="pulse-dot h-2 w-2 rounded-full bg-cyan-400" />
               <span>{t('hero.badge')}</span>
             </div>
 
             <h1 className="mt-6 text-4xl font-black leading-tight sm:text-5xl lg:text-6xl tracking-tight">
               {t('hero.title')}{' '}
-              <span className="bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500 bg-clip-text text-transparent drop-shadow-md">
+              <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-300 bg-clip-text text-transparent drop-shadow-md">
                 {t('hero.titleAccent')}
               </span>
             </h1>
@@ -119,12 +119,12 @@ function Landing({ locale }: { locale: string }) {
                 href={register}
                 label={t('hero.ctaPrimary')}
                 dashboardLabel={t('nav.dashboard')}
-                className="btn-gold rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-wider text-slate-950 shadow-2xl shadow-amber-500/20"
+                className="btn-gold rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-wider text-white shadow-2xl shadow-blue-600/25"
               />
               <HideWhenAuthed>
                 <Link
                   href={signIn}
-                  className="rounded-2xl border border-white/10 bg-slate-900/60 px-6 py-4 text-sm font-bold text-slate-200 backdrop-blur-xl hover:border-amber-500/60 hover:text-amber-400 transition-all shadow-lg"
+                  className="rounded-2xl border border-white/10 bg-slate-900/60 px-6 py-4 text-sm font-bold text-slate-200 backdrop-blur-xl hover:border-blue-500/60 hover:text-blue-300 transition-all shadow-lg"
                 >
                   {t('hero.ctaSecondary')}
                 </Link>
@@ -365,10 +365,10 @@ function Landing({ locale }: { locale: string }) {
                 {t('footer.ecosystem')}
               </h4>
               <ul className="space-y-2 text-slate-400">
-                <li><Link href={`/${locale}/dashboard`} className="text-amber-400 font-mono font-bold hover:underline">$BONDKOIN BEP-20</Link></li>
-                <li><Link href={`/${locale}/withdraw`} className="hover:text-amber-400">BNB Chain Withdrawals</Link></li>
-                <li><Link href={`/${locale}/kyc`} className="hover:text-amber-400">KYC Verification</Link></li>
-                <li><Link href={`/${locale}/support`} className="hover:text-amber-400">Support Desk</Link></li>
+                <li><Link href={`/${locale}/dashboard`} className="text-blue-400 font-mono font-bold hover:underline">$BONDKOIN BEP-20</Link></li>
+                <li><Link href={`/${locale}/withdraw`} className="hover:text-blue-400">BNB Chain Withdrawals</Link></li>
+                <li><Link href={`/${locale}/kyc`} className="hover:text-blue-400">KYC Verification</Link></li>
+                <li><Link href={`/${locale}/support`} className="hover:text-blue-400">Support Desk</Link></li>
               </ul>
             </div>
 
@@ -377,10 +377,10 @@ function Landing({ locale }: { locale: string }) {
                 {t('footer.legal')}
               </h4>
               <ul className="space-y-2 text-slate-400">
-                <li><Link href={`/${locale}/faq`} className="hover:text-amber-400">{t('footer.faq')}</Link></li>
-                <li><Link href={`/${locale}/terms`} className="hover:text-amber-400">{t('footer.terms')}</Link></li>
-                <li><Link href={`/${locale}/privacy`} className="hover:text-amber-400">{t('footer.privacy')}</Link></li>
-                <li><Link href={`/${locale}/support`} className="hover:text-amber-400">{t('footer.support')}</Link></li>
+                <li><Link href={`/${locale}/faq`} className="hover:text-blue-400">{t('footer.faq')}</Link></li>
+                <li><Link href={`/${locale}/terms`} className="hover:text-blue-400">{t('footer.terms')}</Link></li>
+                <li><Link href={`/${locale}/privacy`} className="hover:text-blue-400">{t('footer.privacy')}</Link></li>
+                <li><Link href={`/${locale}/support`} className="hover:text-blue-400">{t('footer.support')}</Link></li>
               </ul>
             </div>
           </div>
@@ -430,10 +430,10 @@ function Figure({
   return (
     <div className="glass-panel p-6">
       <div className="flex items-center justify-between">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/[0.04] border border-white/[0.08] text-xl">
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-600/10 border border-blue-500/20 text-xl">
           {icon}
         </span>
-        <div className="font-mono text-2xl font-black text-amber-400">{value}</div>
+        <div className="font-mono text-2xl font-black text-blue-400">{value}</div>
       </div>
       <div className="mt-4 text-xs uppercase font-extrabold tracking-wider text-slate-200">
         {label}

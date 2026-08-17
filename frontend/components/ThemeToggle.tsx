@@ -44,12 +44,12 @@ export function ThemeToggle() {
     <div className="flex items-center rounded-full border border-white/15 bg-slate-900/80 p-0.5 backdrop-blur-md shadow-sm">
       <button
         type="button"
-        title="Dark Mode"
-        aria-label="Dark Mode"
+        title="Midnight Sapphire"
+        aria-label="Midnight Sapphire"
         onClick={() => handleSelect('dark')}
         className={`flex h-7 w-7 items-center justify-center rounded-full text-xs transition-all ${
           theme === 'dark'
-            ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20'
+            ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-500/30'
             : 'text-slate-400 hover:text-slate-200'
         }`}
       >
@@ -58,12 +58,12 @@ export function ThemeToggle() {
 
       <button
         type="button"
-        title="Light Mode"
-        aria-label="Light Mode"
+        title="Executive Light"
+        aria-label="Executive Light"
         onClick={() => handleSelect('light')}
         className={`flex h-7 w-7 items-center justify-center rounded-full text-xs transition-all ${
           theme === 'light'
-            ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20'
+            ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-500/30'
             : 'text-slate-400 hover:text-slate-200'
         }`}
       >
@@ -72,16 +72,16 @@ export function ThemeToggle() {
 
       <button
         type="button"
-        title="Cyber Gold Mode"
-        aria-label="Cyber Gold Mode"
+        title="Corporate Royal Blue"
+        aria-label="Corporate Royal Blue"
         onClick={() => handleSelect('cyber')}
         className={`flex h-7 w-7 items-center justify-center rounded-full text-xs transition-all ${
           theme === 'cyber'
-            ? 'bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 font-bold shadow-md shadow-yellow-500/30'
+            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-md shadow-indigo-500/30'
             : 'text-slate-400 hover:text-slate-200'
         }`}
       >
-        ⚡
+        🔵
       </button>
     </div>
   );
