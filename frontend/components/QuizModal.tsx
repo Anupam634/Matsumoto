@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 
 interface QuizQuestion {
@@ -118,14 +119,14 @@ function useQuizSound(muted: boolean) {
   const playComplete = useCallback(() => {
     const ctx = context();
     if (!ctx) return;
-    [523.25, 659.25, 783.99, 1046.5, 1318.51].forEach((freq, i) => {
+    [392, 523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      const at = ctx.currentTime + i * 0.09;
+      const at = ctx.currentTime + i * 0.1;
       osc.type = 'sine';
       osc.frequency.value = freq;
       gain.gain.setValueAtTime(0.0001, at);
-      gain.gain.exponentialRampToValueAtTime(0.18, at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.15, at + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.4);
       osc.connect(gain).connect(ctx.destination);
       osc.start(at);
@@ -149,6 +150,7 @@ export function QuizModal({
   onComplete: () => Promise<void>;
   onClose: () => void;
 }) {
+  const [mounted, setMounted] = useState(false);
   const questionsList = customQuestions && customQuestions.length > 0 ? customQuestions : QUIZ_QUESTIONS;
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
@@ -157,6 +159,10 @@ export function QuizModal({
   const [isFinished, setIsFinished] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [muted, setMuted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const { playCorrect, playWrong, playComplete } = useQuizSound(muted);
   const currentQ = questionsList[currentIdx] || questionsList[0];
@@ -176,35 +182,37 @@ export function QuizModal({
   };
 
   const handleNext = () => {
-      if (currentIdx + 1 < questionsList.length) {
-        setCurrentIdx((c) => c + 1);
-        setSelectedIdx(null);
-        setIsAnswered(false);
-      } else {
-        setIsFinished(true);
-        playComplete();
-      }
-    };
+    if (currentIdx + 1 < questionsList.length) {
+      setCurrentIdx((c) => c + 1);
+      setSelectedIdx(null);
+      setIsAnswered(false);
+    } else {
+      setIsFinished(true);
+      playComplete();
+    }
+  };
 
-    const handleClaim = async () => {
-      setClaiming(true);
-      try {
-        await onComplete();
-        onClose();
-      } finally {
-        setClaiming(false);
-      }
-    };
+  const handleClaim = async () => {
+    setClaiming(true);
+    try {
+      await onComplete();
+      onClose();
+    } finally {
+      setClaiming(false);
+    }
+  };
 
-    const progressPercent = ((currentIdx + (isAnswered ? 1 : 0)) / questionsList.length) * 100;
+  if (!mounted) return null;
 
-    return (
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-200">
-        {/* Radiant ambient aura */}
-        <div className="pointer-events-none absolute h-96 w-96 rounded-full bg-cyan-500/20 blur-3xl" />
+  const progressPercent = ((currentIdx + (isAnswered ? 1 : 0)) / questionsList.length) * 100;
 
-        {/* Transparent Glassmorphism Modal Card */}
-        <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/20 bg-slate-950/40 p-6 sm:p-8 text-center shadow-[0_25px_60px_rgba(0,0,0,0.6)] backdrop-blur-3xl ring-1 ring-white/10 transition-all">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xl animate-in fade-in duration-200">
+      {/* Radiant ambient aura */}
+      <div className="pointer-events-none absolute h-96 w-96 rounded-full bg-blue-600/20 blur-3xl" />
+
+      {/* Transparent Glassmorphism Modal Card */}
+      <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/20 bg-slate-950/80 p-6 sm:p-8 text-center shadow-[0_25px_60px_rgba(0,0,0,0.8)] backdrop-blur-3xl ring-1 ring-white/10 transition-all">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
             <div className="flex items-center gap-2.5 text-left">
@@ -330,8 +338,8 @@ export function QuizModal({
               <div className="text-xs uppercase font-black tracking-widest text-amber-400">
                 BOUNTY REWARD UNLOCKED
               </div>
-              <div className="mt-1 font-mono text-3xl font-black text-amber-300">
-                +{rewardPoints} MATSU
+              <div className="mt-1 font-mono text-3xl font-black text-cyan-300">
+                +{rewardPoints} BONDKOIN PTS
               </div>
             </div>
 
@@ -339,13 +347,14 @@ export function QuizModal({
               type="button"
               onClick={handleClaim}
               disabled={claiming}
-              className="btn-gold mt-6 w-full rounded-2xl py-3.5 text-xs font-black uppercase tracking-wider text-slate-950 shadow-xl"
+              className="btn-brand mt-6 flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-xs font-black uppercase tracking-wider text-white shadow-xl"
             >
-              {claiming ? 'Crediting Bounty…' : 'Claim Reward & Close →'}
+              {claiming ? 'Crediting Bounty…' : '✨ Claim Reward & Close →'}
             </button>
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

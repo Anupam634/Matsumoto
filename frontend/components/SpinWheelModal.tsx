@@ -1,10 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 
 const FULL_TURNS = 7;
 const SPIN_MS = 4500;
+const NUM_LEDS = 24;
 
 // High-end multi-gradient segments for luxury Web3 aesthetic
 const SLICE_PALETTE = [
@@ -51,24 +53,24 @@ function useWheelSound(muted: boolean) {
     gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.04);
     osc.connect(gain).connect(ctx.destination);
     osc.start();
-    osc.stop(ctx.currentTime + 0.04);
+    osc.stop(ctx.currentTime + 0.05);
   }, [context]);
 
   const fanfare = useCallback(() => {
     const ctx = context();
     if (!ctx) return;
-    [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((freq, i) => {
+    [440, 554.37, 659.25, 880].forEach((freq, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      const at = ctx.currentTime + i * 0.08;
+      const at = ctx.currentTime + i * 0.12;
       osc.type = 'triangle';
       osc.frequency.value = freq;
       gain.gain.setValueAtTime(0.0001, at);
-      gain.gain.exponentialRampToValueAtTime(0.2, at + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.38);
+      gain.gain.exponentialRampToValueAtTime(0.18, at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.45);
       osc.connect(gain).connect(ctx.destination);
       osc.start(at);
-      osc.stop(at + 0.4);
+      osc.stop(at + 0.5);
     });
   }, [context]);
 
@@ -87,30 +89,36 @@ export function SpinWheelModal({
   onClose: () => void;
 }) {
   const t = useTranslations('tasks');
-  const [angle, setAngle] = useState(0);
+  const [mounted, setMounted] = useState(false);
+  const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
-  const [result, setResult] = useState<{ index: number; earned: number } | null>(null);
+  const [result, setResult] = useState<{ index: number; earned: number } | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
 
   useEffect(() => {
-    setMuted(localStorage.getItem('matsumoto_wheel_muted') === '1');
+    setMounted(true);
   }, []);
 
+  const { tick, fanfare } = useWheelSound(muted);
+  const wheelRef = useRef<SVGGElement | null>(null);
+
+  const n = segments.length;
+  const sliceAngle = 360 / n;
+  const slice = sliceAngle;
+  const angle = rotation;
+  const spin = handleSpin;
+
   function toggleMute() {
-    setMuted((m) => {
-      localStorage.setItem('matsumoto_wheel_muted', m ? '0' : '1');
-      return !m;
-    });
+    setMuted((m) => !m);
   }
 
-  const { tick, fanfare } = useWheelSound(muted);
-  const slice = 360 / segments.length;
-  const numLEDs = 24;
-
-  async function spin() {
+  async function handleSpin() {
     if (spinning || result) return;
     setSpinning(true);
+    setResult(null);
     setError(null);
 
     let outcome: { index: number; earned: number };
@@ -122,31 +130,44 @@ export function SpinWheelModal({
       return;
     }
 
-    const currentNormalized = ((angle % 360) + 360) % 360;
-    const winningAngle = (((360 - (outcome.index * slice + slice / 2)) % 360) + 360) % 360;
-    const diff = (((winningAngle - currentNormalized) % 360) + 360) % 360;
-    const target = angle + FULL_TURNS * 360 + (diff === 0 ? 360 : diff);
-
-    const reduced = prefersReducedMotion();
-    setAngle(reduced ? winningAngle : target);
-
-    if (reduced) {
+    if (prefersReducedMotion()) {
       setResult(outcome);
       setSpinning(false);
       fanfare();
       return;
     }
 
-    let elapsed = 0;
-    const schedule = () => {
-      const progress = elapsed / SPIN_MS;
-      if (progress >= 1) return;
-      tick();
-      const gap = 55 + 350 * Math.pow(progress, 2.2);
-      elapsed += gap;
-      window.setTimeout(schedule, gap);
+    const targetCenter = (outcome.index + 0.5) * sliceAngle;
+    const targetAngle = 360 - targetCenter;
+    const currentModulo = ((rotation % 360) + 360) % 360;
+    let forward = targetAngle - currentModulo;
+    if (forward <= 0) forward += 360;
+    const delta = FULL_TURNS * 360 + forward;
+
+    const startRot = rotation;
+    const targetRot = startRot + delta;
+    setRotation(targetRot);
+
+    let lastTickAngle = startRot;
+    const startTime = performance.now();
+
+    const checkTick = () => {
+      if (!wheelRef.current) return;
+      const elapsed = performance.now() - startTime;
+      const progress = Math.min(1, elapsed / SPIN_MS);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const currentAngle = startRot + delta * eased;
+
+      if (Math.abs(currentAngle - lastTickAngle) >= sliceAngle) {
+        tick();
+        lastTickAngle = currentAngle;
+      }
+
+      if (progress < 1) {
+        requestAnimationFrame(checkTick);
+      }
     };
-    schedule();
+    requestAnimationFrame(checkTick);
 
     window.setTimeout(() => {
       setResult(outcome);
@@ -155,13 +176,15 @@ export function SpinWheelModal({
     }, SPIN_MS);
   }
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-200">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xl animate-in fade-in duration-200">
       {/* Outer ambient glow halo */}
-      <div className="pointer-events-none absolute h-96 w-96 rounded-full bg-amber-500/20 blur-3xl" />
+      <div className="pointer-events-none absolute h-96 w-96 rounded-full bg-blue-600/20 blur-3xl" />
 
       {/* Main Luxury Transparent Glassmorphic Modal Card */}
-      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/20 bg-slate-950/40 p-6 sm:p-8 text-center shadow-[0_25px_60px_rgba(0,0,0,0.6)] backdrop-blur-3xl ring-1 ring-amber-400/20">
+      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/20 bg-slate-950/80 p-6 sm:p-8 text-center shadow-[0_25px_60px_rgba(0,0,0,0.8)] backdrop-blur-3xl ring-1 ring-white/10">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
           <div className="flex items-center gap-2.5 text-left">
@@ -260,8 +283,8 @@ export function SpinWheelModal({
             <circle cx="0" cy="0" r="51.5" fill="none" stroke="rgba(245, 158, 11, 0.4)" strokeWidth="1" />
 
             {/* 2. Perimeter LED Bulbs */}
-            {Array.from({ length: numLEDs }).map((_, i) => {
-              const ang = (i * (360 / numLEDs) * Math.PI) / 180;
+            {Array.from({ length: NUM_LEDS }).map((_, i) => {
+              const ang = (i * (360 / NUM_LEDS) * Math.PI) / 180;
               const x = 53.8 * Math.cos(ang);
               const y = 53.8 * Math.sin(ang);
               const activeBulb = i % 2 === 0;
@@ -383,8 +406,8 @@ export function SpinWheelModal({
             <div className="inline-block rounded-full bg-amber-500 px-3 py-0.5 text-[10px] font-black uppercase tracking-widest text-slate-950">
               🎉 WINNER REWARD
             </div>
-            <div className="mt-1.5 font-mono text-2xl font-black text-amber-300 sm:text-3xl">
-              +{result.earned} MATSU
+            <div className="mt-1.5 font-mono text-2xl font-black text-cyan-300 sm:text-3xl">
+              +{result.earned} BONDKOIN PTS
             </div>
             <p className="mt-1 text-[11px] text-slate-300">
               Points have been credited directly to your mining balance!
@@ -399,14 +422,15 @@ export function SpinWheelModal({
           disabled={spinning}
           className={`mt-6 w-full rounded-2xl py-3.5 text-xs font-black uppercase tracking-wider transition-all ${
             result
-              ? 'btn-gold text-slate-950 shadow-xl'
-              : 'border border-white/10 bg-slate-900/80 text-slate-300 hover:border-amber-400/50 hover:text-white'
+              ? 'btn-brand text-white shadow-xl'
+              : 'border border-white/10 bg-slate-900/80 text-slate-300 hover:border-blue-500/50 hover:text-white'
           }`}
         >
           {result ? t('collect') : t('close')}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

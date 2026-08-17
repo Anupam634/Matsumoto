@@ -135,7 +135,7 @@ export default function TasksSection({
           <div
             key={task.id}
             data-task={task.type}
-            className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-white/[0.08] bg-slate-900/60 p-4.5 backdrop-blur-xl transition-all duration-300 hover:border-blue-500/40 hover:bg-slate-900/90 hover:shadow-xl hover:shadow-blue-500/10"
+            className="group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-white/[0.08] bg-slate-900/60 p-4 sm:p-5 backdrop-blur-xl transition-all duration-300 hover:border-blue-500/40 hover:bg-slate-900/90 hover:shadow-xl hover:shadow-blue-500/10"
           >
             {won?.id === task.id && (
               <span className="float-up absolute left-1/2 top-3 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-emerald-500/25 border border-emerald-400/50 px-3.5 py-1 text-sm font-black text-emerald-300 backdrop-blur-md shadow-lg shadow-emerald-500/20">
@@ -156,7 +156,7 @@ export default function TasksSection({
               )}
 
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-black tracking-tight text-white group-hover:text-blue-200 transition-colors">
+                <div className="min-h-[2.5rem] flex items-center text-sm font-black tracking-tight text-white group-hover:text-blue-200 transition-colors line-clamp-2 leading-snug">
                   {taskLabels(LABEL_KEY[task.type])}
                 </div>
                 <div className="mt-1 flex items-center gap-1.5 text-xs font-mono font-bold text-cyan-400">
@@ -170,16 +170,16 @@ export default function TasksSection({
               </div>
             </div>
 
-            {/* Rounded Glass Glowing Claim Button */}
-            <div className="mt-4">
+            {/* Rounded Glass Glowing Claim Button Row */}
+            <div className="mt-4 pt-3 border-t border-white/[0.06]">
               <button
                 type="button"
                 onClick={() => claim(task)}
                 disabled={!task.canClaim || busyId === task.id}
-                className={`group/btn relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-full py-2.5 px-4 text-xs font-black uppercase tracking-wider transition-all duration-300 ${
+                className={`group/btn relative flex h-10 w-full items-center justify-center gap-2 overflow-hidden rounded-full px-4 text-xs font-black uppercase tracking-wider transition-all duration-300 ${
                   task.canClaim
                     ? 'btn-brand shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02] active:scale-[0.98] border border-blue-400/40 text-white'
-                    : 'border border-white/10 bg-slate-950/70 text-slate-400 backdrop-blur-md cursor-not-allowed opacity-75'
+                    : 'border border-white/10 bg-slate-950/70 text-slate-300 backdrop-blur-md cursor-not-allowed opacity-80'
                 }`}
               >
                 {busyId === task.id ? (
@@ -193,7 +193,7 @@ export default function TasksSection({
                     <span>{t('claim')}</span>
                   </>
                 ) : (
-                  <span className="flex items-center gap-1.5 font-mono text-[11px]">
+                  <span className="flex items-center gap-1.5 font-mono text-[11px] text-slate-300">
                     <span>⏱️</span>
                     <Cooldown iso={task.nextAvailableAt} label={t('cooldownShort')} />
                   </span>
