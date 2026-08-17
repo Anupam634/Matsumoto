@@ -68,7 +68,7 @@ const DEFAULT_QUIZ_QUESTIONS: QuizQuestionDto[] = [
   },
   {
     id: 3,
-    question: 'What is the standard base cloud mining rate per hour?',
+    question: 'What is the standard base node mining rate per hour?',
     options: [
       '0.25 BONDKOIN/h',
       '0.50 BONDKOIN/h',
@@ -80,7 +80,7 @@ const DEFAULT_QUIZ_QUESTIONS: QuizQuestionDto[] = [
   },
   {
     id: 4,
-    question: 'How often do miners need to check in to sustain continuous cloud mining?',
+    question: 'How often do miners need to check in to sustain continuous node mining?',
     options: [
       'Every 1 Hour',
       'Every 6 Hours',

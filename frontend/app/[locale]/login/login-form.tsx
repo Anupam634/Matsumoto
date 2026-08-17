@@ -209,7 +209,7 @@ function AuthForm() {
         <div className="max-w-md space-y-6">
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-amber-300">
             <span className="pulse-dot h-2 w-2 rounded-full bg-emerald-400" />
-            <span>BNB Chain Cloud Mining Node</span>
+            <span>BNB Chain Node Mining Network</span>
           </div>
 
           <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl">
@@ -286,7 +286,7 @@ function AuthForm() {
                   : step === 'otp'
                   ? 'Enter the 5-digit verification code sent to your email.'
                   : mode === 'login'
-                  ? 'Access your cloud mining terminal & daily yield.'
+                  ? 'Access your node mining terminal & daily yield.'
                   : 'Start earning BONDKOIN Points with zero hardware cost.'}
               </p>
 

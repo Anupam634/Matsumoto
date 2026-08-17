@@ -11,7 +11,7 @@ export function OnChainArchitecture() {
   ];
 
   const allocations = [
-    { name: '⛏️ Mining Community', percent: 30, amount: '270M $BONDKOIN', color: 'bg-amber-400', desc: 'Direct daily 24h cloud mining rewards, booster yields & referral incentives' },
+    { name: '⛏️ Mining Community', percent: 30, amount: '270M $BONDKOIN', color: 'bg-amber-400', desc: 'Direct daily 24h node mining rewards, booster yields & referral incentives' },
     { name: '🌱 Ecosystem & Growth', percent: 20, amount: '180M $BONDKOIN', color: 'bg-emerald-400', desc: 'Ecosystem expansion, developer grants, partnerships & community bounties' },
     { name: '👥 Core Team & Contributors', percent: 20, amount: '180M $BONDKOIN', color: 'bg-indigo-400', desc: 'Core protocol development, engineers, smart contract security & long-term vesting' },
     { name: '🏛️ Public & Exchange Liquidity', percent: 20, amount: '180M $BONDKOIN', color: 'bg-cyan-400', desc: 'Locked DEX / CEX liquidity pools & market making on BNB Chain pairs' },

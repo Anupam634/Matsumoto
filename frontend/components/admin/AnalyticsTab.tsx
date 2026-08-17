@@ -162,7 +162,7 @@ export function AnalyticsTab({ stats, onRefresh }: AnalyticsTabProps) {
             <h3 className="text-sm font-black uppercase tracking-wider text-white">
               📈 Miner Signups & Points Yield Velocity ({timeframe === '24h' ? '24 Hours' : timeframe === '7d' ? 'Past 7 Days' : 'Past 30 Days'})
             </h3>
-            <p className="text-xs text-slate-400">Daily breakdown of user registrations and accrued cloud mining points</p>
+            <p className="text-xs text-slate-400">Daily breakdown of user registrations and accrued node mining points</p>
           </div>
           <div className="flex items-center gap-4 text-xs font-semibold">
             <div className="flex items-center gap-1.5">

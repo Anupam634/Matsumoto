@@ -128,7 +128,7 @@ export function InteractiveMinerVisualizer() {
             <div className="h-3 w-3 rounded-full bg-amber-500/80 shadow-sm" />
             <div className="h-3 w-3 rounded-full bg-emerald-500/80 shadow-sm" />
             <span className="ml-2 font-mono text-xs text-slate-400 font-semibold">
-              bondkoin://cloud-cluster.bep20
+              bondkoin://node-cluster.bep20
             </span>
           </div>
 
@@ -221,7 +221,7 @@ export function InteractiveMinerVisualizer() {
           </div>
           <div className="rounded-xl bg-slate-900/60 border border-white/[0.06] p-2.5 text-center">
             <div className="text-slate-500 text-[10px] uppercase font-bold">LOCAL POWER</div>
-            <div className="font-bold text-cyan-400 mt-0.5">0W (Cloud)</div>
+            <div className="font-bold text-cyan-400 mt-0.5">0W (Node Eco)</div>
           </div>
         </div>
 

@@ -57,7 +57,7 @@ export function MiningEngineTab() {
               </div>
               <div className="text-xs text-slate-400">
                 {engineStatus === 'RUNNING'
-                  ? 'Cloud mining nodes are actively accruing points with 24h continuous mathematical interpolation.'
+                  ? 'Node mining devices are actively accruing points with 24h continuous mathematical interpolation.'
                   : 'Mining engine is paused. Users cannot claim pending points or start new cycles.'}
               </div>
             </div>

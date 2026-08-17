@@ -27,15 +27,15 @@
       "subtitle": "Register free in seconds. No battery drain. Accumulate digital assets daily. One tap to mine. Tap to initiate your 24-hour mining cycle, upgrade Hashrate with stackable Boosters, Multiply rewards up to ×8 with your Referral Crew, and convert Points directly to on-chain $BONDKOIN BEP-20 Tokens.",
       "ctaPrimary": "Start Mining Free",
       "ctaSecondary": "Open Web3 Terminal",
-      "honesty": "BONDKOIN utilizes a scheduled reward accrual model (zero electricity & zero hardware wear). Accrued points convert directly to on-chain $BONDKOIN on BNB Smart Chain.",
-      "activeMinersBadge": "Scheduled 24h Accrual · Zero Hardware Wear",
+      "honesty": "BONDKOIN utilizes an eco-friendly scheduled node accrual model (zero electricity & zero hardware wear). Accrued points convert directly to on-chain $BONDKOIN on BNB Smart Chain.",
+      "activeMinersBadge": "Scheduled 24h Node Accrual · Zero Battery Drain",
       "verifiedNode": "Mandatory KYC Security · Direct BEP-20 Payouts",
       "playVideo": "Play intro video",
       "pauseVideo": "Pause intro video"
     },
     "simulator": {
       "title": "Interactive Mining Rig Terminal",
-      "subtitle": "Test-run the cloud mining algorithm in real-time",
+      "subtitle": "Test-run the node mining algorithm in real-time",
       "networkStatus": "NODE ONLINE",
       "simulatedRate": "0.90 BONDKOIN/h",
       "baseSpeed": "BASE HASHRATE",
@@ -45,7 +45,7 @@
       "hashAlgorithm": "BEP-20 Tap-to-Earn Engine v2.4",
       "coreTemp": "Core Temp: 54°C",
       "efficiency": "Efficiency: 99.8%",
-      "power": "Cloud Power: 0W Local",
+      "power": "Node Power: Optimized Eco (0W)",
       "blocksFound": "Simulated Block: #849,201"
     },
     "figures": {
@@ -76,11 +76,11 @@
       },
       "mine": {
         "title": "2. Tap to Mine Every 24h",
-        "body": "One tap initializes your 24-hour reward window. Your cloud rig continuously accrues BONDKOIN Points on our high-speed cluster."
+        "body": "One tap initializes your 24-hour reward window. Your device node continuously accrues BONDKOIN Points on our high-speed network."
       },
       "boost": {
         "title": "3. Boost Hashrate & Invite",
-        "body": "Stack 30-day cloud booster packs for up to +65.0 BONDKOIN/h each, and invite friends to boost your multiplier up to ×8."
+        "body": "Stack 30-day node booster packs for up to +65.0 BONDKOIN/h each, and invite friends to boost your multiplier up to ×8."
       },
       "withdraw": {
         "title": "4. On-Chain Payout to BNB Chain",
@@ -88,8 +88,8 @@
       }
     },
     "boosters": {
-      "title": "Cloud Mining Booster Rigs",
-      "subtitle": "Supercharge your hashrate with high-performance 30-day cloud computing nodes. Fully stackable with unlimited capacity.",
+      "title": "Node Mining Booster Rigs",
+      "subtitle": "Supercharge your hashrate with high-performance 30-day node computing units. Fully stackable with unlimited capacity.",
       "resultingRate": "Resulting Hashrate",
       "terms": "30 Days Active · Stackable · Instant Activation",
       "starter": "Starter Rig",
@@ -104,7 +104,7 @@
     "calculator": {
       "title": "Mining Profitability Calculator",
       "subtitle": "Simulate your estimated BONDKOIN points and on-chain $BONDKOIN token payouts based on booster tiers and referral multiplier.",
-      "selectBooster": "Select Cloud Booster Package",
+      "selectBooster": "Select Node Booster Package",
       "selectInvites": "Referral Team Size (Invited Miners)",
       "invitesLabel": "{count} Invited Users (Multiplier: ×{mult})",
       "estimatedYield": "Estimated Mining Yield",
@@ -155,26 +155,26 @@
     "faq": {
       "title": "Frequently Asked Questions",
       "subtitle": "Everything you need to know about BONDKOIN Node Mining, Token Conversion, and On-Chain Payouts.",
-      "q1": "What is BONDKOIN Mining and how does it work?",
-      "a1": "BONDKOIN is a high-yield cloud reward simulation platform on BNB Smart Chain. You register for free, tap 'Mine' once every 24 hours, and your cloud terminal accrues BONDKOIN Points. There is zero battery drain and zero electricity cost.",
+      "q1": "What is BONDKOIN Node Mining and how does it work?",
+      "a1": "BONDKOIN is a high-yield node mining reward platform on BNB Smart Chain. You register for free, tap 'Mine' once every 24 hours, and your device node terminal accrues BONDKOIN Points. There is zero battery drain and zero electricity cost.",
       "q2": "How does the token conversion to $BONDKOIN work?",
       "a2": "All accrued internal points convert at a fixed 3:1 ratio (3 Points = 1 $BONDKOIN BEP-20 token). When you withdraw, $BONDKOIN tokens are transferred directly to your connected BNB Chain address.",
       "q3": "Can I stack multiple booster packages?",
-      "a3": "Yes! Cloud booster packages are fully stackable. You can activate multiple $1, $5, $10, or $50 booster rigs simultaneously to achieve massive hourly hashrates.",
+      "a3": "Yes! Node booster packages are fully stackable. You can activate multiple $1, $5, $10, or $50 booster node rigs simultaneously to achieve massive hourly hashrates.",
       "q4": "How does the referral multiplier work?",
       "a4": "As you invite new miners with your personal referral link, your tier increases from Level 1 (×1) up to Level 6 (×8). This multiplier scales your effective mining accrual dramatically.",
       "q5": "What are the requirements for withdrawing?",
       "a5": "To withdraw: 1) You need at least 100 points, 2) Complete basic KYC verification to prove unique identity, and 3) Maintain a 7-day cadence between withdrawal requests."
     },
     "cta": {
-      "badge": "LAUNCH YOUR CLOUD RIG IN 30 SECONDS",
+      "badge": "ACTIVATE YOUR NODE RIG IN 30 SECONDS",
       "title": "Ready to Start Mining $BONDKOIN?",
       "body": "Start earning BONDKOIN Points at the 0.90/h base rate for free today with zero upfront hardware investment.",
       "buttonPrimary": "Create Free Account Now",
       "buttonSecondary": "Sign In to Mining Dashboard"
     },
     "footer": {
-      "brandDesc": "BONDKOIN (bondkoinlabs.com) is the premier node mining and simulated yield platform on BNB Smart Chain. Enabling global users to earn on-chain cryptocurrency rewards through scheduled daily accrual.",
+      "brandDesc": "BONDKOIN (bondkoinlabs.com) is the premier node mining and yield platform on BNB Smart Chain. Enabling global users to earn on-chain cryptocurrency rewards through scheduled daily accrual.",
       "quickLinks": "Quick Links",
       "ecosystem": "Ecosystem",
       "legal": "Transparency & Security",
@@ -182,7 +182,7 @@
       "bscScan": "BSCScan Explorer",
       "audit": "Security Audit Report",
       "whitepaper": "Platform Whitepaper",
-      "disclaimer": "Disclaimer: BONDKOIN is a scheduled reward accrual platform (\"cloud mining simulation\") operating without proof-of-work hardware requirements. BONDKOIN points are platform accounting units convertible to on-chain $BONDKOIN BEP-20 tokens subject to KYC verification and security review.",
+      "disclaimer": "Disclaimer: BONDKOIN is an eco-friendly scheduled reward node accrual platform (\"node mining protocol\") operating without proof-of-work hardware requirements. BONDKOIN points are platform accounting units convertible to on-chain $BONDKOIN BEP-20 tokens subject to KYC verification and security review.",
       "copyright": "© BONDKOIN Labs (bondkoinlabs.com). Built for the BNB Chain Ecosystem. All rights reserved.",
       "faq": "FAQ",
       "support": "Support",
@@ -221,8 +221,8 @@
     "working": "Please wait…",
     "verifyCta": "Verify identity",
     "buyBoosters": "Buy boosters",
-    "cloudMining": "Cloud Mining",
-    "heroBody": "Your rig accrues BONDKOIN points every hour. Tap Mine once a day to bank them.",
+    "cloudMining": "Node Mining",
+    "heroBody": "Your device node accrues BONDKOIN points every hour. Tap Mine once a day to bank them.",
     "totalEarnings": "Total earned",
     "atRate": "3 pts = 1",
     "kycVerified": "Identity verified — withdrawals unlocked.",
@@ -472,11 +472,11 @@
   "faq": {
     "title": "Frequently asked questions",
     "backHome": "Back to home",
-    "intro": "How mining, boosters, verification and payouts actually work here.",
+    "intro": "How node mining, boosters, verification and payouts actually work here.",
     "q": {
       "mining": {
-        "q": "What does “mining” mean on BONDKOIN?",
-        "a": "It is scheduled reward accrual, not physical hardware. Your account earns BONDKOIN Points at an hourly rate; no computer anywhere is solving hashes on your behalf.\n\nPoints are internal units. Only a withdrawal converts them to on-chain $BONDKOIN."
+        "q": "What does “node mining” mean on BONDKOIN?",
+        "a": "It is an eco-friendly scheduled reward accrual model where your connected device operates as a mining node. Your account earns BONDKOIN Points at an hourly rate without heavy battery drain.\n\nPoints are internal units. Only a withdrawal converts them to on-chain $BONDKOIN."
       },
       "cooldown": {
         "q": "Why can I only tap Mine once a day?",
@@ -524,7 +524,7 @@
     "q": {
       "service": {
         "q": "What this service is",
-        "a": "BONDKOIN is a rewards platform. “Mining” here means scheduled reward accrual on your account. There is no physical mining hardware, and no guarantee of profit."
+        "a": "BONDKOIN is a node rewards platform. “Mining” here means scheduled node reward accrual on your account. There is no proof-of-work hardware wear, and no guarantee of profit."
       },
       "eligibility": {
         "q": "Who can use it",

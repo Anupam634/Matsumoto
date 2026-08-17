@@ -38,19 +38,19 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
   },
   {
     id: 3,
-    question: 'What is the standard base cloud mining rate per hour?',
+    question: 'What is the standard base node mining rate per hour?',
     options: [
       '0.25 BONDKOIN/h',
       '0.50 BONDKOIN/h',
       '0.90 BONDKOIN/h',
-      '1.50 MATSU/h',
+      '1.50 BONDKOIN/h',
     ],
     correctIndex: 2,
-    explanation: 'Every verified miner receives a baseline cloud allocation of 0.90 MATSU points every hour.',
+    explanation: 'Every verified miner receives a baseline node allocation of 0.90 BONDKOIN points every hour.',
   },
   {
     id: 4,
-    question: 'How often do miners need to check in to sustain continuous cloud mining?',
+    question: 'How often do miners need to check in to sustain continuous node mining?',
     options: [
       'Every 1 Hour',
       'Every 6 Hours',
