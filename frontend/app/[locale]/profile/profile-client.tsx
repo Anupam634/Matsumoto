@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams, usePathname, useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   ApiError,
@@ -15,18 +15,10 @@ import {
 import { AppHeader } from '../../../components/AppHeader';
 import { MobileTabBar } from '../../../components/MobileTabBar';
 import { BnbLogo } from '../../../components/BnbLogo';
-import { ThemeToggle } from '../../../components/ThemeToggle';
 import { countryFlag, countryName } from '../../../lib/countries';
-import { locales } from '../../../i18n';
 
 /** 3 points = 1 $BONDKOIN BEP-20. */
 const POINTS_PER_TOKEN = 3;
-
-const LANGUAGE_LABELS: Record<string, { label: string; flag: string }> = {
-  en: { label: 'English', flag: '🇬🇧' },
-  zh: { label: '简体中文', flag: '🇨🇳' },
-  ko: { label: '한국어', flag: '🇰🇷' },
-};
 
 export default function ProfileClient() {
   const t = useTranslations('profile');
@@ -88,7 +80,6 @@ export default function ProfileClient() {
         ) : (
           <div className="mt-6 space-y-4">
             <BalanceCard profile={profile} locale={locale} />
-            <PreferencesCard locale={locale} />
             <AccountCard profile={profile} locale={locale} />
             <IdentityCard profile={profile} locale={locale} />
             <ReferralCard profile={profile} locale={locale} />
@@ -170,57 +161,6 @@ function BalanceCard({ profile, locale }: { profile: Profile; locale: string }) 
             : t('withdrawNeedsBalance', { min: WITHDRAWAL_MIN_POINTS })}
         </p>
       )}
-    </section>
-  );
-}
-
-/* ──────────────────────────── Preferences & Language ───────────────────────────── */
-
-function PreferencesCard({ locale }: { locale: string }) {
-  const router = useRouter();
-  const pathname = usePathname();
-
-  function switchLocale(next: string) {
-    if (next === locale) return;
-    const rest = pathname.split('/').slice(2).join('/');
-    const search = typeof window === 'undefined' ? '' : window.location.search;
-    router.replace(`/${next}${rest ? `/${rest}` : ''}${search}`);
-  }
-
-  return (
-    <section className="glass-panel p-5 sm:p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-            🌐 Language & Display Interface
-          </h2>
-          <p className="mt-1 text-xs text-slate-400">
-            Choose your preferred portal language and visual display mode
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4 grid grid-cols-3 gap-2.5">
-        {locales.map((l) => {
-          const item = LANGUAGE_LABELS[l] || { label: l.toUpperCase(), flag: '🌐' };
-          const isActive = locale === l;
-          return (
-            <button
-              key={l}
-              type="button"
-              onClick={() => switchLocale(l)}
-              className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold transition ${
-                isActive
-                  ? 'border-blue-500 bg-blue-600 text-white shadow-md shadow-blue-500/25'
-                  : 'border-white/[0.08] bg-slate-900/60 text-slate-300 hover:border-white/20 hover:bg-slate-800'
-              }`}
-            >
-              <span className="text-base">{item.flag}</span>
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-      </div>
     </section>
   );
 }
