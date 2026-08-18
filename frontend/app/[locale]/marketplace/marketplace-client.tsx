@@ -19,7 +19,7 @@ interface ProductItem {
   merchant: string;
   merchantVerified: boolean;
   region: string;
-  icon: string;
+  imageSrc: string;
   badge?: string;
   description: string;
   inStock: number;
@@ -37,7 +37,7 @@ const PRODUCTS: ProductItem[] = [
     merchant: 'BONDKOIN Hardware Labs',
     merchantVerified: true,
     region: 'Global Shipping',
-    icon: '🔐',
+    imageSrc: '/products/hardware_wallet.jpg',
     badge: 'Official Ecosystem Device',
     description:
       'Military-grade tamper-proof hardware authentication and cold storage key for BNB Chain & Web3 assets.',
@@ -54,7 +54,7 @@ const PRODUCTS: ProductItem[] = [
     merchant: 'NodeTech Global Corp',
     merchantVerified: true,
     region: 'Regional & International',
-    icon: '⚡',
+    imageSrc: '/products/node_rig.jpg',
     badge: 'Popular Node Rig',
     description:
       'Plug-and-play low-wattage eco hardware node with pre-installed BONDKOIN network telemetry and auto-sync.',
@@ -71,7 +71,7 @@ const PRODUCTS: ProductItem[] = [
     merchant: 'Web3 Streetwear Co.',
     merchantVerified: true,
     region: 'Worldwide Express',
-    icon: '🧥',
+    imageSrc: '/products/stealth_hoodie.jpg',
     badge: 'Limited Edition 2026',
     description:
       'Premium 450 GSM heavyweight organic cotton hoodie embroidered with reflective BONDKOIN monogram & BNB Chain badge.',
@@ -88,7 +88,7 @@ const PRODUCTS: ProductItem[] = [
     merchant: 'EtherCloud Infrastructure',
     merchantVerified: true,
     region: 'Instant Digital Delivery',
-    icon: '☁️',
+    imageSrc: '/products/cloud_vps.jpg',
     badge: 'Instant Activation',
     description:
       'High-speed NVMe 8GB RAM Linux server in 12 global regions, tuned for 24/7 Web3 node connectivity and uptime.',
@@ -105,7 +105,7 @@ const PRODUCTS: ProductItem[] = [
     merchant: 'Pacific Heritage Roasters',
     merchantVerified: true,
     region: 'Asia-Pacific / Regional Dispatch',
-    icon: '☕',
+    imageSrc: '/products/coffee_crate.jpg',
     badge: 'Local Verified Merchant',
     description:
       'Handcrafted single-origin roast coffee and organic highland tea beans sourced from certified regional farmers.',
@@ -122,7 +122,7 @@ const PRODUCTS: ProductItem[] = [
     merchant: 'ZeroTrace Cybersec',
     merchantVerified: true,
     region: 'Global Digital Key',
-    icon: '🛡️',
+    imageSrc: '/products/privacy_vpn.jpg',
     badge: 'No Logs Verified',
     description:
       'Multi-hop encrypted VPN with WireGuard protocol, decentralized DNS routing, and zero data logging.',
@@ -139,7 +139,7 @@ const PRODUCTS: ProductItem[] = [
     merchant: 'DeFi Bridge Services',
     merchantVerified: true,
     region: 'On-Chain Code',
-    icon: '🎟️',
+    imageSrc: '/products/gas_voucher.jpg',
     badge: 'Gas Voucher',
     description:
       'Prepaid BNB gas credit voucher code for smart contract deployment, token transfers, and DeFi swap fees.',
@@ -156,7 +156,7 @@ const PRODUCTS: ProductItem[] = [
     merchant: 'BONDKOIN Hardware Labs',
     merchantVerified: true,
     region: 'Global Shipping',
-    icon: '🥤',
+    imageSrc: '/products/thermal_tumbler.jpg',
     badge: 'Double Wall Vacuum',
     description:
       'Matte black 750ml food-grade 304 stainless steel tumbler with laser-engraved BONDKOIN emblem & temperature gauge.',
@@ -241,7 +241,7 @@ export default function MarketplaceClient() {
                   </strong>
                   <p className="mt-1 leading-relaxed opacity-90">
                     The BONDKOIN Network Marketplace is currently under active development.
-                    Catalog listings, mock checkouts, and wallet settlement actions demonstrate
+                    Catalog listings, 3D product previews, and simulated wallet checkouts demonstrate
                     the upcoming commercial release. Verified merchant registrations are now open!
                   </p>
                 </div>
@@ -444,35 +444,51 @@ export default function MarketplaceClient() {
             ))}
           </div>
 
-          {/* Product Cards Grid */}
-          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Product Cards Grid with 3D Renders */}
+          <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {filteredProducts.map((prod) => (
               <div
                 key={prod.id}
-                className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-white/10 bg-slate-900/70 p-5 shadow-lg backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-blue-500/50 hover:shadow-2xl"
+                className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-slate-900/90 to-slate-950/90 p-4 shadow-xl backdrop-blur-2xl transition-all duration-500 hover:-translate-y-2 hover:border-cyan-500/60 hover:shadow-[0_20px_40px_rgba(6,182,212,0.15)]"
               >
                 <div>
-                  {/* Image/Icon Squircle Box */}
-                  <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950/30 grid place-items-center text-4xl shadow-inner group-hover:scale-105 transition-transform duration-300">
-                    <span className="drop-shadow-lg">{prod.icon}</span>
+                  {/* 3D Product Image Showcase Box */}
+                  <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-950 shadow-inner group-hover:border-cyan-500/50 transition-all duration-500">
+                    <img
+                      src={prod.imageSrc}
+                      alt={prod.name}
+                      className="h-full w-full object-cover object-center group-hover:scale-110 transition-transform duration-700 ease-out"
+                      loading="lazy"
+                    />
+
+                    {/* Gradient shade for contrast */}
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-black/30" />
+
+                    {/* 3D Floating Badge */}
                     {prod.badge && (
-                      <span className="absolute top-2 left-2 rounded-md bg-blue-600/80 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white backdrop-blur-sm shadow-md">
-                        {prod.badge}
-                      </span>
+                      <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 rounded-full border border-white/20 bg-slate-950/80 px-2.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-amber-300 backdrop-blur-md shadow-lg">
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                        <span>{prod.badge}</span>
+                      </div>
                     )}
+
+                    {/* Category tag */}
+                    <div className="absolute bottom-2.5 right-2.5 z-10 rounded-md border border-white/10 bg-slate-950/80 px-2 py-0.5 text-[9px] font-mono font-bold text-cyan-300 backdrop-blur-md">
+                      {prod.categoryLabel}
+                    </div>
                   </div>
 
                   {/* Merchant & Region */}
                   <div className="mt-3.5 flex items-center justify-between text-[10px] text-slate-400">
                     <span className="font-semibold text-cyan-400 flex items-center gap-1">
-                      {prod.merchantVerified && <span>✓</span>}
+                      {prod.merchantVerified && <span className="text-emerald-400">✓</span>}
                       {prod.merchant}
                     </span>
                     <span className="font-mono text-slate-500">{prod.region}</span>
                   </div>
 
                   {/* Product Title */}
-                  <h3 className="mt-2 text-sm font-bold text-white line-clamp-2 leading-snug">
+                  <h3 className="mt-2 text-sm font-bold text-white line-clamp-2 leading-snug group-hover:text-cyan-300 transition-colors">
                     {prod.name}
                   </h3>
 
@@ -495,7 +511,7 @@ export default function MarketplaceClient() {
                       </div>
                     </div>
                     <div className="text-right text-[10px] text-slate-400 font-mono">
-                      <span>In Stock: </span>
+                      <span>Stock: </span>
                       <strong className="text-emerald-400">{prod.inStock}</strong>
                     </div>
                   </div>
@@ -503,7 +519,7 @@ export default function MarketplaceClient() {
                   <button
                     type="button"
                     onClick={() => setCheckoutProduct(prod)}
-                    className="btn-gold mt-3 block w-full rounded-xl py-2.5 text-center text-xs font-black uppercase tracking-wider text-slate-950 shadow-md shadow-blue-500/20"
+                    className="btn-gold mt-3 block w-full rounded-xl py-2.5 text-center text-xs font-black uppercase tracking-wider text-slate-950 shadow-md shadow-blue-500/20 group-hover:shadow-cyan-500/40"
                   >
                     Buy with $BONDKOIN →
                   </button>
@@ -522,7 +538,7 @@ export default function MarketplaceClient() {
         </section>
       </main>
 
-      {/* ─── Simulated Checkout Modal ─── */}
+      {/* ─── Simulated Checkout Modal with 3D Preview ─── */}
       {checkoutProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200">
           <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/20 bg-slate-950/95 p-6 sm:p-7 shadow-[0_25px_60px_rgba(0,0,0,0.8)] backdrop-blur-3xl ring-1 ring-white/10">
@@ -565,8 +581,12 @@ export default function MarketplaceClient() {
             ) : (
               <div>
                 <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-2xl">{checkoutProduct.icon}</span>
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={checkoutProduct.imageSrc}
+                      alt={checkoutProduct.name}
+                      className="h-12 w-16 rounded-xl object-cover border border-white/10"
+                    />
                     <div>
                       <h3 className="font-bold text-white text-sm">{checkoutProduct.name}</h3>
                       <p className="text-[11px] text-cyan-400">
