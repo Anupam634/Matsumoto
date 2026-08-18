@@ -154,9 +154,9 @@
     },
     "faq": {
       "title": "Frequently Asked Questions",
-      "subtitle": "Everything you need to know about BONDKOIN Node Mining, Token Conversion, and On-Chain Payouts.",
-      "q1": "What is BONDKOIN Node Mining and how does it work?",
-      "a1": "BONDKOIN is a high-yield node mining reward platform on BNB Smart Chain. You register for free, tap 'Mine' once every 24 hours, and your device node terminal accrues BONDKOIN Points. There is zero battery drain and zero electricity cost.",
+      "subtitle": "Everything you need to know about BONDKOIN Mining, Token Conversion, and On-Chain Payouts.",
+      "q1": "What is BONDKOIN Mining and how does it work?",
+      "a1": "BONDKOIN is a mining reward platform on BNB Smart Chain. You register for free, tap 'Mine' once every 24 hours, and your device node terminal accrues BONDKOIN Points. There is zero battery drain and zero electricity cost.",
       "q2": "How does the token conversion to $BONDKOIN work?",
       "a2": "All accrued internal points convert at a fixed 3:1 ratio (3 Points = 1 $BONDKOIN BEP-20 token). When you withdraw, $BONDKOIN tokens are transferred directly to your connected BNB Chain address.",
       "q3": "Can I stack multiple booster packages?",

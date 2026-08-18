@@ -154,9 +154,9 @@
     },
     "faq": {
       "title": "자주 묻는 질문 (FAQ)",
-      "subtitle": "BONDKOIN 노드 마이닝, 토큰 전환 및 온체인 출금에 관한 핵심 가이드입니다.",
-      "q1": "BONDKOIN 마이닝이란 무엇이며 어떻게 작동하나요?",
-      "a1": "BONDKOIN는 BNB 스마트 체인 기반의 고수익 노드 리워드 시뮬레이션 플랫폼입니다. 무료 가입 후 24시간마다 한 번 '마이닝'을 탭하면 노드 서버에서 설정된 속도로 포인트가 자동 적립되며, 하드웨어 손상이나 전기세가 발생하지 않습니다.",
+      "subtitle": "Everything you need to know about BONDKOIN Mining, Token Conversion, and On-Chain Payouts.",
+      "q1": "What is BONDKOIN Mining and how does it work?",
+      "a1": "BONDKOIN is a mining reward platform on BNB Smart Chain. You register for free, tap 'Mine' once every 24 hours, and your device node terminal accrues BONDKOIN Points. There is zero battery drain and zero electricity cost.",
       "q2": "포인트를 $BONDKOIN 토큰으로 어떻게 전환하나요?",
       "a2": "모든 내부 포인트는 3:1 고정 비율(3 포인트 = 1 $BONDKOIN BEP-20 토큰)로 전환됩니다. 출금 신청 시 본인의 BNB 체인 지갑 주소로 직접 토큰이 전송됩니다.",
       "q3": "부스터 패키지를 여러 개 중첩할 수 있나요?",
