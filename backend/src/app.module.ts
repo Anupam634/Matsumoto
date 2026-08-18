@@ -12,6 +12,7 @@ import { KycModule } from './kyc/kyc.module';
 import { BoostersModule } from './boosters/boosters.module';
 import { SupportModule } from './support/support.module';
 import { HealthModule } from './health/health.module';
+import { EmailModule } from './email/email.module';
 
 /**
  * Root module. Feature modules that are still stubs (referrals) get wired here as they are built out.
@@ -20,6 +21,7 @@ import { HealthModule } from './health/health.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    EmailModule,
     AuthModule,
     AntiabuseModule,
     MiningModule,

@@ -8,6 +8,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import { AntiabuseService } from '../antiabuse/antiabuse.service';
+import { EmailService } from '../email/email.service';
 import { hashPassword, verifyPassword } from './password';
 import {
   ForgotPasswordDto,
@@ -23,8 +24,6 @@ export interface SignupSignals {
   fingerprint?: string;
 }
 
-const DUMMY_OTP = '12345';
-
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -33,6 +32,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly antiabuse: AntiabuseService,
+    private readonly emailService: EmailService,
   ) {}
 
   private sign(user: { id: string; email: string | null }) {
@@ -44,12 +44,7 @@ export class AuthService {
    */
   async sendOtp(email: string) {
     const cleanEmail = email.trim().toLowerCase();
-    this.logger.log(`[OTP] Generated verification code for ${cleanEmail}: ${DUMMY_OTP}`);
-    return {
-      success: true,
-      message: `Verification code sent to ${cleanEmail}. (Code: ${DUMMY_OTP})`,
-      dummyOtp: DUMMY_OTP,
-    };
+    return this.emailService.sendOtpEmail(cleanEmail, 'signup');
   }
 
   /**
@@ -58,20 +53,17 @@ export class AuthService {
   async forgotPassword(dto: ForgotPasswordDto) {
     const email = dto.email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (user && user.isBlocked) {
+    if (!user) {
+      throw new BadRequestException('No account found with this email address.');
+    }
+    if (user.isBlocked) {
       throw new ForbiddenException('Account is blocked.');
     }
-    // Return dummy OTP for development/testing
-    this.logger.log(`[Password Reset] OTP for ${email}: ${DUMMY_OTP}`);
-    return {
-      success: true,
-      message: `Password reset OTP has been sent to ${email}.`,
-      dummyOtp: DUMMY_OTP,
-    };
+    return this.emailService.sendOtpEmail(email, 'forgot_password');
   }
 
   /**
-   * Reset user password using OTP.
+   * Reset user password using real verified OTP.
    */
   async resetPassword(dto: ResetPasswordDto) {
     const email = dto.email.trim().toLowerCase();
@@ -83,8 +75,9 @@ export class AuthService {
       throw new ForbiddenException('Account is blocked.');
     }
 
-    if (dto.otp.trim() !== DUMMY_OTP) {
-      throw new BadRequestException('Invalid or expired verification code. Use 12345.');
+    const isValid = this.emailService.verifyOtp(email, dto.otp);
+    if (!isValid) {
+      throw new BadRequestException('Invalid or expired verification code. Please request a new OTP.');
     }
 
     await this.prisma.user.update({
@@ -99,13 +92,16 @@ export class AuthService {
   }
 
   /**
-   * Free registration (SPEC §1).
+   * Free registration (SPEC §1) with verified real OTP.
    */
   async register(dto: RegisterDto, signals: SignupSignals) {
     const email = dto.email.trim().toLowerCase();
 
-    if (dto.otp && dto.otp.trim() !== DUMMY_OTP) {
-      throw new BadRequestException('Invalid email verification code. Use 12345.');
+    if (dto.otp) {
+      const isValid = this.emailService.verifyOtp(email, dto.otp);
+      if (!isValid) {
+        throw new BadRequestException('Invalid or expired email verification code. Please request a new OTP.');
+      }
     }
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
@@ -171,8 +167,11 @@ export class AuthService {
   async login(dto: LoginDto, signals: SignupSignals) {
     const email = dto.email.trim().toLowerCase();
 
-    if (dto.otp && dto.otp.trim() !== DUMMY_OTP) {
-      throw new BadRequestException('Invalid 2FA verification code. Use 12345.');
+    if (dto.otp) {
+      const isValid = this.emailService.verifyOtp(email, dto.otp);
+      if (!isValid) {
+        throw new BadRequestException('Invalid or expired 2FA verification code. Please request a new OTP.');
+      }
     }
 
     const user = await this.prisma.user.findUnique({

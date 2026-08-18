@@ -91,12 +91,12 @@ function AuthForm() {
         setError(t('countryRequired'));
         return;
       }
-      // Trigger OTP step for registration
+      // Trigger real OTP step for registration
       setBusy(true);
       try {
-        await sendOtp(email);
+        const res = await sendOtp(email);
         setStep('otp');
-        setInfoMsg('Verification code sent to your email. (Use dummy code: 12345)');
+        setInfoMsg(res.message || 'Verification code sent to your email. Please check your inbox and spam folder.');
       } catch (err) {
         setError(err instanceof ApiError ? err.message : 'Failed to send OTP.');
       } finally {
@@ -109,9 +109,9 @@ function AuthForm() {
       // Trigger 2FA OTP step for login
       setBusy(true);
       try {
-        await sendOtp(email);
+        const res = await sendOtp(email);
         setStep('otp');
-        setInfoMsg('Enter the 2FA code sent to your account. (Use dummy code: 12345)');
+        setInfoMsg(res.message || 'Enter the 2FA code sent to your email.');
       } catch (err) {
         setError(err instanceof ApiError ? err.message : t('networkError'));
       } finally {
@@ -130,7 +130,7 @@ function AuthForm() {
       try {
         const res = await forgotPassword(email);
         setStep('otp');
-        setInfoMsg(res.message || 'Password reset OTP sent. (Use dummy code: 12345)');
+        setInfoMsg(res.message || 'Password reset OTP sent to your email. Please check your inbox.');
       } catch (err) {
         setError(err instanceof ApiError ? err.message : 'Account not found.');
       } finally {
@@ -139,14 +139,14 @@ function AuthForm() {
     }
   }
 
-  // 2. Finalize with OTP (OTP Phase)
+  // 2. Finalize with real dynamic OTP (OTP Phase)
   async function handleVerifyOtp(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setInfoMsg(null);
 
-    if (otp.trim() !== '12345') {
-      setError('Invalid verification code. Please enter 12345.');
+    if (!otp.trim()) {
+      setError('Please enter the verification code sent to your email.');
       return;
     }
 
@@ -535,8 +535,10 @@ function AuthForm() {
                       onClick={async () => {
                         setBusy(true);
                         try {
-                          await sendOtp(email);
-                          setInfoMsg('Code re-sent. (Code: 12345)');
+                          const res = await (mode === 'forgot' ? forgotPassword(email) : sendOtp(email));
+                          setInfoMsg(res.message || 'A new verification code has been sent to your email.');
+                        } catch (err: any) {
+                          setError(err?.message || 'Failed to resend code.');
                         } finally {
                           setBusy(false);
                         }
