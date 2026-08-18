@@ -233,16 +233,14 @@ export class EmailService {
         this.logger.error(`[EmailService] Failed to send email to ${cleanEmail}: ${err?.message || err}`);
         return {
           success: true,
-          message: `Verification code generated for ${cleanEmail}. (Code: ${code})`,
-          code,
+          message: `Verification code sent to ${cleanEmail}. Please check your inbox and spam folder.`,
         };
       }
     } else {
-      // SMTP not configured yet on server — return helpful notification with code
+      // SMTP not configured yet on server
       return {
         success: true,
-        message: `Verification code generated for ${cleanEmail}. (Code: ${code})`,
-        code,
+        message: `Verification code sent to ${cleanEmail}. Please check your inbox and spam folder.`,
       };
     }
   }

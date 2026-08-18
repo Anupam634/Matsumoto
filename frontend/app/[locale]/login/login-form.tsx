@@ -59,7 +59,7 @@ function AuthForm() {
   const [countryCode, setCountryCode] = useState('');
 
   // OTP & Reset Password fields
-  const [otp, setOtp] = useState('12345');
+  const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
 
@@ -451,31 +451,25 @@ function AuthForm() {
                     <label className="block">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                          Verification Code (OTP)
+                          6-Digit Verification Code (OTP)
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => setOtp('12345')}
-                          className="text-[11px] font-bold text-amber-400 hover:underline"
-                        >
-                          ⚡ Autofill 12345
-                        </button>
                       </div>
                       <div className="relative mt-1.5">
                         <input
-                          className="w-full rounded-xl border border-slate-800 bg-slate-950/80 py-3.5 px-4 text-center font-mono text-xl font-black tracking-widest text-amber-400 placeholder-slate-600 outline-none transition-all focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40"
+                          className="w-full rounded-xl border border-slate-800 bg-slate-950/80 py-3.5 px-4 text-center font-mono text-xl font-black tracking-widest text-amber-400 placeholder-slate-700 outline-none transition-all focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40"
                           type="text"
+                          inputMode="numeric"
                           maxLength={6}
                           value={otp}
-                          onChange={(e) => setOtp(e.target.value)}
-                          placeholder="12345"
+                          onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                          placeholder="• • • • • •"
                           autoFocus
                           required
                         />
                       </div>
                     </label>
-                    <p className="mt-1.5 text-center text-[11px] text-slate-400">
-                      Dummy verification code for testing: <strong className="text-amber-400">12345</strong>
+                    <p className="mt-2 text-center text-[11px] text-slate-400">
+                      Enter the 6-digit security code sent to your email inbox
                     </p>
                   </div>
 
