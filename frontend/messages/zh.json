@@ -350,7 +350,7 @@
     "minNote": "最低 {min} 积分",
     "useMax": "全部",
     "toAddress": "收款钱包",
-    "addressNote": "BNB Chain (BEP-20) 地址。请仔细核对 — 转账无法撤销。",
+    "addressNote": "BNB Chain (BEP-20) 地址。请仅使用 Web3 钱包（Okx Web3 钱包、Bitget Web3 钱包、Binance Web3 钱包、Kucoin Web3 钱包）。请仔细核对 — 转账无法撤销。",
     "youReceive": "您将收到",
     "conversionNote": "3 积分 = 1",
     "submit": "申请提现",
@@ -387,7 +387,7 @@
     "submit": "提交审核",
     "submitting": "正在提交…",
     "reason": "原因",
-    "pendingBody": "您的证件正在审核中，通常很快完成。",
+    "pendingBody": "您的证件正在审核中。",
     "approvedBody": "您已通过验证，达到最低金额后即可提现。",
     "offline": "无法连接服务器，请重试。",
     "status": {

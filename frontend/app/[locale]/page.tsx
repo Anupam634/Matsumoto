@@ -61,6 +61,13 @@ function Landing({ locale }: { locale: string }) {
             <a href="#boosters" className="transition-colors hover:text-blue-400">
               {t('nav.boosters')}
             </a>
+            <Link
+              href={`/${locale}/marketplace`}
+              className="text-cyan-300 transition-colors hover:text-blue-400 font-extrabold flex items-center gap-1"
+            >
+              <span>🛒</span>
+              <span>Marketplace</span>
+            </Link>
             <a href="#calculator" className="transition-colors hover:text-blue-400">
               {t('nav.calculator')}
             </a>
@@ -366,6 +373,7 @@ function Landing({ locale }: { locale: string }) {
               </h4>
               <ul className="space-y-2 text-slate-400">
                 <li><Link href={`/${locale}/dashboard`} className="text-blue-400 font-mono font-bold hover:underline">$BONDKOIN BEP-20</Link></li>
+                <li><Link href={`/${locale}/marketplace`} className="text-cyan-300 font-bold hover:underline">🛒 Network Marketplace</Link></li>
                 <li><Link href={`/${locale}/withdraw`} className="hover:text-blue-400">BNB Chain Withdrawals</Link></li>
                 <li><Link href={`/${locale}/kyc`} className="hover:text-blue-400">KYC Verification</Link></li>
                 <li><Link href={`/${locale}/support`} className="hover:text-blue-400">Support Desk</Link></li>

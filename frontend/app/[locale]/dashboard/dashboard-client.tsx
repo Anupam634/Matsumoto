@@ -231,6 +231,38 @@ export default function DashboardClient() {
           </section>
         )}
 
+        {/* ─── BONDKOIN Network Marketplace Ecosystem Banner ─── */}
+        <section className="relative mt-4 overflow-hidden rounded-3xl border border-blue-500/30 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950/40 p-5 sm:p-6 shadow-xl backdrop-blur-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-blue-600/20 border border-blue-500/30 text-2xl shadow-inner">
+                🛒
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-md bg-blue-500/20 border border-blue-400/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-cyan-300">
+                    Ecosystem Utility
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">Testnet Preview</span>
+                </div>
+                <h3 className="mt-1 text-base font-bold text-white">
+                  BONDKOIN Network Marketplace
+                </h3>
+                <p className="mt-0.5 text-xs text-slate-300 max-w-xl leading-relaxed">
+                  Shop real-world goods and hardware from verified merchants, pay with $BONDKOIN on BNB Chain, and discover regional commerce.
+                </p>
+              </div>
+            </div>
+
+            <Link
+              href={`/${locale}/marketplace`}
+              className="btn-gold shrink-0 rounded-xl px-5 py-3 text-center text-xs font-black uppercase tracking-wider text-slate-950 shadow-lg shadow-blue-500/20"
+            >
+              Open Marketplace →
+            </Link>
+          </div>
+        </section>
+
         {/* Honest platform facts — every figure here is enforced in code. */}
         <section className="panel mt-4 grid grid-cols-2 gap-4 p-5 lg:grid-cols-4">
           <Feature chip="#818cf8" icon={<IconBolt />} title={t('f1t')} body={t('f1b')} />
@@ -279,6 +311,15 @@ function TopBar({ locale, onSignOut }: { locale: string; onSignOut: () => void }
             {t('navDashboard')}
           </NavLink>
           <NavLink href={`/${locale}/boosters`}>{t('navBoosters')}</NavLink>
+          <NavLink href={`/${locale}/marketplace`}>
+            <span className="flex items-center gap-1">
+              <span>🛒</span>
+              <span>Marketplace</span>
+              <span className="rounded-full bg-blue-500/20 px-1.5 py-0.5 text-[9px] font-black uppercase text-cyan-300 border border-blue-400/30">
+                NEW
+              </span>
+            </span>
+          </NavLink>
           <NavLink href={`/${locale}/withdraw`}>{t('navWithdraw')}</NavLink>
           <NavLink href={`/${locale}/profile`}>{t('navProfile')}</NavLink>
         </nav>

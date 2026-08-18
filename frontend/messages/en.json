@@ -350,7 +350,7 @@
     "minNote": "Minimum {min} points",
     "useMax": "Use max",
     "toAddress": "Destination wallet",
-    "addressNote": "A BNB Chain (BEP-20) address. Double-check it — payouts can't be reversed.",
+    "addressNote": "A BNB Chain (BEP-20) address. Please only use Web3 Wallet (Okx Web3 Wallet, Bitget Web3 Wallet, Binance Web3 Wallet, Kucoin Web3 wallet). Double-check it — payouts can't be reversed.",
     "youReceive": "You receive",
     "conversionNote": "3 pts = 1",
     "submit": "Request withdrawal",
@@ -387,7 +387,7 @@
     "submit": "Submit for review",
     "submitting": "Submitting…",
     "reason": "Reason",
-    "pendingBody": "Your documents are under review. This usually takes a short while.",
+    "pendingBody": "Your documents are under review.",
     "approvedBody": "You're verified and can withdraw once you meet the minimum.",
     "offline": "Can't reach the server. Try again.",
     "status": {

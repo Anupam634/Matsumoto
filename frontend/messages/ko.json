@@ -350,7 +350,7 @@
     "minNote": "최소 {min} 포인트",
     "useMax": "전액 입력",
     "toAddress": "수령 지갑 주소",
-    "addressNote": "BNB Chain (BEP-20) 주소입니다. 오입금 시 복구할 수 없으니 다시 확인하세요.",
+    "addressNote": "BNB Chain (BEP-20) 주소입니다. Web3 지갑(Okx Web3 Wallet, Bitget Web3 Wallet, Binance Web3 Wallet, Kucoin Web3 wallet)만 사용해 주세요. 오입금 시 복구할 수 없으니 다시 확인하세요.",
     "youReceive": "실제 수령액",
     "conversionNote": "3 포인트 = 1",
     "submit": "출금 신청",
@@ -387,7 +387,7 @@
     "submit": "검토 신청",
     "submitting": "제출 중…",
     "reason": "사유",
-    "pendingBody": "서류를 검토 중입니다. 잠시만 기다려 주세요.",
+    "pendingBody": "서류를 검토 중입니다.",
     "approvedBody": "인증되었습니다. 최소 수량을 채우면 출금할 수 있습니다.",
     "offline": "서버에 연결할 수 없습니다. 다시 시도해 주세요.",
     "status": {
