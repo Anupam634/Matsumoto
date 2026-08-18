@@ -32,17 +32,21 @@ export class ChainReaderService {
   readonly config: PaymentConfig;
 
   constructor(cfg: ConfigService) {
-    const payToAddress = cfg.get<string>('BOOSTER_PAY_TO_ADDRESS') ?? '';
+    // Default to USDT (BEP-20) on BNB Smart Chain
+    const payToAddress =
+      cfg.get<string>('BOOSTER_PAY_TO_ADDRESS') ||
+      '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
     const symbol = (cfg.get<string>('BOOSTER_PAY_TOKEN') ?? 'USDT').toUpperCase();
     const rpc =
-      cfg.get<string>('BOOSTER_RPC_URL') ??
-      cfg.get<string>('BSC_RPC_URL') ??
-      '';
+      cfg.get<string>('BOOSTER_RPC_URL') ||
+      cfg.get<string>('BSC_RPC_URL') ||
+      'https://bsc-dataseed1.binance.org/';
 
     const isNative = symbol === 'BNB';
     const tokenAddress = isNative
       ? undefined
-      : cfg.get<string>('BOOSTER_PAY_TOKEN_ADDRESS');
+      : cfg.get<string>('BOOSTER_PAY_TOKEN_ADDRESS') ||
+        '0x55d398326f99059fF775485246999027B3197955'; // Official USDT on BNB Chain
     const decimals = Number(cfg.get('BOOSTER_PAY_TOKEN_DECIMALS') ?? 18);
 
     // Plans are priced in USD. A dollar stablecoin maps 1:1; native BNB does
