@@ -53,8 +53,9 @@ export function AdminSidebar({
       ],
     },
     {
-      group: 'GROWTH & COMMUNITY',
+      group: 'ECOSYSTEM & COMMERCE',
       items: [
+        { key: 'marketplace' as AdminTab, label: 'Marketplace Store', icon: '🛒', badge: 'NEW' },
         { key: 'tasks' as AdminTab, label: 'Bounties & Tasks', icon: '🎯', badge: 'Quiz/Wheel' },
         { key: 'support' as AdminTab, label: 'Support Helpdesk', icon: '💬', badge: null },
         { key: 'cms' as AdminTab, label: 'Content & FAQs', icon: '📝', badge: null },

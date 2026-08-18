@@ -17,6 +17,7 @@ import { AdminTopNav } from '../../../components/admin/AdminTopNav';
 import { AnalyticsTab } from '../../../components/admin/AnalyticsTab';
 import { MinersTab } from '../../../components/admin/MinersTab';
 import { KycTab } from '../../../components/admin/KycTab';
+import { MarketplaceAdminTab } from '../../../components/admin/MarketplaceAdminTab';
 import { MiningEngineTab } from '../../../components/admin/tabs/MiningEngineTab';
 import { BoostersAdminTab } from '../../../components/admin/BoostersAdminTab';
 import { ReferralsAdminTab } from '../../../components/admin/ReferralsAdminTab';
@@ -109,6 +110,7 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
             {tab === 'withdrawals' && <WithdrawalsTab onChanged={loadStats} onUnauthorized={onSignOut} />}
             {tab === 'payments' && <PaymentsTab />}
             {tab === 'blockchain' && <BlockchainTab />}
+            {tab === 'marketplace' && <MarketplaceAdminTab />}
             {tab === 'tasks' && <TasksTab onUnauthorized={onSignOut} />}
             {tab === 'support' && <SupportTab onUnauthorized={onSignOut} />}
             {tab === 'cms' && <CmsTab />}

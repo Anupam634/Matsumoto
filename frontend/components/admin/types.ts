@@ -7,6 +7,7 @@ export type AdminTab =
   | 'withdrawals'
   | 'blockchain'
   | 'kyc'
+  | 'marketplace'
   | 'tasks'
   | 'payments'
   | 'support'

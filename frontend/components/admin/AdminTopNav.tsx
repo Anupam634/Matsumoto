@@ -26,6 +26,7 @@ export function AdminTopNav({
     withdrawals: '💸 Withdrawals Queue & Payout Escrow',
     blockchain: '⛓️ BNB Smart Chain (BEP-20) Infrastructure',
     kyc: '🪪 Identity Verification (KYC) Queue',
+    marketplace: '🛒 Marketplace Store & Commerce Management',
     tasks: '🎯 Tasks, Quizzes & Lucky Wheel 360°',
     payments: '💳 On-Chain Booster Payment Audits',
     support: '💬 Customer Support Helpdesk',
