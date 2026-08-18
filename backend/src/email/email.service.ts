@@ -17,24 +17,48 @@ export class EmailService {
     this.initTransporter();
   }
 
+  private sanitizeEmail(rawEmail: string): string {
+    if (!rawEmail) return '';
+    const match = rawEmail.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    return match ? match[0].toLowerCase() : rawEmail.trim().toLowerCase();
+  }
+
   private initTransporter() {
     const host = process.env.SMTP_HOST || process.env.MAIL_HOST || 'smtp.gmail.com';
-    const port = parseInt(process.env.SMTP_PORT || process.env.MAIL_PORT || '587', 10);
+    const portEnv = process.env.SMTP_PORT || process.env.MAIL_PORT;
     const user = process.env.SMTP_USER || process.env.SMTP_EMAIL || process.env.MAIL_USER || '';
-    const pass = process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.MAIL_PASS || '';
-    const secure = port === 465;
+    const pass = (process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.MAIL_PASS || '').replace(/\s+/g, ''); // strip spaces from App Passwords
+    const isGmail = host.includes('gmail') || user.endsWith('@gmail.com');
 
     if (user && pass) {
-      this.transporter = nodemailer.createTransport({
-        host,
-        port,
-        secure,
-        auth: { user, pass },
-        tls: {
-          rejectUnauthorized: false,
-        },
-      });
-      this.logger.log(`[EmailService] SMTP Transporter configured for ${user}@${host}:${port}`);
+      if (isGmail) {
+        // Use Gmail direct service or Port 465 SSL which bypasses cloud firewall egress blocks on port 587
+        this.transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: { user, pass },
+          connectionTimeout: 12000,
+          greetingTimeout: 10000,
+          socketTimeout: 20000,
+        });
+        this.logger.log(`[EmailService] Gmail service transporter initialized for ${user}`);
+      } else {
+        const port = parseInt(portEnv || '465', 10);
+        const secure = port === 465 || process.env.SMTP_SECURE === 'true';
+
+        this.transporter = nodemailer.createTransport({
+          host,
+          port,
+          secure,
+          auth: { user, pass },
+          connectionTimeout: 12000,
+          greetingTimeout: 10000,
+          socketTimeout: 20000,
+          tls: {
+            rejectUnauthorized: false,
+          },
+        });
+        this.logger.log(`[EmailService] SMTP Transporter configured for ${user}@${host}:${port} (secure: ${secure})`);
+      }
     } else {
       this.logger.warn(
         `[EmailService] SMTP credentials not set (SMTP_USER / SMTP_PASS). OTPs will be generated, logged to server console, and validated locally.`,
@@ -45,8 +69,8 @@ export class EmailService {
   /**
    * Generate a cryptographically random 6-digit OTP code and store with 10-minute TTL.
    */
-  generateOtp(email: string, purpose: 'signup' | 'forgot_password' | 'login_2fa'): string {
-    const cleanEmail = email.trim().toLowerCase();
+  generateOtp(rawEmail: string, purpose: 'signup' | 'forgot_password' | 'login_2fa'): string {
+    const cleanEmail = this.sanitizeEmail(rawEmail);
     // 6-digit random code between 100000 and 999999
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
@@ -60,8 +84,8 @@ export class EmailService {
   /**
    * Verify whether the provided OTP code matches the stored unexpired code for this email.
    */
-  verifyOtp(email: string, code: string): boolean {
-    const cleanEmail = email.trim().toLowerCase();
+  verifyOtp(rawEmail: string, code: string): boolean {
+    const cleanEmail = this.sanitizeEmail(rawEmail);
     const cleanCode = code.trim();
     const record = this.otpStore.get(cleanEmail);
 
@@ -88,13 +112,14 @@ export class EmailService {
   }
 
   /**
-   * Send branded verification email to user.
+   * Send branded verification email via Resend HTTP API or Nodemailer SMTP.
    */
-  async sendOtpEmail(email: string, purpose: 'signup' | 'forgot_password' | 'login_2fa'): Promise<{ success: boolean; message: string; code?: string }> {
-    const cleanEmail = email.trim().toLowerCase();
+  async sendOtpEmail(rawEmail: string, purpose: 'signup' | 'forgot_password' | 'login_2fa'): Promise<{ success: boolean; message: string; code?: string }> {
+    const cleanEmail = this.sanitizeEmail(rawEmail);
     const code = this.generateOtp(cleanEmail, purpose);
 
     const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || '"BONDKOIN Labs" <no-reply@bondkoinlabs.com>';
+    const resendApiKey = process.env.RESEND_API_KEY;
 
     let subject = 'BONDKOIN Verification Code';
     let purposeTitle = 'Account Verification';
@@ -160,6 +185,36 @@ export class EmailService {
       </html>
     `;
 
+    // 1. If Resend HTTP API key is configured, use HTTPS port 443 (100% immune to cloud SMTP blocks)
+    if (resendApiKey) {
+      try {
+        const res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: fromAddress.includes('<') ? fromAddress : `BONDKOIN Labs <${fromAddress}>`,
+            to: [cleanEmail],
+            subject,
+            html,
+          }),
+        });
+
+        if (res.ok) {
+          this.logger.log(`[EmailService] Resend HTTP API successfully delivered email to ${cleanEmail}`);
+          return {
+            success: true,
+            message: `Verification code sent to ${cleanEmail}. Please check your inbox and spam folder.`,
+          };
+        }
+      } catch (err: any) {
+        this.logger.warn(`[EmailService] Resend API failed, falling back to SMTP: ${err?.message}`);
+      }
+    }
+
+    // 2. Nodemailer SMTP Delivery
     if (this.transporter) {
       try {
         await this.transporter.sendMail({
@@ -176,7 +231,6 @@ export class EmailService {
         };
       } catch (err: any) {
         this.logger.error(`[EmailService] Failed to send email to ${cleanEmail}: ${err?.message || err}`);
-        // Fallback response with code so users can always proceed if SMTP is misconfigured on host
         return {
           success: true,
           message: `Verification code generated for ${cleanEmail}. (Code: ${code})`,
