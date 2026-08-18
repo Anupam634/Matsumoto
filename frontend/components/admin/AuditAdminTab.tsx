@@ -6,8 +6,8 @@ import type { AdminStats } from '../../lib/admin-api';
 export function AuditAdminTab({ stats }: { stats: AdminStats | null }) {
   const configs = [
     { label: 'Blockchain Network', value: 'BNB Smart Chain (BSC Mainnet)' },
-    { label: 'Token Standard', value: 'BEP-20 Official Matsumoto' },
-    { label: 'Conversion Ratio', value: '3 Points : 1 MATSU Token (Fixed)' },
+    { label: 'Token Standard', value: 'BEP-20 Official BONDKOIN' },
+    { label: 'Conversion Ratio', value: '3 Points : 1 BONDKOIN Token (Fixed)' },
     { label: 'Payout Automation', value: 'Admin Approval Escrow Queue' },
   ];
 

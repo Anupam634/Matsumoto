@@ -123,10 +123,10 @@ export function MiningEngineTab() {
               className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 font-mono text-xl font-black text-cyan-400 outline-none focus:border-cyan-500"
               required
             />
-            <span className="font-mono text-xs font-bold text-slate-400">: 1 $MATSU</span>
+            <span className="font-mono text-xs font-bold text-slate-400">: 1 $BONDKOIN</span>
           </div>
           <p className="mt-2 text-[11px] text-slate-500">
-            Fixed protocol conversion: 3.00 PTS = 1.00 MATSU Token (BEP-20).
+            Fixed protocol conversion: 3.00 PTS = 1.00 BONDKOIN Token (BEP-20).
           </p>
         </div>
 

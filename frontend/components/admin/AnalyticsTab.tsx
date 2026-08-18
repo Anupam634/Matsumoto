@@ -137,7 +137,7 @@ export function AnalyticsTab({ stats, onRefresh }: AnalyticsTabProps) {
             {totalBalance.toFixed(2)}
           </div>
           <div className="mt-1 text-xs text-cyan-400 font-semibold truncate">
-            ≈ {tokenEquivalent.toFixed(2)} $MATSU (~${estUsdValue.toFixed(2)})
+            ≈ {tokenEquivalent.toFixed(2)} $BONDKOIN (~${estUsdValue.toFixed(2)})
           </div>
         </div>
 

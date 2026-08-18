@@ -96,7 +96,7 @@ export function BoosterGrid({ locale }: { locale: string }) {
               </div>
               <div className="mt-1 font-mono text-2xl font-black text-amber-300">
                 {b.rate}{' '}
-                <span className="text-xs font-medium text-slate-400">MATSU/h</span>
+                <span className="text-xs font-medium text-slate-400">BONDKOIN/h</span>
               </div>
               <div className="mt-1 text-[11px] font-bold text-emerald-400">
                 {t('hashBoost', { rate: b.boost })}

@@ -703,7 +703,7 @@ function PlanCard({
         </div>
 
         <div className="mt-2 inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-xs font-bold text-emerald-400">
-          +{plan.rateBonusPerHour} MATSU/h
+          +{plan.rateBonusPerHour} BONDKOIN/h
         </div>
 
         <div className="mt-4 space-y-2 border-t border-slate-800/80 pt-3 text-xs">

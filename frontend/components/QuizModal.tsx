@@ -224,7 +224,7 @@ export function QuizModal({
                   Web3 Knowledge Challenge
                 </h2>
                 <p className="text-[11px] font-medium text-slate-400">
-                  Answer correctly to earn +{rewardPoints} MATSU points
+                  Answer correctly to earn +{rewardPoints} BONDKOIN points
                 </p>
               </div>
             </div>

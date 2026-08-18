@@ -44,9 +44,9 @@ export class WalletService {
           ? this.config.getOrThrow<string>('BSC_RPC_URL')
           : this.config.getOrThrow<string>('BSC_TESTNET_RPC_URL');
       const pk = this.config.getOrThrow<string>('HOT_WALLET_PRIVATE_KEY');
-      const contract = this.config.getOrThrow<string>(
-        'MATSUMOTO_CONTRACT_ADDRESS',
-      );
+      const contract =
+        this.config.get<string>('BONDKOIN_CONTRACT_ADDRESS') ??
+        this.config.getOrThrow<string>('MATSUMOTO_CONTRACT_ADDRESS');
       this.provider = new ethers.JsonRpcProvider(rpc);
       this.signer = new ethers.Wallet(pk, this.provider);
       this.token = new ethers.Contract(contract, ERC20_ABI, this.signer);
@@ -54,7 +54,7 @@ export class WalletService {
     this.logger.log(`WalletService running in "${this.mode}" mode`);
   }
 
-  /** Send `amount` of $Matsumoto to `toAddress`. Amount is a decimal string. */
+  /** Send `amount` of $BONDKOIN to `toAddress`. Amount is a decimal string. */
   async payout(toAddress: string, amount: string): Promise<PayoutResult> {
     if (this.mode === 'offchain' || !this.token) {
       // Deterministic pseudo-hash so the ledger has a reference in dev.
@@ -62,7 +62,11 @@ export class WalletService {
       this.logger.warn(`[offchain] simulated payout ${amount} -> ${toAddress}`);
       return { txHash: fake, onchain: false };
     }
-    const decimals = Number(this.config.get('MATSUMOTO_DECIMALS') ?? 18);
+    const decimals = Number(
+      this.config.get('BONDKOIN_DECIMALS') ??
+        this.config.get('MATSUMOTO_DECIMALS') ??
+        18,
+    );
     const value = ethers.parseUnits(amount, decimals);
     const tx = await this.token.transfer(toAddress, value);
     const receipt = await tx.wait();
@@ -71,7 +75,11 @@ export class WalletService {
 
   async tokenBalance(address: string): Promise<string> {
     if (this.mode === 'offchain' || !this.token) return '0';
-    const decimals = Number(this.config.get('MATSUMOTO_DECIMALS') ?? 18);
+    const decimals = Number(
+      this.config.get('BONDKOIN_DECIMALS') ??
+        this.config.get('MATSUMOTO_DECIMALS') ??
+        18,
+    );
     const raw: bigint = await this.token.balanceOf(address);
     return ethers.formatUnits(raw, decimals);
   }

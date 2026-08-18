@@ -17,7 +17,7 @@ const INITIAL_ACTIVITIES: ActivityItem[] = [
     id: '1',
     type: 'payout',
     user: '0x8f...4e19',
-    detail: '350 MATSU ($116.6 on BNB Chain)',
+    detail: '350 BONDKOIN ($116.6 on BNB Chain)',
     time: '2s ago',
     txHash: '0x3a9f...8b21',
   },
@@ -33,7 +33,7 @@ const INITIAL_ACTIVITIES: ActivityItem[] = [
     id: '3',
     type: 'claim',
     user: '0x44...8c02',
-    detail: 'Claimed 21.6 MATSU (24h Window)',
+    detail: 'Claimed 21.6 BONDKOIN (24h Window)',
     time: '14s ago',
     txHash: '0x221a...99cf',
   },
@@ -49,7 +49,7 @@ const INITIAL_ACTIVITIES: ActivityItem[] = [
     id: '5',
     type: 'payout',
     user: '0x19...3ef4',
-    detail: '1,200 MATSU ($400 on BNB Chain)',
+    detail: '1,200 BONDKOIN ($400 on BNB Chain)',
     time: '34s ago',
     txHash: '0x44fa...7831',
   },
@@ -83,12 +83,12 @@ export function LiveTransactionsTicker() {
       let detail = '';
       if (selectedType === 'payout') {
         const amount = Math.floor(Math.random() * 800 + 100);
-        detail = `${amount} MATSU ($${(amount / 3).toFixed(1)} on BSC)`;
+        detail = `${amount} BONDKOIN ($${(amount / 3).toFixed(1)} on BSC)`;
       } else if (selectedType === 'booster') {
         const packs = ['$1 Starter', '$5 Power', '$10 Pro', '$50 Enterprise'];
         detail = `Deployed ${packs[Math.floor(Math.random() * packs.length)]} Rig`;
       } else if (selectedType === 'claim') {
-        detail = `Claimed ${(Math.random() * 40 + 10).toFixed(1)} MATSU 24h Yield`;
+        detail = `Claimed ${(Math.random() * 40 + 10).toFixed(1)} BONDKOIN 24h Yield`;
       } else {
         detail = 'KYC Level 2 Verified & Approved';
       }

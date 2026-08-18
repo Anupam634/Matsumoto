@@ -5,10 +5,10 @@ import type { AdminStats } from '../../lib/admin-api';
 
 export function BoostersAdminTab({ stats }: { stats: AdminStats | null }) {
   const plans = [
-    { name: 'Bronze Node Booster', price: '$1.00', bonus: '+2.0 MATSU/h', duration: '30 Days', activeSales: 18 },
-    { name: 'Silver Quantum Booster', price: '$5.00', bonus: '+5.0 MATSU/h', duration: '30 Days', activeSales: 12 },
-    { name: 'Gold Stellar Booster', price: '$10.00', bonus: '+12.0 MATSU/h', duration: '30 Days', activeSales: 6 },
-    { name: 'Platinum Nebula Booster', price: '$50.00', bonus: '+65.0 MATSU/h', duration: '30 Days', activeSales: 2 },
+    { name: 'Bronze Node Booster', price: '$1.00', bonus: '+2.0 BONDKOIN/h', duration: '30 Days', activeSales: 18 },
+    { name: 'Silver Quantum Booster', price: '$5.00', bonus: '+5.0 BONDKOIN/h', duration: '30 Days', activeSales: 12 },
+    { name: 'Gold Stellar Booster', price: '$10.00', bonus: '+12.0 BONDKOIN/h', duration: '30 Days', activeSales: 6 },
+    { name: 'Platinum Nebula Booster', price: '$50.00', bonus: '+65.0 BONDKOIN/h', duration: '30 Days', activeSales: 2 },
   ];
 
   return (

@@ -27,11 +27,11 @@ export function FullTaskEditorModal({
       : [
           {
             id: 1,
-            question: 'What is Matsumoto protocol token standard?',
+            question: 'What is BONDKOIN protocol token standard?',
             options: ['BEP-20 (BNB Chain)', 'ERC-20', 'TRC-20', 'SPL Token'],
             correctIndex: 0,
             explanation:
-              'Matsumoto is built natively on BNB Smart Chain utilizing the BEP-20 token standard.',
+              'BONDKOIN is built natively on BNB Smart Chain utilizing the BEP-20 token standard.',
           },
         ],
   );

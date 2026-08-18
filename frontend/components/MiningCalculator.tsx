@@ -121,24 +121,24 @@ export function MiningCalculator({ locale }: { locale: string }) {
 
           {/* Real math breakdown note */}
           <div className="rounded-2xl border border-white/[0.08] bg-slate-950/60 p-4 text-xs text-slate-300 backdrop-blur-md">
-            <span className="text-amber-400 font-bold">Reward Calculation Engine:</span>{' '}
-            {selectedBooster.rate} MATSU/h × ×{tier.mult} (Level {tier.level} Multiplier) ={' '}
-            <span className="font-mono text-amber-300 font-extrabold">{effectiveRate} MATSU/h</span>
+            <span className="text-blue-400 font-bold">Reward Calculation Engine:</span>{' '}
+            {selectedBooster.rate} BONDKOIN/h × ×{tier.mult} (Level {tier.level} Multiplier) ={' '}
+            <span className="font-mono text-cyan-300 font-extrabold">{effectiveRate} BONDKOIN/h</span>
           </div>
         </div>
 
         {/* Right column: Results Output Card */}
         <div className="lg:col-span-5">
-          <div className="rounded-3xl border border-amber-500/40 bg-gradient-to-br from-slate-950/90 via-slate-900/90 to-amber-950/20 p-6 sm:p-8 shadow-2xl backdrop-blur-2xl">
-            <div className="text-xs uppercase font-extrabold tracking-wider text-amber-400/90">
+          <div className="rounded-3xl border border-blue-500/40 bg-gradient-to-br from-slate-950/90 via-slate-900/90 to-blue-950/20 p-6 sm:p-8 shadow-2xl backdrop-blur-2xl">
+            <div className="text-xs uppercase font-extrabold tracking-wider text-blue-400/90">
               {t('estimatedYield')}
             </div>
 
             <div className="mt-5 space-y-4">
               <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
                 <span className="text-sm text-slate-400">{t('hourlyRate')}</span>
-                <span className="font-mono text-lg font-extrabold text-amber-300">
-                  {effectiveRate} MATSU/h
+                <span className="font-mono text-lg font-extrabold text-cyan-300">
+                  {effectiveRate} BONDKOIN/h
                 </span>
               </div>
 
@@ -151,17 +151,17 @@ export function MiningCalculator({ locale }: { locale: string }) {
 
               <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
                 <span className="text-sm text-slate-400">{t('monthlyYield')}</span>
-                <span className="font-mono text-xl font-black text-amber-400">
+                <span className="font-mono text-xl font-black text-cyan-400">
                   {monthlyPoints.toLocaleString()} PTS
                 </span>
               </div>
 
-              <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-4 text-center">
-                <div className="text-xs uppercase font-bold text-amber-300">
+              <div className="rounded-2xl bg-blue-500/10 border border-blue-500/30 p-4 text-center">
+                <div className="text-xs uppercase font-bold text-blue-300">
                   {t('onChainPayout')}
                 </div>
-                <div className="mt-1 font-mono text-2xl font-black text-amber-400 sm:text-3xl">
-                  ~{monthlyTokens.toLocaleString()} $MATSU
+                <div className="mt-1 font-mono text-2xl font-black text-cyan-300 sm:text-3xl">
+                  ~{monthlyTokens.toLocaleString()} $BONDKOIN
                 </div>
                 <div className="mt-1 text-[11px] text-slate-400">
                   Direct BEP-20 transfer to your BNB Chain address
