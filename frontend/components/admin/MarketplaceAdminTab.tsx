@@ -465,7 +465,7 @@ export function MarketplaceAdminTab() {
                         <img
                           src={p.imageSrc}
                           alt={p.name}
-                          className="h-12 w-16 rounded-xl object-cover border border-white/10 bg-slate-900 shadow-md"
+                          className="marketplace-3d-img h-12 w-16 rounded-xl object-cover border border-slate-700/50 shadow-md"
                         />
                         <div>
                           <div className="font-bold text-white max-w-xs">{p.name}</div>

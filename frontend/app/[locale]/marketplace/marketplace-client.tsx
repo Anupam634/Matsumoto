@@ -453,27 +453,24 @@ export default function MarketplaceClient() {
               >
                 <div>
                   {/* 3D Product Image Showcase Box */}
-                  <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-950 shadow-inner group-hover:border-cyan-500/50 transition-all duration-500">
+                  <div className="marketplace-img-container relative aspect-[16/10] w-full overflow-hidden rounded-2xl border border-slate-700/50 shadow-md">
                     <img
                       src={prod.imageSrc}
                       alt={prod.name}
-                      className="h-full w-full object-cover object-center group-hover:scale-110 transition-transform duration-700 ease-out"
+                      className="marketplace-3d-img block h-full w-full object-cover object-center group-hover:scale-110 transition-transform duration-700 ease-out"
                       loading="lazy"
                     />
 
-                    {/* Gradient shade for contrast */}
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-black/30" />
-
                     {/* 3D Floating Badge */}
                     {prod.badge && (
-                      <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 rounded-full border border-white/20 bg-slate-950/80 px-2.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-amber-300 backdrop-blur-md shadow-lg">
+                      <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 rounded-full border border-white/20 bg-black/80 px-2.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-amber-300 backdrop-blur-md shadow-lg">
                         <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
                         <span>{prod.badge}</span>
                       </div>
                     )}
 
                     {/* Category tag */}
-                    <div className="absolute bottom-2.5 right-2.5 z-10 rounded-md border border-white/10 bg-slate-950/80 px-2 py-0.5 text-[9px] font-mono font-bold text-cyan-300 backdrop-blur-md">
+                    <div className="absolute bottom-2.5 right-2.5 z-10 rounded-md border border-white/15 bg-black/80 px-2 py-0.5 text-[9px] font-mono font-bold text-cyan-300 backdrop-blur-md">
                       {prod.categoryLabel}
                     </div>
                   </div>

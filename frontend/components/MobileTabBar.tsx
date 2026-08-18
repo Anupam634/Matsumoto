@@ -31,6 +31,7 @@ export function MobileTabBar({
 
   const isDashboard = pathname.endsWith(`/${locale}/dashboard`) || pathname.endsWith(`/${locale}`);
   const isBoosters = pathname.includes('/boosters');
+  const isMarketplace = pathname.includes('/marketplace');
   const isWithdraw = pathname.includes('/withdraw');
   const isProfile = pathname.includes('/profile') || pathname.includes('/kyc') || pathname.includes('/support');
 
@@ -40,7 +41,7 @@ export function MobileTabBar({
       style={{ paddingBottom: 'max(0.6rem, env(safe-area-inset-bottom))' }}
       aria-label="Mobile Navigation"
     >
-      <div className="mx-auto grid max-w-md grid-cols-5 items-center px-3 pt-2">
+      <div className="mx-auto grid max-w-md grid-cols-5 items-center px-2 pt-2">
         {/* 1. Home / Dashboard */}
         <Link
           href={`/${locale}/dashboard`}
@@ -79,39 +80,28 @@ export function MobileTabBar({
           </span>
         </Link>
 
-        {/* 3. Center Mining Action Button (FAB) */}
-        <div className="relative flex flex-col items-center justify-center -mt-6">
-          {clicked && <div className="mine-shockwave" />}
-          {onMine ? (
-            <button
-              type="button"
-              onClick={handleMineClick}
-              disabled={!ready}
-              aria-label={t('mineButton')}
-              className={`relative grid h-14 w-14 place-items-center rounded-full bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-300 text-slate-950 shadow-xl shadow-amber-500/40 ring-4 ring-slate-950 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:grayscale ${
-                ready ? 'animate-bounce shadow-2xl shadow-amber-400/60' : ''
-              }`}
-            >
-              {claiming ? (
-                <IconSpinner />
-              ) : (
-                <span className="text-2xl drop-shadow-md">⚡</span>
-              )}
-            </button>
-          ) : (
-            <Link
-              href={`/${locale}/dashboard`}
-              onClick={playMiningStrike}
-              aria-label={t('mineButton')}
-              className="relative grid h-14 w-14 place-items-center rounded-full bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-300 text-slate-950 shadow-xl shadow-amber-500/40 ring-4 ring-slate-950 transition-all duration-200 active:scale-95"
-            >
-              <span className="text-2xl drop-shadow-md">⚡</span>
-            </Link>
-          )}
-          <span className="mt-1 text-[10px] font-black uppercase tracking-wider text-amber-400">
-            {t('mineButton')}
+        {/* 3. Marketplace (New Ecosystem Feature) */}
+        <Link
+          href={`/${locale}/marketplace`}
+          className={`relative flex flex-col items-center justify-center gap-1 text-center transition-colors ${
+            isMarketplace
+              ? 'text-cyan-400 font-extrabold'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <div className={`relative grid h-7 w-7 place-items-center rounded-xl transition-all ${
+            isMarketplace ? 'bg-cyan-500/20 text-cyan-300 scale-105 ring-1 ring-cyan-400/40' : ''
+          }`}>
+            <IconMarket />
+            <span className="absolute -top-1 -right-1 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
+            </span>
+          </div>
+          <span className="text-[10px] font-bold tracking-tight text-cyan-300">
+            Market
           </span>
-        </div>
+        </Link>
 
         {/* 4. Withdraw */}
         <Link
@@ -157,7 +147,7 @@ export function MobileTabBar({
 
 function IconHome() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
       <polyline points="9 22 9 12 15 12 15 22" />
     </svg>
@@ -166,7 +156,7 @@ function IconHome() {
 
 function IconRocket() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
       <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
       <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
@@ -175,31 +165,32 @@ function IconRocket() {
   );
 }
 
+function IconMarket() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="8" cy="21" r="1" />
+      <circle cx="19" cy="21" r="1" />
+      <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+    </svg>
+  );
+}
+
 function IconSwap() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M16 3h5v5" />
-      <path d="m21 3-7 7" />
-      <path d="M8 21H3v-5" />
-      <path d="m3 21 7-7" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="m17 2 4 4-4 4" />
+      <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+      <path d="m7 22-4-4 4-4" />
+      <path d="M21 13v1a4 4 0 0 1-4 4H3" />
     </svg>
   );
 }
 
 function IconUser() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
-    </svg>
-  );
-}
-
-function IconSpinner() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="animate-spin text-slate-950" aria-hidden>
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity="0.25" />
-      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
     </svg>
   );
 }
