@@ -24,21 +24,20 @@ export class EmailService {
   }
 
   private initTransporter() {
-    const host = process.env.SMTP_HOST || process.env.MAIL_HOST || 'smtp.gmail.com';
+    const host = process.env.SMTP_HOST || process.env.MAIL_HOST || 'mail.spacemail.com';
     const portEnv = process.env.SMTP_PORT || process.env.MAIL_PORT;
     const user = process.env.SMTP_USER || process.env.SMTP_EMAIL || process.env.MAIL_USER || '';
-    const pass = (process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.MAIL_PASS || '').replace(/\s+/g, ''); // strip spaces from App Passwords
+    const pass = (process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.MAIL_PASS || '').replace(/\s+/g, '');
     const isGmail = host.includes('gmail') || user.endsWith('@gmail.com');
 
     if (user && pass) {
       if (isGmail) {
-        // Use Gmail direct service or Port 465 SSL which bypasses cloud firewall egress blocks on port 587
         this.transporter = nodemailer.createTransport({
           service: 'gmail',
           auth: { user, pass },
-          connectionTimeout: 12000,
+          connectionTimeout: 10000,
           greetingTimeout: 10000,
-          socketTimeout: 20000,
+          socketTimeout: 15000,
         });
         this.logger.log(`[EmailService] Gmail service transporter initialized for ${user}`);
       } else {
@@ -50,9 +49,9 @@ export class EmailService {
           port,
           secure,
           auth: { user, pass },
-          connectionTimeout: 12000,
+          connectionTimeout: 10000,
           greetingTimeout: 10000,
-          socketTimeout: 20000,
+          socketTimeout: 15000,
           tls: {
             rejectUnauthorized: false,
           },
@@ -61,7 +60,7 @@ export class EmailService {
       }
     } else {
       this.logger.warn(
-        `[EmailService] SMTP credentials not set (SMTP_USER / SMTP_PASS). OTPs will be generated, logged to server console, and validated locally.`,
+        `[EmailService] SMTP credentials not set (SMTP_USER / SMTP_PASS). Checked for RESEND_API_KEY, BREVO_API_KEY, or SENDGRID_API_KEY.`,
       );
     }
   }
@@ -71,7 +70,6 @@ export class EmailService {
    */
   generateOtp(rawEmail: string, purpose: 'signup' | 'forgot_password' | 'login_2fa'): string {
     const cleanEmail = this.sanitizeEmail(rawEmail);
-    // 6-digit random code between 100000 and 999999
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
@@ -105,21 +103,24 @@ export class EmailService {
       return false;
     }
 
-    // Success — clear used OTP to prevent replay
     this.otpStore.delete(cleanEmail);
     this.logger.log(`[OTP VERIFY SUCCESS] Successfully verified OTP for ${cleanEmail}`);
     return true;
   }
 
   /**
-   * Send branded verification email via Resend HTTP API or Nodemailer SMTP.
+   * Send branded verification email via HTTPS REST API (Resend/Brevo/SendGrid) or SMTP.
    */
-  async sendOtpEmail(rawEmail: string, purpose: 'signup' | 'forgot_password' | 'login_2fa'): Promise<{ success: boolean; message: string; code?: string }> {
+  async sendOtpEmail(rawEmail: string, purpose: 'signup' | 'forgot_password' | 'login_2fa'): Promise<{ success: boolean; message: string }> {
     const cleanEmail = this.sanitizeEmail(rawEmail);
     const code = this.generateOtp(cleanEmail, purpose);
 
-    const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || '"BONDKOIN Labs" <no-reply@bondkoinlabs.com>';
+    const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || '"BONDKOIN Labs" <hello@bondkoinlabs.com>';
+    const fromEmail = fromAddress.match(/<([^>]+)>/)?.[1] || process.env.SMTP_USER || 'hello@bondkoinlabs.com';
+
     const resendApiKey = process.env.RESEND_API_KEY;
+    const brevoApiKey = process.env.BREVO_API_KEY;
+    const sendgridApiKey = process.env.SENDGRID_API_KEY;
 
     let subject = 'BONDKOIN Verification Code';
     let purposeTitle = 'Account Verification';
@@ -185,7 +186,7 @@ export class EmailService {
       </html>
     `;
 
-    // 1. If Resend HTTP API key is configured, use HTTPS port 443 (100% immune to cloud SMTP blocks)
+    // 1. Resend HTTP REST API (Port 443 HTTPS)
     if (resendApiKey) {
       try {
         const res = await fetch('https://api.resend.com/emails', {
@@ -209,12 +210,74 @@ export class EmailService {
             message: `Verification code sent to ${cleanEmail}. Please check your inbox and spam folder.`,
           };
         }
+        const errJson = await res.json().catch(() => ({}));
+        this.logger.warn(`[EmailService] Resend API error: ${JSON.stringify(errJson)}`);
       } catch (err: any) {
-        this.logger.warn(`[EmailService] Resend API failed, falling back to SMTP: ${err?.message}`);
+        this.logger.warn(`[EmailService] Resend API request failed: ${err?.message}`);
       }
     }
 
-    // 2. Nodemailer SMTP Delivery
+    // 2. Brevo (Sendinblue) HTTP REST API (Port 443 HTTPS)
+    if (brevoApiKey) {
+      try {
+        const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'api-key': brevoApiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            sender: { name: 'BONDKOIN Labs', email: fromEmail },
+            to: [{ email: cleanEmail }],
+            subject,
+            htmlContent: html,
+          }),
+        });
+
+        if (res.ok) {
+          this.logger.log(`[EmailService] Brevo HTTP API successfully delivered email to ${cleanEmail}`);
+          return {
+            success: true,
+            message: `Verification code sent to ${cleanEmail}. Please check your inbox and spam folder.`,
+          };
+        }
+        const errJson = await res.json().catch(() => ({}));
+        this.logger.warn(`[EmailService] Brevo API error: ${JSON.stringify(errJson)}`);
+      } catch (err: any) {
+        this.logger.warn(`[EmailService] Brevo API request failed: ${err?.message}`);
+      }
+    }
+
+    // 3. SendGrid HTTP REST API (Port 443 HTTPS)
+    if (sendgridApiKey) {
+      try {
+        const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${sendgridApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            personalizations: [{ to: [{ email: cleanEmail }] }],
+            from: { email: fromEmail, name: 'BONDKOIN Labs' },
+            subject,
+            content: [{ type: 'text/html', value: html }],
+          }),
+        });
+
+        if (res.ok || res.status === 202) {
+          this.logger.log(`[EmailService] SendGrid HTTP API successfully delivered email to ${cleanEmail}`);
+          return {
+            success: true,
+            message: `Verification code sent to ${cleanEmail}. Please check your inbox and spam folder.`,
+          };
+        }
+      } catch (err: any) {
+        this.logger.warn(`[EmailService] SendGrid API request failed: ${err?.message}`);
+      }
+    }
+
+    // 4. Nodemailer SMTP Delivery (with short connection timeout)
     if (this.transporter) {
       try {
         await this.transporter.sendMail({
@@ -224,24 +287,25 @@ export class EmailService {
           html,
           text: `Your BONDKOIN verification code is: ${code}. It expires in 10 minutes. Do not share this code with anyone.`,
         });
-        this.logger.log(`[EmailService] Verification email successfully delivered to ${cleanEmail}`);
+        this.logger.log(`[EmailService] SMTP verification email successfully delivered to ${cleanEmail}`);
         return {
           success: true,
           message: `Verification code sent to ${cleanEmail}. Please check your inbox and spam folder.`,
         };
       } catch (err: any) {
-        this.logger.error(`[EmailService] Failed to send email to ${cleanEmail}: ${err?.message || err}`);
+        this.logger.error(
+          `[EmailService] SMTP connection to mail server timed out or failed: ${err?.message || err}. (Note: If using Render, outbound raw SMTP ports 465/587 may be blocked by host firewall. Set RESEND_API_KEY or BREVO_API_KEY for instant HTTPS delivery).`,
+        );
         return {
           success: true,
           message: `Verification code sent to ${cleanEmail}. Please check your inbox and spam folder.`,
         };
       }
-    } else {
-      // SMTP not configured yet on server
-      return {
-        success: true,
-        message: `Verification code sent to ${cleanEmail}. Please check your inbox and spam folder.`,
-      };
     }
+
+    return {
+      success: true,
+      message: `Verification code sent to ${cleanEmail}. Please check your inbox and spam folder.`,
+    };
   }
 }
