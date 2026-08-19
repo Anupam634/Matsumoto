@@ -99,8 +99,8 @@ jobs:
             pm2 reload bondkoin-backend || pm2 start dist/main.js --name "bondkoin-backend"
             pm2 save
             
-            # Automated Nginx Reverse Proxy Setup (Port 80 -> Port 3001)
-            echo "🌐 Configuring automated Nginx Reverse Proxy..."
+            # Automated Nginx & Domain Reverse Proxy Setup
+            echo "🌐 Configuring automated Nginx Reverse Proxy for api.bondkoinlabs.com..."
             if ! command -v nginx &> /dev/null; then
               if command -v dnf &> /dev/null; then
                 sudo dnf install -y nginx
@@ -109,12 +109,22 @@ jobs:
               fi
             fi
             
+            # Install Certbot for free automatic HTTPS SSL
+            if ! command -v certbot &> /dev/null; then
+              echo "🔒 Installing Certbot for automatic SSL..."
+              if command -v dnf &> /dev/null; then
+                sudo dnf install -y certbot python3-certbot-nginx || true
+              elif command -v apt-get &> /dev/null; then
+                sudo apt-get install -y certbot python3-certbot-nginx || true
+              fi
+            fi
+            
             sudo mkdir -p /etc/nginx/conf.d
             sudo tee /etc/nginx/conf.d/bondkoin.conf > /dev/null << 'EOF'
 server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-    server_name _;
+    listen 80;
+    listen [::]:80;
+    server_name api.bondkoinlabs.com _;
 
     client_max_body_size 50M;
 
@@ -134,4 +144,10 @@ EOF
             sudo systemctl enable nginx
             sudo systemctl restart nginx || sudo nginx -s reload
             
-            echo "✅ Deployment & Nginx Reverse Proxy completed successfully!"
+            # Auto-provision SSL certificate via Certbot if DNS is resolved
+            if command -v certbot &> /dev/null; then
+              echo "🔒 Checking & provisioning Let's Encrypt SSL certificate for api.bondkoinlabs.com..."
+              sudo certbot --nginx -d api.bondkoinlabs.com --non-interactive --agree-tos -m hello@bondkoinlabs.com --redirect || echo "⚠️ Note: SSL certificate will automatically activate once your DNS A-Record for api.bondkoinlabs.com points to this IP."
+            fi
+            
+            echo "✅ Deployment & Nginx domain configuration completed successfully!"
