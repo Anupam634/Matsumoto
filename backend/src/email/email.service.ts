@@ -234,14 +234,18 @@ export class EmailService {
     // 1. Spacemail / Primary SMTP Transporter
     if (this.transporter) {
       try {
-        await this.transporter.sendMail({
+        const info = await this.transporter.sendMail({
           from: fromAddress,
           to: cleanEmail,
+          envelope: {
+            from: fromEmail,
+            to: [cleanEmail],
+          },
           subject,
           html,
           text: `Your BONDKOIN verification code is: ${code}. It expires in 10 minutes. Do not share this code with anyone.`,
         });
-        this.logger.log(`[EmailService] Spacemail/SMTP verification email successfully delivered to ${cleanEmail}`);
+        this.logger.log(`[EmailService] ✓ Spacemail verification email delivered to ${cleanEmail} (ID: ${info.messageId}, Response: ${info.response})`);
         return {
           success: true,
           message: `Verification code sent to ${cleanEmail}. Please check your inbox and spam folder.`,
@@ -254,14 +258,18 @@ export class EmailService {
         // Try Fallback Transporter (Port 587 STARTTLS)
         if (this.fallbackTransporter) {
           try {
-            await this.fallbackTransporter.sendMail({
+            const info = await this.fallbackTransporter.sendMail({
               from: fromAddress,
               to: cleanEmail,
+              envelope: {
+                from: fromEmail,
+                to: [cleanEmail],
+              },
               subject,
               html,
               text: `Your BONDKOIN verification code is: ${code}. It expires in 10 minutes. Do not share this code with anyone.`,
             });
-            this.logger.log(`[EmailService] Spacemail Fallback (Port 587) verification email successfully delivered to ${cleanEmail}`);
+            this.logger.log(`[EmailService] ✓ Spacemail Fallback (Port 587) email delivered to ${cleanEmail} (ID: ${info.messageId}, Response: ${info.response})`);
             return {
               success: true,
               message: `Verification code sent to ${cleanEmail}. Please check your inbox and spam folder.`,
