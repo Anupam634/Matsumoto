@@ -27,7 +27,7 @@ export class EmailService {
   initTransporter() {
     const host = process.env.SMTP_HOST || process.env.MAIL_HOST || 'mail.spacemail.com';
     const portEnv = process.env.SMTP_PORT || process.env.MAIL_PORT;
-    const user = process.env.SMTP_USER || process.env.SMTP_EMAIL || process.env.MAIL_USER || '';
+    const user = process.env.SMTP_USER || process.env.SMTP_EMAIL || process.env.MAIL_USER || 'hello@bondkoinlabs.com';
     const pass = (process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.MAIL_PASS || '').replace(/\s+/g, '');
     const isGmail = host.includes('gmail') || user.endsWith('@gmail.com');
     const isSpacemail = host.includes('spacemail') || user.includes('@bondkoinlabs.com');
@@ -155,7 +155,7 @@ export class EmailService {
   }
 
   /**
-   * Send branded verification email via Spacemail / SMTP or HTTPS REST API.
+   * Send branded verification email via Spacemail / SMTP.
    */
   async sendOtpEmail(rawEmail: string, purpose: 'signup' | 'forgot_password' | 'login_2fa'): Promise<{ success: boolean; message: string }> {
     if (!this.transporter) {
@@ -164,9 +164,7 @@ export class EmailService {
 
     const cleanEmail = this.sanitizeEmail(rawEmail);
     const code = this.generateOtp(cleanEmail, purpose);
-
-    const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || '"BONDKOIN Labs" <hello@bondkoinlabs.com>';
-    const fromEmail = fromAddress.match(/<([^>]+)>/)?.[1] || process.env.SMTP_USER || 'hello@bondkoinlabs.com';
+    const senderEmail = (process.env.SMTP_USER || 'hello@bondkoinlabs.com').trim().toLowerCase();
 
     let subject = 'BONDKOIN Verification Code';
     let purposeTitle = 'Account Verification';
@@ -236,12 +234,8 @@ export class EmailService {
     if (this.transporter) {
       try {
         const info = await this.transporter.sendMail({
-          from: fromAddress,
+          from: `"BONDKOIN Labs" <${senderEmail}>`,
           to: cleanEmail,
-          envelope: {
-            from: fromEmail,
-            to: [cleanEmail],
-          },
           subject,
           html,
           text: `Your BONDKOIN verification code is: ${code}. It expires in 10 minutes. Do not share this code with anyone.`,
@@ -260,12 +254,8 @@ export class EmailService {
         if (this.fallbackTransporter) {
           try {
             const info = await this.fallbackTransporter.sendMail({
-              from: fromAddress,
+              from: `"BONDKOIN Labs" <${senderEmail}>`,
               to: cleanEmail,
-              envelope: {
-                from: fromEmail,
-                to: [cleanEmail],
-              },
               subject,
               html,
               text: `Your BONDKOIN verification code is: ${code}. It expires in 10 minutes. Do not share this code with anyone.`,
@@ -296,8 +286,7 @@ export class EmailService {
   async testEmail(rawEmail: string) {
     this.initTransporter();
     const cleanEmail = this.sanitizeEmail(rawEmail);
-    const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || '"BONDKOIN Labs" <hello@bondkoinlabs.com>';
-    const fromEmail = fromAddress.match(/<([^>]+)>/)?.[1] || process.env.SMTP_USER || 'hello@bondkoinlabs.com';
+    const senderEmail = (process.env.SMTP_USER || 'hello@bondkoinlabs.com').trim().toLowerCase();
 
     if (!this.transporter) {
       return {
@@ -314,9 +303,8 @@ export class EmailService {
 
     try {
       const info = await this.transporter.sendMail({
-        from: fromAddress,
+        from: `"BONDKOIN Labs" <${senderEmail}>`,
         to: cleanEmail,
-        envelope: { from: fromEmail, to: [cleanEmail] },
         subject: 'BONDKOIN Labs Email Health Test',
         text: 'This is a test email confirming your Spacemail integration on AWS EC2 is working perfectly!',
       });
@@ -330,9 +318,8 @@ export class EmailService {
       if (this.fallbackTransporter) {
         try {
           const info = await this.fallbackTransporter.sendMail({
-            from: fromAddress,
+            from: `"BONDKOIN Labs" <${senderEmail}>`,
             to: cleanEmail,
-            envelope: { from: fromEmail, to: [cleanEmail] },
             subject: 'BONDKOIN Labs Email Health Test (Fallback)',
             text: 'This is a test email confirming your Spacemail integration on AWS EC2 is working perfectly!',
           });
