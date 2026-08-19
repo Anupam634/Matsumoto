@@ -1,0 +1,58 @@
+name: Deploy Backend to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: 🚀 Deploy to AWS EC2
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH to AWS EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+            echo "⚡ Starting automated deployment on AWS EC2..."
+            
+            # Navigate to project directory
+            cd /var/www/bondkoin/backend
+            
+            # Pull latest changes from GitHub main branch
+            echo "📥 Pulling latest code from origin main..."
+            git pull origin main
+            
+            # Install production & development dependencies
+            echo "📦 Installing npm dependencies..."
+            npm install
+            
+            # Generate Prisma database client
+            echo "🗄️ Generating Prisma client..."
+            npx prisma generate
+            
+            # Sync database schema
+            echo "🔄 Applying database schema migrations..."
+            npx prisma db push --accept-data-loss
+            
+            # Build NestJS production bundle
+            echo "🔨 Building NestJS application..."
+            npm run build
+            
+            # Reload PM2 with zero downtime
+            echo "🚀 Reloading PM2 process..."
+            pm2 reload bondkoin-backend || pm2 start dist/main.js --name "bondkoin-backend"
+            pm2 save
+            
+            echo "✅ Deployment completed successfully!"
