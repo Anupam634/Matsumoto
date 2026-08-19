@@ -113,9 +113,12 @@ jobs:
             if ! command -v certbot &> /dev/null; then
               echo "🔒 Installing Certbot for automatic SSL..."
               if command -v dnf &> /dev/null; then
-                sudo dnf install -y certbot python3-certbot-nginx || true
+                sudo dnf install -y python3-pip || true
+                sudo python3 -m pip install --upgrade pip || true
+                sudo python3 -m pip install certbot certbot-nginx || true
+                sudo ln -s /usr/local/bin/certbot /usr/bin/certbot 2>/dev/null || true
               elif command -v apt-get &> /dev/null; then
-                sudo apt-get install -y certbot python3-certbot-nginx || true
+                sudo apt-get update && sudo apt-get install -y certbot python3-certbot-nginx || true
               fi
             fi
             
@@ -147,7 +150,7 @@ EOF
             # Auto-provision SSL certificate via Certbot if DNS is resolved
             if command -v certbot &> /dev/null; then
               echo "🔒 Checking & provisioning Let's Encrypt SSL certificate for api.bondkoinlabs.com..."
-              sudo certbot --nginx -d api.bondkoinlabs.com --non-interactive --agree-tos -m hello@bondkoinlabs.com --redirect || echo "⚠️ Note: SSL certificate will automatically activate once your DNS A-Record for api.bondkoinlabs.com points to this IP."
+              sudo certbot --nginx -d api.bondkoinlabs.com --non-interactive --agree-tos -m hello@bondkoinlabs.com --redirect || echo "⚠️ Certbot notice: Will retry on next push once DNS fully propagates."
             fi
             
             echo "✅ Deployment & Nginx domain configuration completed successfully!"
