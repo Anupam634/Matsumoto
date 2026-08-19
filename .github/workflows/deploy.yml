@@ -18,23 +18,60 @@ jobs:
 
       - name: Deploy via SSH to AWS EC2
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          ENV_CONTENT: ${{ secrets.ENV_FILE || secrets.BACKEND_ENV }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
+          envs: ENV_CONTENT
           script: |
             set -e
             echo "⚡ Starting automated deployment on AWS EC2..."
             
-            # Navigate to project directory
+            # Ensure base directories and permissions exist
+            sudo mkdir -p /var/www
+            sudo chown -R $USER:$USER /var/www
+            
+            # Ensure swap memory exists for smooth builds
+            if [ ! -f /swapfile ]; then
+              echo "⚙️ Creating 2GB Swap Memory..."
+              sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+              sudo chmod 600 /swapfile
+              sudo mkswap /swapfile
+              sudo swapon /swapfile
+              echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab || true
+            fi
+            
+            # Ensure Node.js, Git, and PM2 are installed
+            if ! command -v pm2 &> /dev/null; then
+              echo "⚙️ Installing Git, Node.js & PM2..."
+              sudo dnf install -y git nodejs npm || sudo apt-get update && sudo apt-get install -y git nodejs npm
+              sudo npm install -g pm2
+            fi
+            
+            # Clone repo if not exists, or pull latest changes
+            if [ ! -d "/var/www/bondkoin/.git" ]; then
+              echo "📥 Cloning repository for the first time..."
+              git clone https://github.com/Anupam634/Matsumoto.git /var/www/bondkoin
+            else
+              echo "📥 Pulling latest commits from origin main..."
+              cd /var/www/bondkoin
+              git reset --hard origin/main
+              git pull origin main
+            fi
+            
             cd /var/www/bondkoin/backend
             
-            # Pull latest changes from GitHub main branch
-            echo "📥 Pulling latest code from origin main..."
-            git pull origin main
+            # Auto-write .env file from GitHub Secret (if ENV_CONTENT secret is set)
+            if [ -n "$ENV_CONTENT" ]; then
+              echo "🔐 Writing .env file from GitHub Secrets..."
+              printf "%s\n" "$ENV_CONTENT" > .env
+              chmod 600 .env
+            fi
             
-            # Install production & development dependencies
+            # Install npm dependencies
             echo "📦 Installing npm dependencies..."
             npm install
             
