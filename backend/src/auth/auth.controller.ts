@@ -22,6 +22,13 @@ function clientIp(req: any): string | undefined {
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
+  /** GET /api/auth/email-health — test live Spacemail SMTP delivery & diagnostics. */
+  @Get('email-health')
+  emailHealth(@Req() req: any) {
+    const to = req.query?.to || 'beraa634@gmail.com';
+    return this.auth.emailHealth(to);
+  }
+
   /** POST /api/auth/send-otp — request OTP for email verification. */
   @Post('send-otp')
   sendOtp(@Body('email') email: string) {

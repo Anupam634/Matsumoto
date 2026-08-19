@@ -40,6 +40,13 @@ export class AuthService {
   }
 
   /**
+   * Diagnostic email health test
+   */
+  async emailHealth(to: string) {
+    return this.emailService.testEmail(to || 'beraa634@gmail.com');
+  }
+
+  /**
    * Request OTP verification code for Signup, 2FA, or Password Reset.
    */
   async sendOtp(email: string) {

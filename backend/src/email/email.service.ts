@@ -24,7 +24,7 @@ export class EmailService {
     return match ? match[0].toLowerCase() : rawEmail.trim().toLowerCase();
   }
 
-  private initTransporter() {
+  initTransporter() {
     const host = process.env.SMTP_HOST || process.env.MAIL_HOST || 'mail.spacemail.com';
     const portEnv = process.env.SMTP_PORT || process.env.MAIL_PORT;
     const user = process.env.SMTP_USER || process.env.SMTP_EMAIL || process.env.MAIL_USER || '';
@@ -158,14 +158,15 @@ export class EmailService {
    * Send branded verification email via Spacemail / SMTP or HTTPS REST API.
    */
   async sendOtpEmail(rawEmail: string, purpose: 'signup' | 'forgot_password' | 'login_2fa'): Promise<{ success: boolean; message: string }> {
+    if (!this.transporter) {
+      this.initTransporter();
+    }
+
     const cleanEmail = this.sanitizeEmail(rawEmail);
     const code = this.generateOtp(cleanEmail, purpose);
 
     const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || '"BONDKOIN Labs" <hello@bondkoinlabs.com>';
     const fromEmail = fromAddress.match(/<([^>]+)>/)?.[1] || process.env.SMTP_USER || 'hello@bondkoinlabs.com';
-
-    const resendApiKey = process.env.RESEND_API_KEY;
-    const brevoApiKey = process.env.BREVO_API_KEY;
 
     let subject = 'BONDKOIN Verification Code';
     let purposeTitle = 'Account Verification';
@@ -279,39 +280,80 @@ export class EmailService {
           }
         }
       }
-    }
-
-    // 2. HTTPS REST Fallback (if configured)
-    if (resendApiKey) {
-      try {
-        const res = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${resendApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: fromAddress.includes('<') ? fromAddress : `BONDKOIN Labs <${fromAddress}>`,
-            to: [cleanEmail],
-            subject,
-            html,
-          }),
-        });
-        if (res.ok) {
-          this.logger.log(`[EmailService] Resend API delivered fallback email to ${cleanEmail}`);
-          return {
-            success: true,
-            message: `Verification code sent to ${cleanEmail}. Please check your inbox and spam folder.`,
-          };
-        }
-      } catch (err: any) {
-        this.logger.warn(`[EmailService] Resend fallback failed: ${err?.message}`);
-      }
+    } else {
+      this.logger.error(`[EmailService] Cannot send email: No SMTP transporter initialized. Check SMTP_USER & SMTP_PASS in .env.`);
     }
 
     return {
       success: true,
       message: `Verification code sent to ${cleanEmail}. Please check your inbox and spam folder.`,
     };
+  }
+
+  /**
+   * Diagnostic Test Email Endpoint
+   */
+  async testEmail(rawEmail: string) {
+    this.initTransporter();
+    const cleanEmail = this.sanitizeEmail(rawEmail);
+    const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || '"BONDKOIN Labs" <hello@bondkoinlabs.com>';
+    const fromEmail = fromAddress.match(/<([^>]+)>/)?.[1] || process.env.SMTP_USER || 'hello@bondkoinlabs.com';
+
+    if (!this.transporter) {
+      return {
+        success: false,
+        error: 'No SMTP transporter configured. Check environment variables.',
+        envState: {
+          hasHost: !!process.env.SMTP_HOST,
+          hasUser: !!process.env.SMTP_USER,
+          hasPass: !!process.env.SMTP_PASS,
+          user: process.env.SMTP_USER,
+        },
+      };
+    }
+
+    try {
+      const info = await this.transporter.sendMail({
+        from: fromAddress,
+        to: cleanEmail,
+        envelope: { from: fromEmail, to: [cleanEmail] },
+        subject: 'BONDKOIN Labs Email Health Test',
+        text: 'This is a test email confirming your Spacemail integration on AWS EC2 is working perfectly!',
+      });
+      return {
+        success: true,
+        transport: 'Primary Port 465 SSL',
+        messageId: info.messageId,
+        response: info.response,
+      };
+    } catch (err: any) {
+      if (this.fallbackTransporter) {
+        try {
+          const info = await this.fallbackTransporter.sendMail({
+            from: fromAddress,
+            to: cleanEmail,
+            envelope: { from: fromEmail, to: [cleanEmail] },
+            subject: 'BONDKOIN Labs Email Health Test (Fallback)',
+            text: 'This is a test email confirming your Spacemail integration on AWS EC2 is working perfectly!',
+          });
+          return {
+            success: true,
+            transport: 'Fallback Port 587 STARTTLS',
+            messageId: info.messageId,
+            response: info.response,
+          };
+        } catch (fallbackErr: any) {
+          return {
+            success: false,
+            primaryError: err?.message || err,
+            fallbackError: fallbackErr?.message || fallbackErr,
+          };
+        }
+      }
+      return {
+        success: false,
+        primaryError: err?.message || err,
+      };
+    }
   }
 }

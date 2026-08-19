@@ -92,9 +92,9 @@ jobs:
             echo "🔨 Building NestJS application..."
             npm run build
             
-            # Reload PM2 with zero downtime
-            echo "🚀 Reloading PM2 process..."
-            pm2 reload bondkoin-backend || pm2 start dist/main.js --name "bondkoin-backend"
+            # Reload PM2 with updated environment variables
+            echo "🚀 Reloading PM2 process with fresh environment variables..."
+            pm2 restart bondkoin-backend --update-env || pm2 start dist/main.js --name "bondkoin-backend" --update-env
             pm2 save
             
             # Automated Nginx & Domain Reverse Proxy Setup
