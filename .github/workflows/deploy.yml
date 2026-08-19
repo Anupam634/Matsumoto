@@ -121,34 +121,14 @@ jobs:
             fi
             
             sudo mkdir -p /etc/nginx/conf.d
-            sudo tee /etc/nginx/conf.d/bondkoin.conf > /dev/null << 'EOF'
-server {
-    listen 80;
-    listen [::]:80;
-    server_name api.bondkoinlabs.com _;
-
-    client_max_body_size 50M;
-
-    location / {
-        proxy_pass http://127.0.0.1:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-EOF
+            printf 'server {\n    listen 80;\n    listen [::]:80;\n    server_name api.bondkoinlabs.com _;\n\n    client_max_body_size 50M;\n\n    location / {\n        proxy_pass http://127.0.0.1:3001;\n        proxy_http_version 1.1;\n        proxy_set_header Upgrade $http_upgrade;\n        proxy_set_header Connection "upgrade";\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n        proxy_cache_bypass $http_upgrade;\n    }\n}\n' | sudo tee /etc/nginx/conf.d/bondkoin.conf > /dev/null
             sudo systemctl enable nginx
             sudo systemctl restart nginx || sudo nginx -s reload
             
             # Auto-provision SSL certificate via Certbot if DNS is resolved
             if command -v certbot &> /dev/null; then
               echo "🔒 Checking & provisioning Let's Encrypt SSL certificate for api.bondkoinlabs.com..."
-              sudo certbot --nginx -d api.bondkoinlabs.com --non-interactive --agree-tos -m hello@bondkoinlabs.com --redirect || echo "⚠️ Certbot notice: Will retry on next push once DNS fully propagates."
+              sudo certbot --nginx -d api.bondkoinlabs.com --non-interactive --agree-tos -m hello@bondkoinlabs.com --redirect || echo "⚠️ Certbot notice: SSL will activate once DNS A-record is active."
             fi
             
             echo "✅ Deployment & Nginx domain configuration completed successfully!"
