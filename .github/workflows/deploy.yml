@@ -99,4 +99,39 @@ jobs:
             pm2 reload bondkoin-backend || pm2 start dist/main.js --name "bondkoin-backend"
             pm2 save
             
-            echo "✅ Deployment completed successfully!"
+            # Automated Nginx Reverse Proxy Setup (Port 80 -> Port 3001)
+            echo "🌐 Configuring automated Nginx Reverse Proxy..."
+            if ! command -v nginx &> /dev/null; then
+              if command -v dnf &> /dev/null; then
+                sudo dnf install -y nginx
+              elif command -v apt-get &> /dev/null; then
+                sudo apt-get update && sudo apt-get install -y nginx
+              fi
+            fi
+            
+            sudo mkdir -p /etc/nginx/conf.d
+            sudo tee /etc/nginx/conf.d/bondkoin.conf > /dev/null << 'EOF'
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+
+    client_max_body_size 50M;
+
+    location / {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+EOF
+            sudo systemctl enable nginx
+            sudo systemctl restart nginx || sudo nginx -s reload
+            
+            echo "✅ Deployment & Nginx Reverse Proxy completed successfully!"
