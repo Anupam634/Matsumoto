@@ -365,16 +365,28 @@ function PayStep({
   const [txHash, setTxHash] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [qrMode, setQrMode] = useState<'web3' | 'plain'>('web3');
   const [qr, setQr] = useState<string | null>(null);
 
-  // Zero-dependency QR image URL for mobile wallet scanning.
+  // EIP-681 Web3 URI for BEP-20 USDT on BNB Smart Chain (Chain ID: 56)
+  // Automatically pre-fills token, recipient address, and exact USDT amount in Web3 wallets!
   useEffect(() => {
     if (purchase.payToAddress) {
-      setQr(`https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(purchase.payToAddress)}`);
+      const usdtContract = '0x55d398326f99059fF775485246999027B3197955';
+      const parsedAmount = parseFloat(purchase.amount || '0');
+      // 18 decimals in wei
+      const amountWei = BigInt(Math.floor(parsedAmount * 1e6)) * BigInt(1e12);
+      
+      const targetData =
+        qrMode === 'web3'
+          ? `ethereum:${usdtContract}@56/transfer?address=${purchase.payToAddress}&uint256=${amountWei.toString()}`
+          : purchase.payToAddress;
+
+      setQr(`https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(targetData)}`);
     } else {
       setQr(null);
     }
-  }, [purchase.payToAddress]);
+  }, [purchase.payToAddress, purchase.amount, qrMode]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -404,16 +416,45 @@ function PayStep({
       </dl>
 
       {qr && (
-        <div className="mt-4 flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+        <div className="mt-4 flex flex-col items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+          <div className="flex items-center gap-1.5 rounded-lg bg-slate-900 p-1 text-[11px] font-semibold">
+            <button
+              type="button"
+              onClick={() => setQrMode('web3')}
+              className={`rounded-md px-2.5 py-1 transition-all ${
+                qrMode === 'web3'
+                  ? 'bg-gradient-to-r from-amber-500 to-yellow-500 font-bold text-slate-950 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              ⚡ Auto-Fill QR (Web3 Wallets)
+            </button>
+            <button
+              type="button"
+              onClick={() => setQrMode('plain')}
+              className={`rounded-md px-2.5 py-1 transition-all ${
+                qrMode === 'plain'
+                  ? 'bg-slate-800 font-bold text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              📋 Address Only
+            </button>
+          </div>
+
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={qr}
-            alt=""
+            alt="Payment QR Code"
             width={144}
             height={144}
-            className="rounded-lg"
+            className="rounded-lg bg-white p-1.5 shadow-md"
           />
-          <p className="text-center text-xs text-slate-400">{t('scanNote')}</p>
+          <p className="text-center text-xs text-slate-400">
+            {qrMode === 'web3'
+              ? `✨ Scans & auto-fills ${purchase.amount} USDT in OKX, TrustWallet, Binance Web3, Bitget & MetaMask.`
+              : 'Copy address or scan for direct transfer.'}
+          </p>
         </div>
       )}
 

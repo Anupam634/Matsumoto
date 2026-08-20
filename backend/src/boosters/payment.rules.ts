@@ -7,6 +7,8 @@
  * that could happen.
  */
 
+import { ethers } from 'ethers';
+
 export interface PaymentExpectation {
   /** Address the platform expects to be paid at. */
   payToAddress: string;
@@ -118,10 +120,12 @@ export function verifyPayment(
   }
 
   if (observed.units < expected.expectedUnits) {
+    const receivedAmount = ethers.formatUnits(observed.units, 18);
+    const expectedAmount = ethers.formatUnits(expected.expectedUnits, 18);
     return {
       ok: false,
       reason: 'UNDERPAID',
-      detail: 'Amount paid is less than the plan price.',
+      detail: `Underpaid: Received ${receivedAmount} USDT, but the plan requires ${expectedAmount} USDT. Please send the exact amount.`,
     };
   }
 
