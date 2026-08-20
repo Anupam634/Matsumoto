@@ -40,15 +40,15 @@ export function NavAuth({
     return (
       <Link
         href={`/${locale}/dashboard`}
-        className="btn-gold inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md transition-all hover:scale-105"
+        className="btn-gold inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-xl px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md transition-all hover:scale-105"
       >
-        <span>{dashboardLabel}</span>
-        <span className="text-sm font-bold">→</span>
+        <span className="sm:hidden">App →</span>
+        <span className="hidden sm:inline">{dashboardLabel} →</span>
       </Link>
     );
   }
   return (
-    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+    <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
       <Link
         href={`/${locale}/login`}
         className="hidden sm:inline-flex items-center whitespace-nowrap text-xs font-bold uppercase tracking-wider text-slate-300 hover:text-blue-400 transition"
@@ -57,10 +57,10 @@ export function NavAuth({
       </Link>
       <Link
         href={`/${locale}/login?mode=register`}
-        className="btn-gold inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md transition-all hover:scale-105"
+        className="btn-gold inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-xl px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md transition-all hover:scale-105"
       >
-        <span>{getStartedLabel}</span>
-        <span className="text-sm font-bold">→</span>
+        <span className="sm:hidden">Start →</span>
+        <span className="hidden sm:inline">{getStartedLabel} →</span>
       </Link>
     </div>
   );

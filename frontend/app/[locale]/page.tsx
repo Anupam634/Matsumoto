@@ -120,18 +120,18 @@ function Landing({ locale }: { locale: string }) {
               {t('hero.subtitle')}
             </p>
 
-            <div className="mt-8 flex flex-wrap items-center gap-4">
+            <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 max-w-md sm:max-w-none">
               <AuthAwareCta
                 locale={locale}
                 href={register}
                 label={t('hero.ctaPrimary')}
                 dashboardLabel={t('nav.dashboard')}
-                className="btn-gold inline-flex items-center justify-center rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-wider text-white shadow-2xl shadow-blue-600/25 transition-all hover:scale-105"
+                className="btn-gold w-full sm:w-auto inline-flex items-center justify-center rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-wider text-white shadow-2xl shadow-blue-600/25 transition-all hover:scale-105"
               />
               <HideWhenAuthed>
                 <Link
                   href={signIn}
-                  className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-slate-900/60 px-6 py-4 text-sm font-bold text-slate-200 backdrop-blur-xl hover:border-blue-500/60 hover:text-blue-300 transition-all shadow-lg hover:scale-105"
+                  className="w-full sm:w-auto inline-flex items-center justify-center rounded-2xl border border-white/10 bg-slate-900/60 px-6 py-4 text-sm font-bold text-slate-200 backdrop-blur-xl hover:border-blue-500/60 hover:text-blue-300 transition-all shadow-lg hover:scale-105 text-center"
                 >
                   {t('hero.ctaSecondary')}
                 </Link>
