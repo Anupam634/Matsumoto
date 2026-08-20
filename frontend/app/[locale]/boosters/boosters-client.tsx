@@ -364,29 +364,86 @@ function PayStep({
   const t = useTranslations('boosters');
   const [txHash, setTxHash] = useState('');
   const [busy, setBusy] = useState(false);
+  const [web3Busy, setWeb3Busy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [qrMode, setQrMode] = useState<'web3' | 'plain'>('web3');
   const [qr, setQr] = useState<string | null>(null);
 
-  // EIP-681 Web3 URI for BEP-20 USDT on BNB Smart Chain (Chain ID: 56)
-  // Automatically pre-fills token, recipient address, and exact USDT amount in Web3 wallets!
+  // Clean universal recipient wallet address for 100% compatibility across all mobile scanners & wallets
   useEffect(() => {
     if (purchase.payToAddress) {
-      const usdtContract = '0x55d398326f99059fF775485246999027B3197955';
-      const parsedAmount = parseFloat(purchase.amount || '0');
-      // 18 decimals in wei
-      const amountWei = BigInt(Math.floor(parsedAmount * 1e6)) * BigInt(1e12);
-      
-      const targetData =
-        qrMode === 'web3'
-          ? `ethereum:${usdtContract}@56/transfer?address=${purchase.payToAddress}&uint256=${amountWei.toString()}`
-          : purchase.payToAddress;
-
-      setQr(`https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(targetData)}`);
+      setQr(`https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(purchase.payToAddress)}`);
     } else {
       setQr(null);
     }
-  }, [purchase.payToAddress, purchase.amount, qrMode]);
+  }, [purchase.payToAddress]);
+
+  // 1-Click Direct Web3 Wallet Payment (MetaMask, TrustWallet, OKX, Binance Web3)
+  async function handleWeb3Pay() {
+    if (typeof window === 'undefined' || !(window as any).ethereum) {
+      setError('No Web3 wallet detected. Please scan the QR code or copy the payment address below.');
+      return;
+    }
+    setWeb3Busy(true);
+    setError(null);
+    try {
+      const provider = (window as any).ethereum;
+      const accounts = await provider.request({ method: 'eth_requestAccounts' });
+
+      // Switch to BNB Smart Chain (Chain ID: 56 / 0x38)
+      try {
+        await provider.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x38' }],
+        });
+      } catch (switchErr: any) {
+        // If BSC is not added to user's wallet, add it
+        if (switchErr.code === 4902) {
+          await provider.request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: '0x38',
+                chainName: 'BNB Smart Chain',
+                nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+                rpcUrls: ['https://bsc-dataseed.binance.org/'],
+                blockExplorerUrls: ['https://bscscan.com'],
+              },
+            ],
+          });
+        }
+      }
+
+      // BEP-20 USDT contract on BSC
+      const usdtContract = '0x55d398326f99059fF775485246999027B3197955';
+      const cleanTo = purchase.payToAddress.toLowerCase().replace(/^0x/, '').padStart(64, '0');
+      const parsedAmount = parseFloat(purchase.amount || '0');
+      const amountWei = BigInt(Math.floor(parsedAmount * 1e6)) * BigInt(1e12); // 18 decimals
+      const amountHex = amountWei.toString(16).padStart(64, '0');
+      const callData = '0xa9059cbb' + cleanTo + amountHex; // transfer(address,uint256)
+
+      const hash = await provider.request({
+        method: 'eth_sendTransaction',
+        params: [
+          {
+            from: accounts[0],
+            to: usdtContract,
+            data: callData,
+          },
+        ],
+      });
+
+      if (hash) {
+        setTxHash(hash);
+        // Auto submit verification
+        await submitBoosterPayment(purchase.id, hash);
+        onDone();
+      }
+    } catch (err: any) {
+      setError(err.message || 'Web3 payment failed or was cancelled.');
+    } finally {
+      setWeb3Busy(false);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -406,7 +463,30 @@ function PayStep({
     <>
       <p className="mt-3 text-sm text-slate-400">{t('payBody')}</p>
 
-      <dl className="mt-4 space-y-3">
+      {/* 1-Click Web3 Direct Payment Button */}
+      <div className="mt-4 rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-amber-500/10 p-3.5 text-center">
+        <button
+          type="button"
+          disabled={web3Busy}
+          onClick={handleWeb3Pay}
+          className="w-full rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 py-2.5 px-4 text-xs font-black text-slate-950 shadow-md shadow-amber-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+        >
+          {web3Busy ? 'Opening Web3 Wallet...' : `⚡ 1-Click Pay ${purchase.amount} USDT (MetaMask / TrustWallet)`}
+        </button>
+        <p className="mt-1.5 text-[10px] text-slate-400">
+          Auto-connects to your wallet, fills exact amount & submits transaction instantly!
+        </p>
+      </div>
+
+      <div className="relative my-4 flex items-center justify-center">
+        <div className="border-t border-white/10 w-full" />
+        <span className="bg-slate-900 px-3 text-[10px] uppercase font-bold text-slate-500">
+          OR SCAN / SEND MANUALLY
+        </span>
+        <div className="border-t border-white/10 w-full" />
+      </div>
+
+      <dl className="space-y-3">
         <CopyRow label={t('amount')} value={purchase.amount} bold>
           {purchase.amount} {purchase.tokenSymbol}
         </CopyRow>
@@ -417,43 +497,16 @@ function PayStep({
 
       {qr && (
         <div className="mt-4 flex flex-col items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <div className="flex items-center gap-1.5 rounded-lg bg-slate-900 p-1 text-[11px] font-semibold">
-            <button
-              type="button"
-              onClick={() => setQrMode('web3')}
-              className={`rounded-md px-2.5 py-1 transition-all ${
-                qrMode === 'web3'
-                  ? 'bg-gradient-to-r from-amber-500 to-yellow-500 font-bold text-slate-950 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              ⚡ Auto-Fill QR (Web3 Wallets)
-            </button>
-            <button
-              type="button"
-              onClick={() => setQrMode('plain')}
-              className={`rounded-md px-2.5 py-1 transition-all ${
-                qrMode === 'plain'
-                  ? 'bg-slate-800 font-bold text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              📋 Address Only
-            </button>
-          </div>
-
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={qr}
-            alt="Payment QR Code"
+            alt="Payment Address QR Code"
             width={144}
             height={144}
             className="rounded-lg bg-white p-1.5 shadow-md"
           />
           <p className="text-center text-xs text-slate-400">
-            {qrMode === 'web3'
-              ? `✨ Scans & auto-fills ${purchase.amount} USDT in OKX, TrustWallet, Binance Web3, Bitget & MetaMask.`
-              : 'Copy address or scan for direct transfer.'}
+            Scan with any crypto wallet (Binance, OKX, Trust Wallet, MetaMask) to copy recipient address.
           </p>
         </div>
       )}
