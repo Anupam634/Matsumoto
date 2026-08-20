@@ -769,4 +769,173 @@ export class AdminService {
 
     return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
   }
+
+  // ───────────────────── Booster Plans & Purchases Suite ────────────────────
+
+  async listBoosterPlans() {
+    const plans = await this.prisma.boosterPlan.findMany({
+      orderBy: { priceUsd: 'asc' },
+      include: {
+        _count: {
+          select: {
+            boosters: {
+              where: { expiresAt: { gt: new Date() } },
+            },
+          },
+        },
+      },
+    });
+
+    return plans.map((p) => ({
+      id: p.id,
+      priceUsd: p.priceUsd,
+      rateBonusMilli: p.rateBonusMilli,
+      rateBonusPoints: p.rateBonusMilli / 1000,
+      durationDays: p.durationDays,
+      active: p.active,
+      activeSales: p._count.boosters,
+    }));
+  }
+
+  async createBoosterPlan(dto: {
+    priceUsd: number;
+    rateBonusMilli?: number;
+    rateBonusPoints?: number;
+    durationDays?: number;
+    active?: boolean;
+  }) {
+    const rateBonusMilli =
+      dto.rateBonusMilli ??
+      (dto.rateBonusPoints ? Math.round(dto.rateBonusPoints * 1000) : 2000);
+
+    return this.prisma.boosterPlan.create({
+      data: {
+        priceUsd: Number(dto.priceUsd),
+        rateBonusMilli,
+        durationDays: Number(dto.durationDays || 30),
+        active: dto.active ?? true,
+      },
+    });
+  }
+
+  async updateBoosterPlan(
+    id: string,
+    dto: {
+      priceUsd?: number;
+      rateBonusMilli?: number;
+      rateBonusPoints?: number;
+      durationDays?: number;
+      active?: boolean;
+    },
+  ) {
+    const rateBonusMilli =
+      dto.rateBonusMilli ??
+      (dto.rateBonusPoints ? Math.round(dto.rateBonusPoints * 1000) : undefined);
+
+    return this.prisma.boosterPlan.update({
+      where: { id },
+      data: {
+        ...(dto.priceUsd !== undefined ? { priceUsd: Number(dto.priceUsd) } : {}),
+        ...(rateBonusMilli !== undefined ? { rateBonusMilli } : {}),
+        ...(dto.durationDays !== undefined ? { durationDays: Number(dto.durationDays) } : {}),
+        ...(dto.active !== undefined ? { active: dto.active } : {}),
+      },
+    });
+  }
+
+  async deleteBoosterPlan(id: string) {
+    await this.prisma.boosterPlan.delete({ where: { id } });
+    return { success: true, message: 'Booster plan deleted.' };
+  }
+
+  async listBoosterPurchases(query?: { status?: string; search?: string }) {
+    const where: any = {};
+
+    if (query?.status && query.status !== 'ALL') {
+      where.status = query.status;
+    }
+
+    if (query?.search && query.search.trim().length > 0) {
+      const s = query.search.trim().toLowerCase();
+      where.OR = [
+        { user: { email: { contains: s, mode: 'insensitive' } } },
+        { txHash: { contains: s, mode: 'insensitive' } },
+        { fromAddress: { contains: s, mode: 'insensitive' } },
+        { payToAddress: { contains: s, mode: 'insensitive' } },
+      ];
+    }
+
+    const purchases = await this.prisma.boosterPurchase.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: {
+        user: { select: { email: true } },
+        plan: true,
+      },
+    });
+
+    return purchases.map((p) => ({
+      id: p.id,
+      userId: p.userId,
+      userEmail: p.user?.email ?? 'Wallet Payer',
+      planId: p.planId,
+      planPriceUsd: p.plan?.priceUsd ?? 0,
+      rateBonusPoints: (p.plan?.rateBonusMilli ?? 0) / 1000,
+      tokenSymbol: p.tokenSymbol,
+      expectedAmount: p.expectedAmount,
+      payToAddress: p.payToAddress,
+      fromAddress: p.fromAddress,
+      status: p.status,
+      txHash: p.txHash,
+      attemptedTxHash: p.attemptedTxHash,
+      failureReason: p.failureReason,
+      confirmedAt: p.confirmedAt ? p.confirmedAt.toISOString() : null,
+      createdAt: p.createdAt.toISOString(),
+    }));
+  }
+
+  async forceConfirmBoosterPurchase(purchaseId: string, customTxHash?: string) {
+    const purchase = await this.prisma.boosterPurchase.findUniqueOrThrow({
+      where: { id: purchaseId },
+      include: { plan: true },
+    });
+
+    if (purchase.status === 'CONFIRMED') {
+      return { success: true, message: 'Purchase is already confirmed.' };
+    }
+
+    const now = new Date();
+    const expiresAt = new Date(
+      now.getTime() + purchase.plan.durationDays * 24 * 3_600_000,
+    );
+    const txHash = customTxHash?.trim() || purchase.attemptedTxHash || purchase.txHash || `manual_admin_${Date.now()}`;
+
+    await this.prisma.$transaction([
+      this.prisma.boosterPurchase.update({
+        where: { id: purchaseId },
+        data: {
+          status: 'CONFIRMED',
+          txHash,
+          confirmedAt: now,
+          failureReason: null,
+        },
+      }),
+      this.prisma.booster.create({
+        data: {
+          userId: purchase.userId,
+          planId: purchase.planId,
+          startedAt: now,
+          expiresAt,
+          txHash,
+          purchaseId: purchase.id,
+        },
+      }),
+    ]);
+
+    return {
+      success: true,
+      message: `Booster successfully activated for user for ${purchase.plan.durationDays} days.`,
+    };
+  }
 }

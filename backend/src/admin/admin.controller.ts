@@ -179,4 +179,42 @@ export class AdminSecureController {
     const csv = await this.admin.exportRevenueCsv();
     return { csv, filename: `matsumoto_revenue_${Date.now()}.csv` };
   }
+
+  // ───────────────────── Booster Plans & Transactions ─────────────────────
+
+  @Get('boosters/plans')
+  listBoosterPlans() {
+    return this.admin.listBoosterPlans();
+  }
+
+  @Post('boosters/plans')
+  createBoosterPlan(@Body() dto: any) {
+    return this.admin.createBoosterPlan(dto);
+  }
+
+  @Post('boosters/plans/:id/update')
+  updateBoosterPlan(@Param('id') id: string, @Body() dto: any) {
+    return this.admin.updateBoosterPlan(id, dto);
+  }
+
+  @Post('boosters/plans/:id/delete')
+  deleteBoosterPlan(@Param('id') id: string) {
+    return this.admin.deleteBoosterPlan(id);
+  }
+
+  @Get('boosters/purchases')
+  listBoosterPurchases(
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.admin.listBoosterPurchases({ status, search });
+  }
+
+  @Post('boosters/purchases/:id/force-confirm')
+  forceConfirmBoosterPurchase(
+    @Param('id') id: string,
+    @Body('txHash') txHash?: string,
+  ) {
+    return this.admin.forceConfirmBoosterPurchase(id, txHash);
+  }
 }

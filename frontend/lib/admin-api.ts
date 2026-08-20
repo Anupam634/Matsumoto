@@ -363,3 +363,82 @@ export const downloadReportCsv = async (
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 };
+
+// ─────────────────────────── Booster Plans & Purchases ───────────
+
+export interface AdminBoosterPlan {
+  id: string;
+  priceUsd: number;
+  rateBonusMilli: number;
+  rateBonusPoints: number;
+  durationDays: number;
+  active: boolean;
+  activeSales: number;
+}
+
+export interface AdminBoosterPurchase {
+  id: string;
+  userId: string;
+  userEmail: string;
+  planId: string;
+  planPriceUsd: number;
+  rateBonusPoints: number;
+  tokenSymbol: string;
+  expectedAmount: string;
+  payToAddress: string;
+  fromAddress: string;
+  status: 'CONFIRMED' | 'AWAITING_PAYMENT' | 'FAILED' | 'EXPIRED';
+  txHash: string | null;
+  attemptedTxHash: string | null;
+  failureReason: string | null;
+  confirmedAt: string | null;
+  createdAt: string;
+}
+
+export const listAdminBoosterPlans = () =>
+  adminFetch<AdminBoosterPlan[]>('/boosters/plans');
+
+export const createAdminBoosterPlan = (dto: {
+  priceUsd: number;
+  rateBonusPoints: number;
+  durationDays: number;
+  active?: boolean;
+}) =>
+  adminFetch<AdminBoosterPlan>('/boosters/plans', {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  });
+
+export const updateAdminBoosterPlan = (
+  id: string,
+  dto: Partial<{
+    priceUsd: number;
+    rateBonusPoints: number;
+    durationDays: number;
+    active: boolean;
+  }>,
+) =>
+  adminFetch<AdminBoosterPlan>(`/boosters/plans/${id}/update`, {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  });
+
+export const deleteAdminBoosterPlan = (id: string) =>
+  adminFetch<{ success: boolean; message: string }>(
+    `/boosters/plans/${id}/delete`,
+    { method: 'POST' },
+  );
+
+export const listAdminBoosterPurchases = (status?: string, search?: string) =>
+  adminFetch<AdminBoosterPurchase[]>(
+    `/boosters/purchases?status=${encodeURIComponent(status || '')}&search=${encodeURIComponent(search || '')}`,
+  );
+
+export const forceConfirmBoosterPurchase = (id: string, txHash?: string) =>
+  adminFetch<{ success: boolean; message: string }>(
+    `/boosters/purchases/${id}/force-confirm`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ txHash }),
+    },
+  );
