@@ -35,7 +35,7 @@ export class ChainReaderService {
     // Default to USDT (BEP-20) on BNB Smart Chain
     const payToAddress =
       cfg.get<string>('BOOSTER_PAY_TO_ADDRESS') ||
-      '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+      '0x8E1A28572f4A0EB9699BCf2a3d93eCa5417Ab96c';
     const symbol = (cfg.get<string>('BOOSTER_PAY_TOKEN') ?? 'USDT').toUpperCase();
     const rpc =
       cfg.get<string>('BOOSTER_RPC_URL') ||
