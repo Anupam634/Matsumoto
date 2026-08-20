@@ -86,7 +86,7 @@ function Landing({ locale }: { locale: string }) {
           </nav>
 
           {/* Action CTAs, Language & Theme Switcher */}
-          <div className="flex items-center gap-2.5 text-xs">
+          <div className="flex items-center gap-2 sm:gap-3 text-xs shrink-0">
             <ThemeToggle />
             <LocaleSwitcher locale={locale} />
             <NavAuth
@@ -126,12 +126,12 @@ function Landing({ locale }: { locale: string }) {
                 href={register}
                 label={t('hero.ctaPrimary')}
                 dashboardLabel={t('nav.dashboard')}
-                className="btn-gold rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-wider text-white shadow-2xl shadow-blue-600/25"
+                className="btn-gold inline-flex items-center justify-center rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-wider text-white shadow-2xl shadow-blue-600/25 transition-all hover:scale-105"
               />
               <HideWhenAuthed>
                 <Link
                   href={signIn}
-                  className="rounded-2xl border border-white/10 bg-slate-900/60 px-6 py-4 text-sm font-bold text-slate-200 backdrop-blur-xl hover:border-blue-500/60 hover:text-blue-300 transition-all shadow-lg"
+                  className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-slate-900/60 px-6 py-4 text-sm font-bold text-slate-200 backdrop-blur-xl hover:border-blue-500/60 hover:text-blue-300 transition-all shadow-lg hover:scale-105"
                 >
                   {t('hero.ctaSecondary')}
                 </Link>

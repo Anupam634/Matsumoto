@@ -40,25 +40,27 @@ export function NavAuth({
     return (
       <Link
         href={`/${locale}/dashboard`}
-        className="btn-gold whitespace-nowrap rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md"
+        className="btn-gold inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md transition-all hover:scale-105"
       >
-        {dashboardLabel} →
+        <span>{dashboardLabel}</span>
+        <span className="text-sm font-bold">→</span>
       </Link>
     );
   }
   return (
-    <div className="flex items-center gap-1.5 sm:gap-3">
+    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
       <Link
         href={`/${locale}/login`}
-        className="hidden sm:inline-block whitespace-nowrap text-xs font-bold uppercase tracking-wider text-slate-300 hover:text-amber-400 transition"
+        className="hidden sm:inline-flex items-center whitespace-nowrap text-xs font-bold uppercase tracking-wider text-slate-300 hover:text-blue-400 transition"
       >
         {signInLabel}
       </Link>
       <Link
         href={`/${locale}/login?mode=register`}
-        className="btn-gold whitespace-nowrap rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md"
+        className="btn-gold inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md transition-all hover:scale-105"
       >
-        {getStartedLabel} →
+        <span>{getStartedLabel}</span>
+        <span className="text-sm font-bold">→</span>
       </Link>
     </div>
   );
@@ -86,9 +88,10 @@ export function AuthAwareCta({
   return (
     <Link
       href={authed ? `/${locale}/dashboard` : href}
-      className={className}
+      className={`inline-flex items-center justify-center gap-2 text-center transition-all ${className ?? ''}`}
     >
-      {authed ? dashboardLabel : label} →
+      <span>{authed ? dashboardLabel : label}</span>
+      <span className="text-base leading-none font-bold">→</span>
     </Link>
   );
 }
