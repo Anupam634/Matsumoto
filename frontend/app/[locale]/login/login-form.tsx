@@ -86,34 +86,47 @@ function AuthForm() {
     setError(null);
     setInfoMsg(null);
 
-    if (mode === 'register') {
-      if (!countryCode) {
-        setError(t('countryRequired'));
+    if (mode === 'login') {
+      if (!email.trim() || !password.trim()) {
+        setError('Please enter your email and password.');
         return;
       }
-      // Trigger real OTP step for registration
       setBusy(true);
       try {
-        const res = await sendOtp(email);
-        setStep('otp');
-        setInfoMsg(res.message || 'Verification code sent to your email. Please check your inbox and spam folder.');
+        await login({
+          email: email.trim().toLowerCase(),
+          password,
+        });
+        router.push(`/${params.locale}/dashboard`);
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Failed to send OTP.');
+        setError(err instanceof ApiError ? err.message : 'Invalid email or password.');
       } finally {
         setBusy(false);
       }
       return;
     }
 
-    if (mode === 'login') {
-      // Trigger 2FA OTP step for login
+    if (mode === 'register') {
+      if (!email.trim() || !password.trim()) {
+        setError('Please enter your email and password.');
+        return;
+      }
+      if (password.length < 8) {
+        setError('Password must be at least 8 characters long.');
+        return;
+      }
+      if (!countryCode) {
+        setError(t('countryRequired'));
+        return;
+      }
+      // Check if email already exists before sending OTP!
       setBusy(true);
       try {
-        const res = await sendOtp(email);
+        const res = await sendOtp(email.trim().toLowerCase(), 'signup');
         setStep('otp');
-        setInfoMsg(res.message || 'Enter the 2FA code sent to your email.');
+        setInfoMsg(res.message || 'Verification code sent to your email. Please check your inbox.');
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : t('networkError'));
+        setError(err instanceof ApiError ? err.message : 'Failed to send verification code.');
       } finally {
         setBusy(false);
       }
@@ -128,11 +141,11 @@ function AuthForm() {
       }
       setBusy(true);
       try {
-        const res = await forgotPassword(email);
+        const res = await forgotPassword(email.trim().toLowerCase());
         setStep('otp');
         setInfoMsg(res.message || 'Password reset OTP sent to your email. Please check your inbox.');
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Account not found.');
+        setError(err instanceof ApiError ? err.message : 'No account found with this email address.');
       } finally {
         setBusy(false);
       }

@@ -131,14 +131,17 @@ export async function login(params: {
   return data;
 }
 
-export async function sendOtp(email: string): Promise<{ success: boolean; message: string; dummyOtp: string }> {
+export async function sendOtp(
+  email: string,
+  purpose: 'signup' | 'login' | 'forgot_password' = 'signup',
+): Promise<{ success: boolean; message: string }> {
   return apiFetch('/auth/send-otp', {
     method: 'POST',
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, purpose }),
   });
 }
 
-export async function forgotPassword(email: string): Promise<{ success: boolean; message: string; dummyOtp: string }> {
+export async function forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
   return apiFetch('/auth/forgot-password', {
     method: 'POST',
     body: JSON.stringify({ email }),

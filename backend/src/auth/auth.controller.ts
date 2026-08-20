@@ -31,8 +31,11 @@ export class AuthController {
 
   /** POST /api/auth/send-otp — request OTP for email verification. */
   @Post('send-otp')
-  sendOtp(@Body('email') email: string) {
-    return this.auth.sendOtp(email || 'miner@matsumoto.io');
+  sendOtp(
+    @Body('email') email: string,
+    @Body('purpose') purpose?: 'signup' | 'login' | 'forgot_password',
+  ) {
+    return this.auth.sendOtp(email || 'miner@matsumoto.io', purpose || 'signup');
   }
 
   /** POST /api/auth/forgot-password — initiate password recovery. */

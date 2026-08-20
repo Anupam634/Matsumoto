@@ -48,10 +48,30 @@ export class AuthService {
 
   /**
    * Request OTP verification code for Signup, 2FA, or Password Reset.
+   * Validates user existence / uniqueness BEFORE sending email.
    */
-  async sendOtp(email: string) {
+  async sendOtp(email: string, purpose: 'signup' | 'login' | 'forgot_password' = 'signup') {
     const cleanEmail = email.trim().toLowerCase();
-    return this.emailService.sendOtpEmail(cleanEmail, 'signup');
+
+    if (purpose === 'signup') {
+      const existing = await this.prisma.user.findUnique({ where: { email: cleanEmail } });
+      if (existing) {
+        throw new BadRequestException('That email address is already registered. Please sign in instead.');
+      }
+    } else if (purpose === 'login' || purpose === 'forgot_password') {
+      const user = await this.prisma.user.findUnique({ where: { email: cleanEmail } });
+      if (!user) {
+        throw new BadRequestException('No account found with this email address. Please check your email or register.');
+      }
+      if (user.isBlocked) {
+        throw new ForbiddenException('Account is blocked.');
+      }
+    }
+
+    return this.emailService.sendOtpEmail(
+      cleanEmail,
+      purpose === 'forgot_password' ? 'forgot_password' : purpose === 'login' ? 'login_2fa' : 'signup',
+    );
   }
 
   /**
