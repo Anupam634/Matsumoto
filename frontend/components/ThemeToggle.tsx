@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-export type ThemeMode = 'dark' | 'light' | 'cyber';
+export type ThemeMode = 'dark' | 'light' | 'cyber' | 'red';
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<ThemeMode>('dark');
@@ -11,7 +11,7 @@ export function ThemeToggle() {
   useEffect(() => {
     setMounted(true);
     const saved = localStorage.getItem('matsumoto_theme') as ThemeMode;
-    if (saved && (saved === 'dark' || saved === 'light' || saved === 'cyber')) {
+    if (saved && (saved === 'dark' || saved === 'light' || saved === 'cyber' || saved === 'red')) {
       setTheme(saved);
       applyTheme(saved);
     } else {
@@ -21,7 +21,7 @@ export function ThemeToggle() {
 
   const applyTheme = (mode: ThemeMode) => {
     const root = document.documentElement;
-    root.classList.remove('theme-dark', 'theme-light', 'theme-cyber', 'dark');
+    root.classList.remove('theme-dark', 'theme-light', 'theme-cyber', 'theme-red', 'dark');
     root.classList.add(`theme-${mode}`);
     if (mode !== 'light') {
       root.classList.add('dark');
@@ -36,7 +36,7 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <div className="h-8 w-24 rounded-full border border-white/10 bg-slate-900/60 animate-pulse" />
+      <div className="h-8 w-32 rounded-full border border-white/10 bg-slate-900/60 animate-pulse" />
     );
   }
 
@@ -82,6 +82,20 @@ export function ThemeToggle() {
         }`}
       >
         🔵
+      </button>
+
+      <button
+        type="button"
+        title="Crimson Scarlet Red Edition"
+        aria-label="Crimson Scarlet Red Edition"
+        onClick={() => handleSelect('red')}
+        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs transition-all ${
+          theme === 'red'
+            ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white font-bold shadow-md shadow-red-500/40 ring-1 ring-red-400'
+            : 'text-slate-400 hover:text-rose-400'
+        }`}
+      >
+        🔴
       </button>
     </div>
   );
