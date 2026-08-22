@@ -68,7 +68,7 @@ async function bootstrap() {
   app.use(urlencoded({ limit: '10mb', extended: true }));
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
-  const port = process.env.PORT ?? 4000;
+  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
   await app.listen(port);
   // eslint-disable-next-line no-console
   console.log(`Matsumoto API listening on http://localhost:${port}/api`);
