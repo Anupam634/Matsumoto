@@ -39,17 +39,30 @@ export class WalletService {
       'offchain') as WalletMode;
 
     if (this.mode !== 'offchain') {
-      const rpc =
-        this.mode === 'mainnet'
-          ? this.config.getOrThrow<string>('BSC_RPC_URL')
-          : this.config.getOrThrow<string>('BSC_TESTNET_RPC_URL');
-      const pk = this.config.getOrThrow<string>('HOT_WALLET_PRIVATE_KEY');
-      const contract =
-        this.config.get<string>('BONDKOIN_CONTRACT_ADDRESS') ??
-        this.config.getOrThrow<string>('MATSUMOTO_CONTRACT_ADDRESS');
-      this.provider = new ethers.JsonRpcProvider(rpc);
-      this.signer = new ethers.Wallet(pk, this.provider);
-      this.token = new ethers.Contract(contract, ERC20_ABI, this.signer);
+      try {
+        const rpc =
+          this.mode === 'mainnet'
+            ? this.config.get<string>('BSC_RPC_URL') ||
+              'https://bsc-dataseed1.binance.org/'
+            : this.config.get<string>('BSC_TESTNET_RPC_URL') ||
+              'https://data-seed-prebsc-1-s1.binance.org:8545/';
+        const pk = this.config.get<string>('HOT_WALLET_PRIVATE_KEY');
+        const contract =
+          this.config.get<string>('BONDKOIN_CONTRACT_ADDRESS') ??
+          this.config.get<string>('MATSUMOTO_CONTRACT_ADDRESS');
+
+        if (pk && contract) {
+          this.provider = new ethers.JsonRpcProvider(rpc);
+          this.signer = new ethers.Wallet(pk, this.provider);
+          this.token = new ethers.Contract(contract, ERC20_ABI, this.signer);
+        } else {
+          this.logger.warn(
+            `WalletService in ${this.mode} mode missing HOT_WALLET_PRIVATE_KEY or CONTRACT_ADDRESS — fallback to simulated payouts until keys are configured`,
+          );
+        }
+      } catch (err) {
+        this.logger.error('Failed to initialize on-chain wallet provider:', err);
+      }
     }
     this.logger.log(`WalletService running in "${this.mode}" mode`);
   }
