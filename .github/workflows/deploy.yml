@@ -122,39 +122,7 @@ jobs:
             fi
             
             sudo mkdir -p /etc/nginx/conf.d
-            cat << 'EOF' | sudo tee /etc/nginx/conf.d/bondkoin.conf > /dev/null
-server {
-    listen 80;
-    listen [::]:80;
-    server_name api.bondkoinlabs.com _;
-
-    client_max_body_size 50M;
-
-    location / {
-        # Handle CORS preflight OPTIONS requests directly at Nginx level
-        if ($request_method = 'OPTIONS') {
-            add_header 'Access-Control-Allow-Origin' '$http_origin' always;
-            add_header 'Access-Control-Allow-Credentials' 'true' always;
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE, PATCH, HEAD' always;
-            add_header 'Access-Control-Allow-Headers' 'Origin,X-Requested-With,Content-Type,Accept,Authorization,X-CSRF-Token,Fingerprint,Range' always;
-            add_header 'Access-Control-Max-Age' 1728000;
-            add_header 'Content-Type' 'text/plain; charset=utf-8';
-            add_header 'Content-Length' 0;
-            return 204;
-        }
-
-        proxy_pass http://127.0.0.1:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-EOF
+            sudo cp /var/www/bondkoin/backend/nginx/bondkoin.conf /etc/nginx/conf.d/bondkoin.conf
             sudo systemctl enable nginx
             sudo nginx -t && (sudo systemctl restart nginx || sudo nginx -s reload)
             
