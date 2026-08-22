@@ -200,6 +200,8 @@ export default function DashboardClient() {
             label={t('referrals')}
             value={profile.referralCount}
             badge={`L${status.referralTier.level} ×${status.referralTier.multiplier}`}
+            href={`/${locale}/referrals`}
+            cta={t('viewReferrals')}
           />
         </div>
 
