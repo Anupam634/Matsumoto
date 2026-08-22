@@ -14,11 +14,37 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Universal CORS middleware ensuring all origins (www.bondkoinlabs.com, bondkoinlabs.com, etc.) and preflight OPTIONS are answered immediately
+  app.use((req: any, res: any, next: any) => {
+    const origin = req.headers.origin;
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+    } else {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    }
+    res.setHeader(
+      'Access-Control-Allow-Methods',
+      'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    );
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-CSRF-Token, Fingerprint, Range',
+    );
+    res.setHeader(
+      'Access-Control-Expose-Headers',
+      'Content-Range, X-Content-Range, Content-Length',
+    );
+
+    if (req.method === 'OPTIONS') {
+      return res.status(204).end();
+    }
+    next();
+  });
+
   app.enableCors({
-    origin: (origin, callback) => {
-      // Allow any origin dynamically so requests from www.bondkoinlabs.com, bondkoinlabs.com, localhost, etc. are permitted
-      callback(null, true);
-    },
+    origin: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
       'Origin',
