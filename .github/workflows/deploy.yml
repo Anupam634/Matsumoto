@@ -98,6 +98,15 @@ jobs:
             PORT=3001 pm2 start dist/main.js --name "bondkoin-backend" --update-env
             pm2 save
             
+            echo "⏳ Waiting 3s for NestJS to initialize..."
+            sleep 3
+            pm2 list
+            echo "📋 Checking PM2 logs..."
+            pm2 logs bondkoin-backend --lines 30 --nostream
+            
+            echo "🔍 Testing local backend health probe on Port 3001..."
+            curl -v http://127.0.0.1:3001/api/health || echo "⚠️ Local health check returned non-200"
+            
             # Automated Nginx & Domain Reverse Proxy Setup
             echo "🌐 Configuring automated Nginx Reverse Proxy for api.bondkoinlabs.com..."
             if ! command -v nginx &> /dev/null; then
@@ -131,5 +140,8 @@ jobs:
               echo "🔒 Checking & provisioning Let's Encrypt SSL certificate for api.bondkoinlabs.com..."
               sudo certbot --nginx -d api.bondkoinlabs.com --non-interactive --agree-tos -m hello@bondkoinlabs.com --redirect || echo "⚠️ Certbot notice: SSL will activate once DNS A-record is active."
             fi
+            
+            echo "🌐 Testing public HTTPS API endpoint..."
+            curl -v https://api.bondkoinlabs.com/api/health || echo "⚠️ HTTPS probe returned non-200"
             
             echo "✅ Deployment & Nginx domain configuration completed successfully!"

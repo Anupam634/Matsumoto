@@ -69,8 +69,8 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
   const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   // eslint-disable-next-line no-console
-  console.log(`Matsumoto API listening on http://localhost:${port}/api`);
+  console.log(`Matsumoto API listening on http://0.0.0.0:${port}/api`);
 }
 bootstrap();
