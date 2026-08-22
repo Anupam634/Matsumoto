@@ -259,7 +259,8 @@
     "poweredByBnb": "BNB Chain 기반",
     "bnbRewards": "BNB Chain 상의 보상",
     "chainIndicator": "BNB Chain",
-    "navWithdraw": "출금"
+    "navWithdraw": "출금",
+    "viewReferrals": "추천 네트워크 보기"
   },
   "auth": {
     "signIn": "로그인",

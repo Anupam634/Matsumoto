@@ -259,7 +259,8 @@
     "poweredByBnb": "由 BNB Chain 提供支持",
     "bnbRewards": "BNB Chain 上的奖励",
     "chainIndicator": "BNB Chain",
-    "navWithdraw": "提现"
+    "navWithdraw": "提现",
+    "viewReferrals": "查看推荐网络"
   },
   "auth": {
     "signIn": "登录",

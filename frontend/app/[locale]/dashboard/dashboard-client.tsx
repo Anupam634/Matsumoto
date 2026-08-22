@@ -941,7 +941,7 @@ function ReferralPanel({
           href={`/${locale}/referrals`}
           className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-500/20 transition-all hover:scale-105"
         >
-          <span>🚀 Open 3D Referral Hub & Roster</span>
+          <span>👥 {t('viewReferrals')}</span>
           <span>→</span>
         </Link>
       </div>

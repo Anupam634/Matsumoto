@@ -259,7 +259,8 @@
     "poweredByBnb": "Powered by BNB Chain",
     "bnbRewards": "Rewards on BNB Chain",
     "chainIndicator": "BNB Chain",
-    "navWithdraw": "Withdraw"
+    "navWithdraw": "Withdraw",
+    "viewReferrals": "View Referral Network"
   },
   "auth": {
     "signIn": "Sign In",
