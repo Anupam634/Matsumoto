@@ -14,7 +14,27 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.enableCors();
+  app.enableCors({
+    origin: (origin, callback) => {
+      // Allow any origin dynamically so requests from www.bondkoinlabs.com, bondkoinlabs.com, localhost, etc. are permitted
+      callback(null, true);
+    },
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Origin',
+      'X-Requested-With',
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'X-CSRF-Token',
+      'Fingerprint',
+      'Range',
+    ],
+    exposedHeaders: ['Content-Range', 'X-Content-Range', 'Content-Length'],
+    credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
+  });
   // KYC submissions carry base64 identity photos, which blow past Express's
   // 100kb default. The DTO caps each image at ~2MB, so 10mb leaves room for
   // three images plus the surrounding JSON.
