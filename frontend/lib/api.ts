@@ -174,6 +174,39 @@ export interface Profile {
 
 export const getProfile = () => apiFetch<Profile>('/auth/me');
 
+// ────────────────────────── Referrals ──────────────────────────
+
+export interface ReferralMember {
+  id: string;
+  maskedEmail: string;
+  countryCode: string;
+  joinedAt: string;
+  lastMineAt: string | null;
+  isMiningActive: boolean;
+}
+
+export interface ReferralTierInfo {
+  minInvites: number;
+  maxInvites: number;
+  level: number;
+  multiplier: number;
+}
+
+export interface ReferralStatsResponse {
+  referralCode: string;
+  totalInvited: number;
+  activeMinersCount: number;
+  currentTier: ReferralTierInfo;
+  nextTier: ReferralTierInfo | null;
+  progressToNextPercent: number;
+  invitesNeededForNext: number;
+  allTiers: ReferralTierInfo[];
+  referralsList: ReferralMember[];
+}
+
+export const getReferralStats = () =>
+  apiFetch<ReferralStatsResponse>('/referrals/stats');
+
 // ────────────────────────── Mining ──────────────────────────
 
 export interface MiningStatus {

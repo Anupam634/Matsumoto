@@ -13,9 +13,10 @@ import { BoostersModule } from './boosters/boosters.module';
 import { SupportModule } from './support/support.module';
 import { HealthModule } from './health/health.module';
 import { EmailModule } from './email/email.module';
+import { ReferralsModule } from './referrals/referrals.module';
 
 /**
- * Root module. Feature modules that are still stubs (referrals) get wired here as they are built out.
+ * Root module.
  */
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { EmailModule } from './email/email.module';
     SupportModule,
     HealthModule,
     BoostersModule,
+    ReferralsModule,
   ],
   providers: [PrismaService],
 })

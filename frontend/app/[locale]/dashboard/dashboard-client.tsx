@@ -311,6 +311,12 @@ function TopBar({ locale, onSignOut }: { locale: string; onSignOut: () => void }
             {t('navDashboard')}
           </NavLink>
           <NavLink href={`/${locale}/boosters`}>{t('navBoosters')}</NavLink>
+          <NavLink href={`/${locale}/referrals`}>
+            <span className="flex items-center gap-1">
+              <span>👥</span>
+              <span>Referrals</span>
+            </span>
+          </NavLink>
           <NavLink href={`/${locale}/marketplace`}>
             <span className="flex items-center gap-1">
               <span>🛒</span>
@@ -894,17 +900,25 @@ function ReferralPanel({
   }
 
   return (
-    <section className="glass-panel mt-4 p-5 sm:p-6">
-      <div className="flex items-center justify-between">
-        <div className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-          {t('referralLink')}
+    <section className="glass-panel mt-4 p-5 sm:p-6 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-base">👥</span>
+          <div className="text-xs font-extrabold uppercase tracking-wider text-slate-300">
+            {t('referralLink')}
+          </div>
         </div>
-        <span className="rounded-lg bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 text-xs font-mono font-bold text-amber-300">
-          CODE: {profile.referralCode}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="rounded-lg bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 text-xs font-mono font-bold text-amber-300">
+            Tier {profile.referralTier.level} ({profile.referralTier.multiplier}× Multiplier)
+          </span>
+          <span className="rounded-lg bg-slate-800 border border-white/10 px-2.5 py-0.5 text-xs font-mono font-bold text-slate-300">
+            CODE: {profile.referralCode}
+          </span>
+        </div>
       </div>
 
-      <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
         <div className="flex-1 overflow-hidden rounded-xl border border-slate-700/80 bg-slate-950/80 px-3.5 py-3">
           <code className="block truncate font-mono text-sm font-bold text-amber-400 select-all">
             {link || `.../${locale}/login?ref=${profile.referralCode}`}
@@ -917,6 +931,19 @@ function ReferralPanel({
         >
           {copied ? `✓ ${t('copied')}` : t('copy')}
         </button>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3.5">
+        <div className="text-xs text-slate-400">
+          Total Invited: <strong className="text-white font-mono">{profile.referralCount} Miners</strong>
+        </div>
+        <Link
+          href={`/${locale}/referrals`}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-500/20 transition-all hover:scale-105"
+        >
+          <span>🚀 Open 3D Referral Hub & Roster</span>
+          <span>→</span>
+        </Link>
       </div>
     </section>
   );
