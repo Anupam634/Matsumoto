@@ -76,6 +76,10 @@ jobs:
               chmod 600 .env
             fi
             
+            # Ensure PORT=3001 is set in .env
+            sed -i '/^PORT=/d' .env 2>/dev/null || true
+            echo "PORT=3001" >> .env
+            
             # Install npm dependencies
             echo "📦 Installing npm dependencies..."
             npm install
@@ -92,20 +96,20 @@ jobs:
             echo "🔨 Building NestJS application..."
             npm run build
             
-            # Reload PM2 with updated environment variables & explicit PORT 3001
-            echo "🚀 Reloading PM2 process with fresh environment variables..."
-            pm2 delete bondkoin-backend 2>/dev/null || true
+            # Reload PM2 with clean start on Port 3001
+            echo "🚀 Starting PM2 process on Port 3001..."
+            pm2 delete all 2>/dev/null || true
             PORT=3001 pm2 start dist/main.js --name "bondkoin-backend" --update-env
             pm2 save
             
-            echo "⏳ Waiting 3s for NestJS to initialize..."
-            sleep 3
+            echo "⏳ Waiting 4s for NestJS to initialize..."
+            sleep 4
             pm2 list
             echo "📋 Checking PM2 logs..."
-            pm2 logs bondkoin-backend --lines 30 --nostream
+            pm2 logs bondkoin-backend --lines 40 --nostream
             
             echo "🔍 Testing local backend health probe on Port 3001..."
-            curl -v http://127.0.0.1:3001/api/health || echo "⚠️ Local health check returned non-200"
+            curl -i http://127.0.0.1:3001/api/health || echo "⚠️ Local health check returned non-200"
             
             # Automated Nginx & Domain Reverse Proxy Setup
             echo "🌐 Configuring automated Nginx Reverse Proxy for api.bondkoinlabs.com..."
