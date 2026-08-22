@@ -146,96 +146,99 @@ export default function ReferralsClient({ locale }: { locale: string }) {
               </p>
 
               {/* Quick Share Buttons */}
-              <div className="flex flex-wrap items-center gap-2.5 pt-2">
+              <div className="space-y-2 pt-2">
                 <button
                   type="button"
                   onClick={handleNativeShare}
-                  className="rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 px-4 py-2.5 text-xs font-black text-slate-950 shadow-lg shadow-amber-500/20 transition-all hover:scale-105 active:scale-95"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 px-5 py-3 text-xs font-black uppercase tracking-wider text-slate-950 shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.02] active:scale-95"
                 >
-                  🚀 {t('share')}
+                  <span>🚀</span>
+                  <span>{t('share')}</span>
                 </button>
 
-                <a
-                  href={`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Mine free $BONDKOIN on BNB Chain! Zero battery drain.')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3.5 py-2.5 text-xs font-bold text-sky-300 hover:bg-sky-500/20 transition-all"
-                >
-                  <span>✈️</span>
-                  <span>{t('shareTelegram')}</span>
-                </a>
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
+                  <a
+                    href={`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Mine free $BONDKOIN on BNB Chain! Zero battery drain.')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-2.5 text-xs font-bold text-sky-300 hover:bg-sky-500/20 transition-all"
+                  >
+                    <span>✈️</span>
+                    <span className="truncate">{t('shareTelegram')}</span>
+                  </a>
 
-                <a
-                  href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Join my $BONDKOIN mining node network on BNB Chain and earn crypto daily!')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2.5 text-xs font-bold text-white hover:bg-slate-700 transition-all"
-                >
-                  <span>𝕏</span>
-                  <span>{t('shareTwitter')}</span>
-                </a>
+                  <a
+                    href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Join my $BONDKOIN mining node network on BNB Chain and earn crypto daily!')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2.5 text-xs font-bold text-white hover:bg-slate-700 transition-all"
+                  >
+                    <span>𝕏</span>
+                    <span className="truncate">{t('shareTwitter')}</span>
+                  </a>
 
-                <a
-                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Join my BONDKOIN Mining Node! ${referralLink}`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20 transition-all"
-                >
-                  <span>💬</span>
-                  <span>{t('shareWhatsApp')}</span>
-                </a>
+                  <a
+                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Join my BONDKOIN Mining Node! ${referralLink}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20 transition-all"
+                  >
+                    <span>💬</span>
+                    <span className="truncate">{t('shareWhatsApp')}</span>
+                  </a>
 
-                <button
-                  type="button"
-                  onClick={() => setShowQr(!showQr)}
-                  className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-slate-800/80 px-3.5 py-2.5 text-xs font-bold text-slate-200 hover:bg-slate-700 transition-all"
-                >
-                  <span>📱</span>
-                  <span>{t('qrCode')}</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowQr(!showQr)}
+                    className="flex items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-slate-800/80 px-3 py-2.5 text-xs font-bold text-slate-200 hover:bg-slate-700 transition-all"
+                  >
+                    <span>📱</span>
+                    <span className="truncate">{t('qrCode')}</span>
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* 3D Holographic Referral Link Card */}
             <div className="lg:col-span-5">
-              <div className="card relative overflow-hidden rounded-2xl border-amber-500/40 bg-slate-950/90 p-5 shadow-2xl backdrop-blur-2xl">
-                <div className="flex items-center justify-between">
+              <div className="card relative overflow-hidden rounded-2xl border-amber-500/40 bg-slate-950/90 p-4 sm:p-5 shadow-2xl backdrop-blur-2xl space-y-3.5">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                     {t('code')}
                   </span>
-                  <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 font-mono text-[11px] font-bold text-amber-300">
+                  <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-300 shrink-0">
                     Active Node Key
                   </span>
                 </div>
 
-                <div className="mt-3 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                  <span className="font-mono text-lg font-black tracking-widest text-white">
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] p-2.5 sm:p-3 overflow-hidden">
+                  <span className="font-mono text-xs sm:text-sm font-black text-amber-300 truncate select-all flex-1 min-w-0">
                     {referralCode || '...'}
                   </span>
                   <button
                     type="button"
                     onClick={() => copyToClipboard(referralCode, 'code')}
-                    className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-500/30 transition-all"
+                    className="shrink-0 rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-500/30 transition-all active:scale-95"
                   >
                     {copiedCode ? '✓ Copied' : 'Copy'}
                   </button>
                 </div>
 
-                <div className="mt-3 space-y-1.5">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
                     {t('yourLink')}
                   </label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="text"
                       readOnly
                       value={referralLink}
-                      className="input-field py-2 text-xs font-mono text-slate-300 truncate"
+                      className="input-field w-full py-2.5 px-3 text-xs font-mono text-slate-300 truncate select-all"
                     />
                     <button
                       type="button"
                       onClick={() => copyToClipboard(referralLink, 'link')}
-                      className="rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 px-4 py-2.5 text-xs font-black text-slate-950 shadow-md hover:scale-105 transition-all shrink-0"
+                      className="w-full sm:w-auto shrink-0 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 px-4 py-2.5 text-xs font-black uppercase text-slate-950 shadow-md hover:scale-[1.02] transition-all text-center"
                     >
                       {copiedLink ? '✓ Copied' : t('copyLink')}
                     </button>
@@ -244,7 +247,7 @@ export default function ReferralsClient({ locale }: { locale: string }) {
 
                 {/* QR Code Expansion */}
                 {showQr && (
-                  <div className="mt-4 flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-slate-900/90 p-4 animate-in fade-in zoom-in-95">
+                  <div className="mt-2 flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-slate-900/90 p-4 animate-in fade-in zoom-in-95">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(referralLink)}`}
