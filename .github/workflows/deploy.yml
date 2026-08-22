@@ -101,15 +101,37 @@ jobs:
             pm2 delete all 2>/dev/null || true
             PORT=3001 pm2 start dist/main.js --name "bondkoin-backend" --update-env
             pm2 save
-            
-            echo "⏳ Waiting 4s for NestJS to initialize..."
-            sleep 4
+
+            # `pm2 save` only writes the process list to disk — on its own it does
+            # nothing at boot. Without a systemd unit, an instance reboot brings
+            # nginx back (it is systemctl-enabled) while PM2 stays down, and every
+            # route 502s until someone SSHes in. `pm2 startup` installs that unit.
+            echo "♻️ Installing PM2 systemd unit so the API survives reboots..."
+            sudo env PATH=$PATH:$(dirname $(command -v node)) $(command -v pm2) startup systemd -u $USER --hp $HOME
+            pm2 save
+
+            echo "⏳ Waiting for NestJS to initialize..."
             pm2 list
-            echo "📋 Checking PM2 logs..."
-            pm2 logs bondkoin-backend --lines 40 --nostream
-            
+
             echo "🔍 Testing local backend health probe on Port 3001..."
-            curl -i http://127.0.0.1:3001/api/health || echo "⚠️ Local health check returned non-200"
+            HEALTH_CODE=""
+            for attempt in $(seq 1 15); do
+              HEALTH_CODE=$(curl -s -o /tmp/health.out -w '%{http_code}' http://127.0.0.1:3001/api/health || true)
+              if [ "$HEALTH_CODE" = "200" ]; then
+                echo "✅ Backend healthy after ${attempt} attempt(s): $(cat /tmp/health.out)"
+                break
+              fi
+              sleep 2
+            done
+
+            # Fail the deploy loudly. Previously this was `|| echo "⚠️ ..."`, so a
+            # backend that never came up still reported a green deploy — the exact
+            # state that surfaces in the browser as an unexplained CORS error.
+            if [ "$HEALTH_CODE" != "200" ]; then
+              echo "❌ Backend never became healthy (last status: ${HEALTH_CODE:-no response})."
+              pm2 logs bondkoin-backend --lines 80 --nostream || true
+              exit 1
+            fi
             
             # Automated Nginx & Domain Reverse Proxy Setup
             echo "🌐 Configuring automated Nginx Reverse Proxy for api.bondkoinlabs.com..."
