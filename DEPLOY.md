@@ -183,13 +183,60 @@ run migrations — Prisma never migrates on its own, something has to call
 
 ### Notes
 
-- CORS is wide open on the backend (`app.enableCors()` with no
-  restriction), so the Render URL will accept requests from the Vercel
-  URL with no extra config.
+- CORS is an **allowlist**, not wide open. Set `CORS_ORIGINS` to a
+  comma-separated list of the front-end origins (e.g.
+  `https://bondkoinlabs.com,https://www.bondkoinlabs.com`). With it unset
+  the defaults in `src/common/cors-origins.ts` apply, which do not include
+  a `*.vercel.app` preview URL — add it there or the preview's API calls
+  will be blocked by the browser.
 - Render's free web service and Postgres both spin down on inactivity —
   the first request after a while will be slow (cold start), not broken.
 - Don't put a real `HOT_WALLET_PRIVATE_KEY` or mainnet contract address
   into a free-tier test deploy's environment variables.
+
+## Production hardening still owed on the server
+
+These are host-side, not code: the app cannot fix them from inside.
+
+### CORS is enforced in two places
+
+nginx in front of the API adds its **own** CORS headers and answers
+preflights itself — its response carries `Access-Control-Max-Age: 1728000`
+and a method list in a different format from the app's, which is how you can
+tell them apart:
+
+```
+curl -sS -X OPTIONS -D - -o /dev/null \
+  -H 'Origin: https://evil.example.com' \
+  -H 'Access-Control-Request-Method: POST' \
+  https://api.bondkoinlabs.com/api/auth/login
+```
+
+If that still returns `Access-Control-Allow-Origin: https://evil.example.com`,
+nginx is reflecting the origin regardless of what the app does. Remove the
+`add_header Access-Control-*` lines (and any `if ($request_method = OPTIONS)`
+block) from the site config so the app is the single source of truth, then
+`nginx -t && systemctl reload nginx`.
+
+### The API is HTTP/1.1 with no TLS-level caching
+
+The front end is served over HTTP/2 from a CDN; the API is plain HTTP/1.1.
+Enabling `listen 443 ssl http2;` on the API vhost removes a round trip per
+connection. Responses are gzipped by the app itself now (`compression`
+middleware in `main.ts`), so nginx does not need `gzip on` for proxied JSON.
+
+### Apex redirects to www on every request
+
+`https://bondkoinlabs.com/en` answers `308` to `https://www.bondkoinlabs.com/en`,
+so every cold navigation pays an extra round trip. Pick one canonical host in
+the DNS/CDN config and point the other at it at the edge, or serve the apex
+directly.
+
+### Verification codes are in memory unless Redis is configured
+
+`REDIS_URL` unset means pending OTPs live in the API process and are lost on
+every restart or deploy — a user mid-signup has to request a new code. Set
+`REDIS_URL` and they survive restarts and a second instance.
 
 ## Turning on booster payments
 

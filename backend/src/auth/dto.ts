@@ -1,6 +1,7 @@
 import { IsCountryCode } from '../common/is-country-code';
 import {
   IsEmail,
+  IsIn,
   IsOptional,
   IsString,
   MaxLength,
@@ -77,4 +78,19 @@ export class ResetPasswordDto {
   @MinLength(8, { message: 'Password must be at least 8 characters.' })
   @MaxLength(128)
   newPassword!: string;
+}
+
+/**
+ * Request an OTP. This route used to read `@Body('email')` raw, with no
+ * validation at all and a hardcoded fallback address — so it accepted
+ * anything, including junk that could never receive a code.
+ */
+export class SendOtpDto {
+  @IsEmail()
+  @MaxLength(254)
+  email!: string;
+
+  @IsOptional()
+  @IsIn(['signup', 'login', 'forgot_password'])
+  purpose?: 'signup' | 'login' | 'forgot_password';
 }

@@ -5,6 +5,7 @@ import {
   LoginDto,
   RegisterDto,
   ResetPasswordDto,
+  SendOtpDto,
 } from './dto';
 import { JwtAuthGuard } from './jwt.guard';
 import { CurrentUser } from './current-user.decorator';
@@ -22,20 +23,14 @@ function clientIp(req: any): string | undefined {
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  /** GET /api/auth/email-health — test live Spacemail SMTP delivery & diagnostics. */
-  @Get('email-health')
-  emailHealth(@Req() req: any) {
-    const to = req.query?.to || 'beraa634@gmail.com';
-    return this.auth.emailHealth(to);
-  }
+  // The SMTP diagnostic that used to live here sent real mail from the
+  // company address to any recipient a caller named, unauthenticated. It is
+  // now GET /api/admin/email-health, behind the admin token.
 
   /** POST /api/auth/send-otp — request OTP for email verification. */
   @Post('send-otp')
-  sendOtp(
-    @Body('email') email: string,
-    @Body('purpose') purpose?: 'signup' | 'login' | 'forgot_password',
-  ) {
-    return this.auth.sendOtp(email || 'miner@matsumoto.io', purpose || 'signup');
+  sendOtp(@Body() dto: SendOtpDto) {
+    return this.auth.sendOtp(dto.email, dto.purpose ?? 'signup');
   }
 
   /** POST /api/auth/forgot-password — initiate password recovery. */

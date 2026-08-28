@@ -92,17 +92,12 @@ export function CountrySelect({
         <div className="flex items-center gap-2.5 overflow-hidden">
           {selectedCountry ? (
             <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`https://flagcdn.com/w40/${selectedCountry.code.toLowerCase()}.png`}
-                alt={selectedCountry.code}
-                width={22}
-                height={16}
-                className="h-4 w-6 rounded object-cover shadow-sm flex-shrink-0"
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
+              {/* Emoji flag rather than a CDN image: countryOptions already
+                  computes it, and the old <img> made the signup form depend
+                  on a third-party host that fails silently when blocked. */}
+              <span aria-hidden className="flex-shrink-0 text-base leading-none">
+                {selectedCountry.flag}
+              </span>
               <span className="truncate font-medium text-slate-100">
                 {selectedCountry.name}
               </span>
@@ -166,17 +161,9 @@ export function CountrySelect({
                     }`}
                   >
                     <div className="flex items-center gap-2.5 truncate">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={`https://flagcdn.com/w40/${c.code.toLowerCase()}.png`}
-                        alt={c.code}
-                        width={20}
-                        height={14}
-                        className="h-3.5 w-5 rounded object-cover shadow-sm flex-shrink-0"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = 'none';
-                        }}
-                      />
+                      <span aria-hidden className="flex-shrink-0 text-sm leading-none">
+                        {c.flag}
+                      </span>
                       <span className="truncate">{c.name}</span>
                     </div>
                     <span className="font-mono text-[10px] font-bold text-slate-500 ml-2">
