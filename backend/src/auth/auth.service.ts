@@ -40,13 +40,6 @@ export class AuthService {
   }
 
   /**
-   * Diagnostic email health test
-   */
-  async emailHealth(to: string) {
-    return this.emailService.testEmail(to || 'beraa634@gmail.com');
-  }
-
-  /**
    * Request OTP verification code for Signup, 2FA, or Password Reset.
    * Validates user existence / uniqueness BEFORE sending email.
    */
@@ -102,7 +95,7 @@ export class AuthService {
       throw new ForbiddenException('Account is blocked.');
     }
 
-    const isValid = this.emailService.verifyOtp(email, dto.otp);
+    const isValid = await this.emailService.verifyOtp(email, dto.otp);
     if (!isValid) {
       throw new BadRequestException('Invalid or expired verification code. Please request a new OTP.');
     }
@@ -125,7 +118,7 @@ export class AuthService {
     const email = dto.email.trim().toLowerCase();
 
     if (dto.otp) {
-      const isValid = this.emailService.verifyOtp(email, dto.otp);
+      const isValid = await this.emailService.verifyOtp(email, dto.otp);
       if (!isValid) {
         throw new BadRequestException('Invalid or expired email verification code. Please request a new OTP.');
       }
@@ -195,7 +188,7 @@ export class AuthService {
     const email = dto.email.trim().toLowerCase();
 
     if (dto.otp) {
-      const isValid = this.emailService.verifyOtp(email, dto.otp);
+      const isValid = await this.emailService.verifyOtp(email, dto.otp);
       if (!isValid) {
         throw new BadRequestException('Invalid or expired 2FA verification code. Please request a new OTP.');
       }

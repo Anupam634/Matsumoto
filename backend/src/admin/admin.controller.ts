@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -11,6 +12,7 @@ import { AdminService } from './admin.service';
 import { AdminAuthGuard } from './admin.guard';
 import { WithdrawalsService } from '../withdrawals/withdrawals.service';
 import { TasksService } from '../tasks/tasks.service';
+import { EmailService } from '../email/email.service';
 import {
   AdjustRateDto,
   AdminLoginDto,
@@ -44,12 +46,30 @@ export class AdminSecureController {
     private readonly admin: AdminService,
     private readonly withdrawals: WithdrawalsService,
     private readonly tasks: TasksService,
+    private readonly email: EmailService,
   ) {}
 
   /** GET /api/admin/stats — active miners, balances, per-country counts. */
   @Get('stats')
   stats() {
     return this.admin.stats();
+  }
+
+  /**
+   * GET /api/admin/email-health?to= — send one real message to prove SMTP
+   * works from this box.
+   *
+   * Behind the admin guard because it sends mail from the company address
+   * to whatever recipient is named: unauthenticated, that is an open relay
+   * for branded phishing. `to` is required — the old version defaulted to
+   * an address hardcoded in the source.
+   */
+  @Get('email-health')
+  emailHealth(@Query('to') to?: string) {
+    if (!to?.includes('@')) {
+      throw new BadRequestException('A "to" address is required.');
+    }
+    return this.email.testEmail(to);
   }
 
   /** GET /api/admin/tasks — manage Quiz, Lucky Wheel, and Bounty tasks. */

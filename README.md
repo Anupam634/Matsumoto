@@ -87,6 +87,7 @@ below. Create the first operator with `npm run admin:create -- <email> <pass>`.
 | POST | `/admin/users/:id/block` | Block / unblock |
 | POST | `/admin/users/:id/rate` | Manual hash-rate adjustment |
 | POST | `/admin/users/:id/airdrop` | Manual point grant |
+| GET | `/admin/email-health?to=` | Send one real message to verify SMTP from the server |
 | GET | `/admin/kyc` | KYC review queue, filterable by status |
 | GET | `/admin/kyc/:userId` | Applicant detail, including document images |
 | POST | `/admin/kyc/:userId/decision` | Approve or reject an application |

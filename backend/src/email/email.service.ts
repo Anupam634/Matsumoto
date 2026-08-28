@@ -1,21 +1,44 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { randomInt } from 'crypto';
 import * as nodemailer from 'nodemailer';
+import { createOtpStore, OtpPurpose, OtpRecord, OtpStore } from './otp.store';
 
-export interface OtpRecord {
-  code: string;
-  expiresAt: number;
-  purpose: 'signup' | 'forgot_password' | 'login_2fa';
-}
+export type { OtpRecord, OtpPurpose } from './otp.store';
+
+/** A single address may request this many codes per window. */
+export const OTP_SENDS_PER_ADDRESS = 3;
+export const OTP_SEND_WINDOW_MS = 10 * 60 * 1000;
+/** Upper bound on how long a caller waits for SMTP before giving up. */
+const SMTP_DEADLINE_MS = 12_000;
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter | null = null;
   private fallbackTransporter: nodemailer.Transporter | null = null;
-  private readonly otpStore = new Map<string, OtpRecord>();
+  private readonly otpStore: OtpStore;
 
   constructor() {
+    this.otpStore = createOtpStore(this.logger);
     this.initTransporter();
+  }
+
+  /**
+   * Reject an SMTP attempt that outlives the deadline. Both transporters
+   * have their own socket timeouts, but they stack: a primary that hangs
+   * for 20s followed by a fallback that hangs for 20s left the caller
+   * waiting the better part of a minute.
+   */
+  private withDeadline<T>(work: Promise<T>, label: string): Promise<T> {
+    return Promise.race([
+      work,
+      new Promise<never>((_resolve, reject) =>
+        setTimeout(
+          () => reject(new Error(`${label} timed out after ${SMTP_DEADLINE_MS}ms`)),
+          SMTP_DEADLINE_MS,
+        ).unref(),
+      ),
+    ]);
   }
 
   private sanitizeEmail(rawEmail: string): string {
@@ -112,15 +135,22 @@ export class EmailService {
   }
 
   /**
-   * Generate a cryptographically random 6-digit OTP code and store with 10-minute TTL.
+   * Generate a 6-digit code and store it with a 10-minute TTL.
+   *
+   * `randomInt` rather than `Math.random`: this is the only thing standing
+   * between an attacker and someone else's account during a password
+   * reset, and Math.random is predictable from a handful of outputs.
+   *
+   * The code itself is never logged. It used to be, which put a working
+   * credential into every log sink the box ships to.
    */
-  generateOtp(rawEmail: string, purpose: 'signup' | 'forgot_password' | 'login_2fa'): string {
+  async generateOtp(rawEmail: string, purpose: OtpPurpose): Promise<string> {
     const cleanEmail = this.sanitizeEmail(rawEmail);
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = randomInt(100000, 1000000).toString();
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    this.otpStore.set(cleanEmail, { code, expiresAt, purpose });
-    this.logger.log(`[OTP GENERATED] Email: ${cleanEmail} | Code: ${code} | Purpose: ${purpose} | Expires: 10m`);
+    await this.otpStore.put(cleanEmail, { code, expiresAt, purpose });
+    this.logger.log(`[OTP GENERATED] ${cleanEmail} | purpose=${purpose} | ttl=10m`);
 
     return code;
   }
@@ -128,42 +158,60 @@ export class EmailService {
   /**
    * Verify whether the provided OTP code matches the stored unexpired code for this email.
    */
-  verifyOtp(rawEmail: string, code: string): boolean {
+  async verifyOtp(rawEmail: string, code: string): Promise<boolean> {
     const cleanEmail = this.sanitizeEmail(rawEmail);
     const cleanCode = code.trim();
-    const record = this.otpStore.get(cleanEmail);
+    const record = await this.otpStore.take(cleanEmail);
 
     if (!record) {
-      this.logger.warn(`[OTP VERIFY FAILED] No active OTP found for ${cleanEmail}`);
+      this.logger.warn(`[OTP VERIFY FAILED] no active code for ${cleanEmail}`);
       return false;
     }
 
     if (Date.now() > record.expiresAt) {
-      this.logger.warn(`[OTP VERIFY FAILED] OTP expired for ${cleanEmail}`);
-      this.otpStore.delete(cleanEmail);
+      this.logger.warn(`[OTP VERIFY FAILED] expired for ${cleanEmail}`);
+      await this.otpStore.drop(cleanEmail);
       return false;
     }
 
+    // Neither the expected nor the supplied code is logged: a rejected
+    // attempt is still someone's live credential.
     if (record.code !== cleanCode) {
-      this.logger.warn(`[OTP VERIFY FAILED] Code mismatch for ${cleanEmail}. Expected: ${record.code}, Received: ${cleanCode}`);
+      this.logger.warn(`[OTP VERIFY FAILED] code mismatch for ${cleanEmail}`);
       return false;
     }
 
-    this.otpStore.delete(cleanEmail);
-    this.logger.log(`[OTP VERIFY SUCCESS] Successfully verified OTP for ${cleanEmail}`);
+    await this.otpStore.drop(cleanEmail);
+    this.logger.log(`[OTP VERIFY SUCCESS] ${cleanEmail}`);
     return true;
   }
 
   /**
    * Send branded verification email via Spacemail / SMTP.
    */
-  async sendOtpEmail(rawEmail: string, purpose: 'signup' | 'forgot_password' | 'login_2fa'): Promise<{ success: boolean; message: string }> {
+  async sendOtpEmail(rawEmail: string, purpose: OtpPurpose): Promise<{ success: boolean; message: string }> {
     if (!this.transporter) {
       this.initTransporter();
     }
 
     const cleanEmail = this.sanitizeEmail(rawEmail);
-    const code = this.generateOtp(cleanEmail, purpose);
+
+    // Per-address ceiling. The signup form is unauthenticated, so without
+    // this anyone can point it at a stranger's inbox and flood it.
+    const allowed = await this.otpStore.allowSend(
+      cleanEmail,
+      OTP_SENDS_PER_ADDRESS,
+      OTP_SEND_WINDOW_MS,
+    );
+    if (!allowed) {
+      this.logger.warn(`[OTP THROTTLED] ${cleanEmail}`);
+      throw new HttpException(
+        `Too many verification codes requested for that address. Try again in ${Math.round(OTP_SEND_WINDOW_MS / 60000)} minutes.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    const code = await this.generateOtp(cleanEmail, purpose);
     const senderEmail = (process.env.SMTP_USER || 'hello@bondkoinlabs.com').trim().toLowerCase();
 
     let subject = 'BONDKOIN Verification Code';
@@ -233,13 +281,13 @@ export class EmailService {
     // 1. Spacemail / Primary SMTP Transporter
     if (this.transporter) {
       try {
-        const info = await this.transporter.sendMail({
+        const info = await this.withDeadline(this.transporter.sendMail({
           from: `"BONDKOIN Labs" <${senderEmail}>`,
           to: cleanEmail,
           subject,
           html,
           text: `Your BONDKOIN verification code is: ${code}. It expires in 10 minutes. Do not share this code with anyone.`,
-        });
+        }), 'Primary SMTP');
         this.logger.log(`[EmailService] ✓ Spacemail verification email delivered to ${cleanEmail} (ID: ${info.messageId}, Response: ${info.response})`);
         return {
           success: true,
@@ -253,13 +301,13 @@ export class EmailService {
         // Try Fallback Transporter (Port 587 STARTTLS)
         if (this.fallbackTransporter) {
           try {
-            const info = await this.fallbackTransporter.sendMail({
+            const info = await this.withDeadline(this.fallbackTransporter.sendMail({
               from: `"BONDKOIN Labs" <${senderEmail}>`,
               to: cleanEmail,
               subject,
               html,
               text: `Your BONDKOIN verification code is: ${code}. It expires in 10 minutes. Do not share this code with anyone.`,
-            });
+            }), 'Fallback SMTP');
             this.logger.log(`[EmailService] ✓ Spacemail Fallback (Port 587) email delivered to ${cleanEmail} (ID: ${info.messageId}, Response: ${info.response})`);
             return {
               success: true,
@@ -274,10 +322,15 @@ export class EmailService {
       this.logger.error(`[EmailService] Cannot send email: No SMTP transporter initialized. Check SMTP_USER & SMTP_PASS in .env.`);
     }
 
-    return {
-      success: true,
-      message: `Verification code sent to ${cleanEmail}. Please check your inbox and spam folder.`,
-    };
+    // Reaching here means every transport failed, or none was configured.
+    // Reporting success anyway told the user to go and check an inbox that
+    // was never going to receive anything, with no error shown anywhere.
+    // Drop the code so a retry issues a fresh one.
+    await this.otpStore.drop(cleanEmail);
+    throw new HttpException(
+      'We could not send your verification code right now. Please try again in a moment.',
+      HttpStatus.BAD_GATEWAY,
+    );
   }
 
   /**
@@ -292,11 +345,12 @@ export class EmailService {
       return {
         success: false,
         error: 'No SMTP transporter configured. Check environment variables.',
+        // Booleans only. Echoing the configured mailbox back over HTTP
+        // hands out half of the SMTP credential pair.
         envState: {
           hasHost: !!process.env.SMTP_HOST,
           hasUser: !!process.env.SMTP_USER,
           hasPass: !!process.env.SMTP_PASS,
-          user: process.env.SMTP_USER,
         },
       };
     }
