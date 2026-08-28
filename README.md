@@ -42,6 +42,7 @@ npm run dev                 # http://localhost:3000
 | `mining/` | Reward accrual engine — base rate × boosters × referral multiplier | ✅ |
 | `boosters/` | Paid booster plans ($1/$5/$10/$50, 30d, stackable) | ✅ — bought with on-chain crypto, verified automatically, no admin step |
 | `referrals/` | Invite tree + multiplier tiers | ✅ — no separate module; capture lives in `auth/`, the multiplier in `mining/`, the tree in `admin/` |
+| `leaderboard/` | Global miner rankings — total mined, points held, miners invited | ✅ — masked identities, blocked accounts excluded |
 | `tasks/` | Tweet/follow/repost/YouTube/quiz/spin-wheel rewards (honour-system claims) | ✅ |
 | `withdrawals/` | Points → $Matsumoto (3:1), min 100, 1/week, admin-approved | ✅ |
 | `wallet/` | **Swappable** chain layer (offchain ↔ testnet ↔ mainnet) | ✅ — `offchain` until the token contract details arrive |
@@ -65,6 +66,7 @@ All routes are under `/api`. Everything except register/login needs
 | GET | `/withdrawals` | Caller's own request history |
 | GET | `/tasks` | Active tasks with the caller's cooldown state |
 | POST | `/tasks/:id/claim` | Credit a task reward (per-task cooldown) |
+| GET | `/leaderboard` | `?category=EARNINGS\|BALANCE\|REFERRALS&period=ALL_TIME\|MONTH\|WEEK&limit=` — ranked miners plus the caller's own standing |
 | GET | `/kyc` | Caller's own verification status |
 | POST | `/kyc` | Submit identity documents for manual review |
 | GET | `/boosters` | Plan catalogue, your active boosters, recent purchases |

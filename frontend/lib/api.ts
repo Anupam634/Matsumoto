@@ -207,6 +207,62 @@ export interface ReferralStatsResponse {
 export const getReferralStats = () =>
   apiFetch<ReferralStatsResponse>('/referrals/stats');
 
+// ───────────────────────── Leaderboard ─────────────────────────
+
+export type LeaderboardCategory = 'EARNINGS' | 'BALANCE' | 'REFERRALS';
+export type LeaderboardPeriod = 'ALL_TIME' | 'MONTH' | 'WEEK';
+
+export interface RankBadge {
+  label: string;
+  /** Podium medal, or an empty string outside the top 3. */
+  medal: string;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  id: string;
+  /** Privacy-masked — the API never returns another miner's full email. */
+  displayName: string;
+  countryCode: string;
+  value: number;
+  badge: RankBadge;
+  isCurrentUser: boolean;
+  isMiningActive: boolean;
+  joinedAt: string | null;
+}
+
+export interface LeaderboardResponse {
+  category: LeaderboardCategory;
+  /** The period actually used — BALANCE always reports ALL_TIME. */
+  period: LeaderboardPeriod;
+  periodSupported: boolean;
+  unit: 'points' | 'miners';
+  totalRanked: number;
+  generatedAt: string;
+  entries: LeaderboardEntry[];
+  me: {
+    /** Null until the miner has a non-zero score in this category. */
+    rank: number | null;
+    value: number;
+    percentile: number | null;
+    badge: RankBadge;
+    inTopList: boolean;
+  };
+}
+
+export const getLeaderboard = (params: {
+  category?: LeaderboardCategory;
+  period?: LeaderboardPeriod;
+  limit?: number;
+} = {}) => {
+  const query = new URLSearchParams();
+  if (params.category) query.set('category', params.category);
+  if (params.period) query.set('period', params.period);
+  if (params.limit) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  return apiFetch<LeaderboardResponse>(`/leaderboard${qs ? `?${qs}` : ''}`);
+};
+
 // ────────────────────────── Mining ──────────────────────────
 
 export interface MiningStatus {
