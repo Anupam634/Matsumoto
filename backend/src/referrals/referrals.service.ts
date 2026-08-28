@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { REFERRAL_TIERS, referralTierFor } from '../mining/mining.engine';
+import { maskIdentity } from '../common/mask-identity';
 
 @Injectable()
 export class ReferralsService {
@@ -59,16 +60,8 @@ export class ReferralsService {
       invitesNeededForNext = Math.max(0, nextTier.minInvites - totalInvited);
     }
 
-    // Mask user emails for privacy (e.g. be***@gmail.com)
     const referralsList = user.referrals.map((r) => {
-      let maskedEmail = 'Miner ' + r.id.slice(-4);
-      if (r.email) {
-        const [local, domain] = r.email.split('@');
-        maskedEmail =
-          local.length <= 2
-            ? local[0] + '***@' + (domain || 'matsumoto.io')
-            : local.slice(0, 2) + '***@' + (domain || 'matsumoto.io');
-      }
+      const maskedEmail = maskIdentity({ id: r.id, email: r.email });
       const isMiningActive = !!(
         r.lastMineAt &&
         now.getTime() - new Date(r.lastMineAt).getTime() <= activeWindow

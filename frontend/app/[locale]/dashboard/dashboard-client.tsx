@@ -205,6 +205,8 @@ export default function DashboardClient() {
           />
         </div>
 
+        <LeaderboardBanner locale={locale} />
+
         {/* Booster plans rail */}
         {plans.length > 0 && (
           <section className="panel mt-4 p-5">
@@ -317,6 +319,12 @@ function TopBar({ locale, onSignOut }: { locale: string; onSignOut: () => void }
             <span className="flex items-center gap-1">
               <span>👥</span>
               <span>Referrals</span>
+            </span>
+          </NavLink>
+          <NavLink href={`/${locale}/leaderboard`}>
+            <span className="flex items-center gap-1">
+              <span>🏆</span>
+              <span>Leaderboard</span>
             </span>
           </NavLink>
           <NavLink href={`/${locale}/marketplace`}>
@@ -948,6 +956,31 @@ function ReferralPanel({
         </Link>
       </div>
     </section>
+  );
+}
+
+function LeaderboardBanner({ locale }: { locale: string }) {
+  const t = useTranslations('leaderboard');
+  return (
+    <Link
+      href={`/${locale}/leaderboard`}
+      className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/10 via-slate-900/60 to-slate-900/60 p-4 transition-all hover:border-emerald-400/40 hover:from-emerald-500/15"
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-xl">
+          🏆
+        </span>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-black text-white">
+            {t('title')}
+          </div>
+          <div className="truncate text-xs text-slate-400">
+            {t('yourRank')} · {t('catEarnings')}
+          </div>
+        </div>
+      </div>
+      <span className="shrink-0 text-xs font-bold text-emerald-300">→</span>
+    </Link>
   );
 }
 

@@ -14,6 +14,7 @@ import { SupportModule } from './support/support.module';
 import { HealthModule } from './health/health.module';
 import { EmailModule } from './email/email.module';
 import { ReferralsModule } from './referrals/referrals.module';
+import { LeaderboardModule } from './leaderboard/leaderboard.module';
 
 /**
  * Root module.
@@ -34,6 +35,7 @@ import { ReferralsModule } from './referrals/referrals.module';
     HealthModule,
     BoostersModule,
     ReferralsModule,
+    LeaderboardModule,
   ],
   providers: [PrismaService],
 })
