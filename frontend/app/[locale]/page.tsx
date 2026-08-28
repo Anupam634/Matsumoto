@@ -50,37 +50,51 @@ function Landing({ locale }: { locale: string }) {
             </div>
           </Link>
 
-          {/* Nav Links */}
-          <nav className="hidden lg:flex items-center gap-6 text-xs font-bold uppercase tracking-wider text-slate-300">
-            <a href="#how" className="transition-colors hover:text-blue-400">
+          {/* Nav links.
+              The row is one non-wrapping line shared with the brand and the
+              Start CTA, and the full nine links only fit from 2xl — below
+              that they pushed the CTA off the right edge. The links
+              dropped below 2xl are in-page anchors, still reachable by
+              scrolling; Marketplace (a real route) always stays. */}
+          <nav className="hidden min-w-0 lg:flex items-center gap-4 xl:gap-5 2xl:gap-6 whitespace-nowrap text-[11px] xl:text-xs font-bold uppercase tracking-wider text-slate-300">
+            <a href="#how" className="shrink-0 transition-colors hover:text-blue-400">
               {t('nav.features')}
             </a>
-            <a href="#architecture" className="transition-colors hover:text-blue-400">
+            <a
+              href="#architecture"
+              className="hidden shrink-0 transition-colors hover:text-blue-400 2xl:inline"
+            >
               Architecture
             </a>
-            <a href="#boosters" className="transition-colors hover:text-blue-400">
+            <a href="#boosters" className="shrink-0 transition-colors hover:text-blue-400">
               {t('nav.boosters')}
             </a>
             <Link
               href={`/${locale}/marketplace`}
-              className="text-cyan-300 transition-colors hover:text-blue-400 font-extrabold flex items-center gap-1"
+              className="flex shrink-0 items-center gap-1 font-extrabold text-cyan-300 transition-colors hover:text-blue-400"
             >
               <span>🛒</span>
               <span>Marketplace</span>
             </Link>
-            <a href="#calculator" className="transition-colors hover:text-blue-400">
+            <a href="#calculator" className="shrink-0 transition-colors hover:text-blue-400">
               {t('nav.calculator')}
             </a>
-            <a href="#referrals" className="transition-colors hover:text-blue-400">
+            <a href="#referrals" className="shrink-0 transition-colors hover:text-blue-400">
               {t('nav.referrals')}
             </a>
-            <a href="#tasks" className="transition-colors hover:text-blue-400">
+            <a
+              href="#tasks"
+              className="hidden shrink-0 transition-colors hover:text-blue-400 2xl:inline"
+            >
               {t('nav.tasks')}
             </a>
-            <a href="#rules" className="transition-colors hover:text-blue-400">
+            <a
+              href="#rules"
+              className="hidden shrink-0 transition-colors hover:text-blue-400 2xl:inline"
+            >
               {t('nav.rules')}
             </a>
-            <a href="#faq" className="transition-colors hover:text-blue-400">
+            <a href="#faq" className="shrink-0 transition-colors hover:text-blue-400">
               {t('nav.faq')}
             </a>
           </nav>
