@@ -146,9 +146,10 @@ run by hand, and nothing breaks if a start command is later edited.
    forgotten password, change it and redeploy. Sign in at
    `https://your-frontend/en/admin`.
 
-   Redis is not required. `REDIS_URL` appears in `.env.example` and `ioredis`
-   is installed, but nothing in `src/` imports it yet, so there is no Redis
-   instance to provision.
+   Redis is optional but no longer unused: pending verification codes live in
+   it when `REDIS_URL` is set, and in the API process when it is not. Provision
+   one or leave the variable unset — do not point it at a Redis that isn't
+   there (see [Verification codes](#verification-codes-are-in-memory-unless-redis-is-configured)).
 
 4. Deploy. Render gives you a URL like `https://matsumoto-api.onrender.com`.
    Check it came up, and that the database is reachable from it:
@@ -237,6 +238,12 @@ directly.
 `REDIS_URL` unset means pending OTPs live in the API process and are lost on
 every restart or deploy — a user mid-signup has to request a new code. Set
 `REDIS_URL` and they survive restarts and a second instance.
+
+A `REDIS_URL` that points at nothing is worse than none at all if you leave
+it in `.env` and never provision the server: the API logs
+`OTP store … failed` and quietly serves codes from memory. Either run a
+Redis at that address or take the line out — copying `.env.example` verbatim
+sets `redis://localhost:6379`, which is a real Redis on nobody's box.
 
 ## Turning on booster payments
 
