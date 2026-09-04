@@ -8,14 +8,38 @@ export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
 }
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bondkoinlabs.com';
+const TITLE = 'BONDKOIN Labs | Next-Gen Node Mining on BNB Chain';
+const DESCRIPTION =
+  'Register free in seconds. No battery drain. Accumulate digital assets daily. Convert points directly to on-chain $BONDKOIN BEP-20 tokens on BNB Chain.';
+
+// Open Graph + Twitter card: when a miner tweets their invite link (the
+// "Post on X" bounty), X unfurls this image and title under the post.
 export const metadata = {
-  title: 'BONDKOIN Labs | Next-Gen Node Mining on BNB Chain',
-  description: 'Register free in seconds. No battery drain. Accumulate digital assets daily. Convert points directly to on-chain $BONDKOIN BEP-20 tokens on BNB Chain.',
+  metadataBase: new URL(SITE_URL),
+  title: TITLE,
+  description: DESCRIPTION,
   manifest: '/manifest.webmanifest',
   icons: {
     icon: '/favicon.png',
     shortcut: '/favicon.png',
     apple: '/apple-icon.png',
+  },
+  openGraph: {
+    type: 'website',
+    siteName: 'BONDKOIN Labs',
+    title: TITLE,
+    description: DESCRIPTION,
+    url: SITE_URL,
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'BONDKOIN — node mining on BNB Chain' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    site: '@BondKoin',
+    creator: '@BondKoin',
+    title: TITLE,
+    description: DESCRIPTION,
+    images: ['/og-image.png'],
   },
 };
 

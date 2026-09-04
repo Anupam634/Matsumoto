@@ -77,6 +77,9 @@ export class MiningService {
    * having earned.
    */
   async history(userId: string, take = 12) {
+    // The controller already bounds `take`; this keeps any other caller from
+    // pulling the whole ledger by accident.
+    take = Math.min(200, Math.max(1, Math.trunc(take) || 12));
     const [credited, entries] = await Promise.all([
       this.prisma.ledgerEntry.aggregate({
         where: { userId, deltaMilli: { gt: 0 } },

@@ -168,7 +168,7 @@ export default function ReferralsClient({ locale }: { locale: string }) {
                   </a>
 
                   <a
-                    href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Join my $BONDKOIN mining node network on BNB Chain and earn crypto daily!')}`}
+                    href={`https://x.com/intent/post?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent("I'm mining $BONDKOIN every day on BNB Chain with @BondKoin ⛏️ Free to join, no hardware, on-chain payouts. Start with my link 👇")}&hashtags=BONDKOIN,BNBChain,Crypto,Mining`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2.5 text-xs font-bold text-white hover:bg-slate-700 transition-all"

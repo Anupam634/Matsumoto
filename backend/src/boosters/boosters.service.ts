@@ -59,6 +59,12 @@ export class BoostersService {
         payToAddress: this.chain.config.enabled
           ? this.chain.config.payToAddress
           : null,
+        // BEP-20 contract the payment must be made in (null for native BNB),
+        // so clients can build a token-transfer wallet link rather than a
+        // native-coin one.
+        tokenAddress: this.chain.config.enabled
+          ? (this.chain.config.tokenAddress ?? null)
+          : null,
         minConfirmations: this.policy.minConfirmations,
       },
       plans: plans.map((p) => ({
@@ -85,6 +91,7 @@ export class BoostersService {
     id: string;
     status: string;
     tokenSymbol: string;
+    expectedUnits: string;
     expectedAmount: string;
     payToAddress: string;
     fromAddress: string;
@@ -98,6 +105,8 @@ export class BoostersService {
       status: p.status,
       tokenSymbol: p.tokenSymbol,
       amount: p.expectedAmount,
+      /** Same amount in the token's smallest unit — what a wallet URI needs. */
+      expectedUnits: p.expectedUnits,
       payToAddress: p.payToAddress,
       fromAddress: p.fromAddress,
       txHash: p.txHash,

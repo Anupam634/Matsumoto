@@ -5,23 +5,23 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#05070f",
-  "theme_color": "#05070f",
+  "background_color": "#030714",
+  "theme_color": "#030714",
   "icons": [
     {
       "src": "/bondkoin-logo.png",
-      "sizes": "256x256",
+      "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/bondkoin-logo.png",
+      "src": "/icon-maskable-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/bondkoin-logo.png",
+      "src": "/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

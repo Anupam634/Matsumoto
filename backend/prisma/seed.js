@@ -26,7 +26,7 @@ const BOOSTER_PLANS = [
 ];
 
 const TASKS = [
-  { type: 'TWEET', title: 'Tweet about Matsumoto', rewardMilli: 5000 },
+  { type: 'TWEET', title: 'Tweet about BONDKOIN', rewardMilli: 5000 },
   { type: 'FOLLOW', title: 'Follow us on X', rewardMilli: 3000 },
   { type: 'REPOST', title: 'Repost our pinned post', rewardMilli: 3000 },
   { type: 'YOUTUBE', title: 'Watch our YouTube video', rewardMilli: 4000 },

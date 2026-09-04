@@ -92,6 +92,54 @@ const DEFAULT_QUIZ_QUESTIONS: QuizQuestionDto[] = [
   },
 ];
 
+/* ─────────────────────── Social task defaults ─────────────────────── */
+
+/** Public site, used to build the invite link inside the tweet. */
+const WEB_URL = (process.env.WEB_URL || 'https://bondkoinlabs.com').replace(/\/$/, '');
+/** Official X handle, without the @. */
+const X_HANDLE = process.env.X_HANDLE || 'BondKoin';
+/** The pinned post to repost. Falls back to the profile, where it sits on top. */
+const X_PINNED_POST_URL = process.env.X_PINNED_POST_URL || `https://x.com/${X_HANDLE}`;
+
+/**
+ * Where a social task sends the miner when no admin-configured URL exists.
+ *
+ * The tweet is a real X compose intent: the miner's own referral link goes in
+ * as `url`, so X unfurls the site's Open Graph card (image + title) under the
+ * text, and the post carries the @handle and hashtags.
+ */
+function defaultActionUrl(type: string, referralCode: string): string | null {
+  switch (type) {
+    case 'TWEET': {
+      const text =
+        `I'm mining $BONDKOIN every day on BNB Chain with @${X_HANDLE} ⛏️ ` +
+        'Free to join, no hardware, on-chain payouts. Start with my link 👇';
+      const params = new URLSearchParams({
+        text,
+        url: `${WEB_URL}/en/login?ref=${referralCode}`,
+        hashtags: 'BONDKOIN,BNBChain,Crypto,Mining',
+      });
+      return `https://x.com/intent/post?${params.toString()}`;
+    }
+    case 'FOLLOW':
+      return `https://x.com/intent/follow?screen_name=${X_HANDLE}`;
+    case 'REPOST': {
+      // A status URL becomes a one-tap repost intent; anything else opens as-is.
+      const match = /status\/(\d+)/.exec(X_PINNED_POST_URL);
+      return match
+        ? `https://x.com/intent/retweet?tweet_id=${match[1]}`
+        : X_PINNED_POST_URL;
+    }
+    default:
+      return null;
+  }
+}
+
+/** Rows seeded under the project's old working name keep their id; fix the label. */
+function brandTitle(title: string): string {
+  return title.replace(/Matsumoto/gi, 'BONDKOIN');
+}
+
 // Persistent runtime config store for extended dynamic task metadata
 const taskConfigMap = new Map<string, {
   quizQuestions?: QuizQuestionDto[] | null;
@@ -105,10 +153,17 @@ export class TasksService {
 
   /** Active tasks with this user's claim state folded in. */
   async list(userId: string): Promise<TaskDto[]> {
-    const tasks = await this.prisma.task.findMany({
-      where: { active: true },
-      orderBy: { rewardMilli: 'desc' },
-    });
+    const [tasks, user] = await Promise.all([
+      this.prisma.task.findMany({
+        where: { active: true },
+        orderBy: { rewardMilli: 'desc' },
+      }),
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { referralCode: true },
+      }),
+    ]);
+    const referralCode = user?.referralCode ?? '';
 
     const claims = await this.prisma.taskClaim.findMany({
       where: { userId, taskId: { in: tasks.map((t) => t.id) } },
@@ -142,11 +197,12 @@ export class TasksService {
       if (t.type === 'YOUTUBE' && !actionUrl) {
         actionUrl = 'https://www.youtube.com/watch?v=kJQP7kiw5Fk';
       }
+      if (!actionUrl) actionUrl = defaultActionUrl(t.type, referralCode);
 
       return {
         id: t.id,
         type: t.type,
-        title: t.title,
+        title: brandTitle(t.title),
         rewardPoints: t.rewardMilli / 1000,
         wheelSegments,
         quizQuestions,
