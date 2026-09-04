@@ -8,6 +8,7 @@ import {
   ActiveBooster,
   CLAIM_WINDOW_HOURS,
 } from './mining.engine';
+import { lockUserRow } from '../common/row-lock';
 
 /**
  * Orchestrates the mining flow: reads a user's boosters + referral count,
@@ -103,39 +104,60 @@ export class MiningService {
     };
   }
 
-  /** Settle a "Mine" tap: credit accrued points, reset the 24h cooldown. */
+  /**
+   * Settle a "Mine" tap: credit accrued points, reset the 24h cooldown.
+   *
+   * The cooldown is re-read under a lock on the user's row and the credit is
+   * written in the same transaction. Checking `canClaim` first and crediting
+   * afterwards meant a handful of taps fired together all read the same
+   * `lastMineAt`, all passed, and all credited — a full day's mining paid out
+   * as many times as the client could get requests in flight.
+   */
   async claim(userId: string) {
-    const { boosters, inviteCount, lastMineAt, rateAdjustMilli } =
-      await this.loadInputs(userId);
-
-    if (!canClaim({ lastMineAt })) {
-      throw new BadRequestException('Mining cooldown is still active (24h).');
-    }
-    const rateMilli = effectiveRateMilli({
-      boosters,
-      inviteCount,
-      rateAdjustMilli,
-    });
-    const earnedMilli = accrueMilli({ rateMilli, lastMineAt });
     const now = new Date();
 
-    await this.prisma.$transaction([
-      this.prisma.user.update({
+    const earnedMilli = await this.prisma.$transaction(async (tx) => {
+      await lockUserRow(tx, userId);
+
+      const user = await tx.user.findUniqueOrThrow({
+        where: { id: userId },
+        include: {
+          boosters: { include: { plan: true } },
+          _count: { select: { referrals: true } },
+        },
+      });
+
+      if (!canClaim({ lastMineAt: user.lastMineAt })) {
+        throw new BadRequestException('Mining cooldown is still active (24h).');
+      }
+
+      const rateMilli = effectiveRateMilli({
+        boosters: user.boosters.map((b) => ({
+          rateBonusMilli: b.plan.rateBonusMilli,
+          expiresAt: b.expiresAt,
+        })),
+        inviteCount: user._count.referrals,
+        rateAdjustMilli: user.rateAdjustMilli,
+      });
+      const earned = accrueMilli({ rateMilli, lastMineAt: user.lastMineAt });
+
+      await tx.user.update({
         where: { id: userId },
         data: {
-          pointsBalance: { increment: BigInt(earnedMilli) },
+          pointsBalance: { increment: BigInt(earned) },
           lastMineAt: now,
         },
-      }),
-      this.prisma.ledgerEntry.create({
+      });
+      await tx.ledgerEntry.create({
         data: {
           userId,
           reason: 'MINING',
-          deltaMilli: BigInt(earnedMilli),
-          meta: { rateMilli, inviteCount },
+          deltaMilli: BigInt(earned),
+          meta: { rateMilli, inviteCount: user._count.referrals },
         },
-      }),
-    ]);
+      });
+      return earned;
+    });
 
     return {
       earnedPoints: earnedMilli / 1000,

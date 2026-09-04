@@ -95,7 +95,11 @@ export class AuthService {
       throw new ForbiddenException('Account is blocked.');
     }
 
-    const isValid = await this.emailService.verifyOtp(email, dto.otp);
+    const isValid = await this.emailService.verifyOtp(
+      email,
+      dto.otp,
+      'forgot_password',
+    );
     if (!isValid) {
       throw new BadRequestException('Invalid or expired verification code. Please request a new OTP.');
     }
@@ -117,11 +121,14 @@ export class AuthService {
   async register(dto: RegisterDto, signals: SignupSignals) {
     const email = dto.email.trim().toLowerCase();
 
-    if (dto.otp) {
-      const isValid = await this.emailService.verifyOtp(email, dto.otp);
-      if (!isValid) {
-        throw new BadRequestException('Invalid or expired email verification code. Please request a new OTP.');
-      }
+    // Unconditional. This used to be `if (dto.otp)`, so a client that simply
+    // omitted the field skipped verification entirely — the whole OTP step
+    // was opt-in from the caller's side, and an account could be opened on
+    // an address its owner had never seen. Both the web and mobile sign-up
+    // flows already send the code they collected.
+    const isValid = await this.emailService.verifyOtp(email, dto.otp, 'signup');
+    if (!isValid) {
+      throw new BadRequestException('Invalid or expired email verification code. Please request a new OTP.');
     }
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
@@ -187,8 +194,18 @@ export class AuthService {
   async login(dto: LoginDto, signals: SignupSignals) {
     const email = dto.email.trim().toLowerCase();
 
+    // Login 2FA is a step the caller opts into: neither the web nor the
+    // mobile sign-in screen requests a code today, so requiring one here
+    // would lock out every existing account. When a code *is* presented it
+    // has to be a real `login_2fa` code — but treat the plain
+    // email + password path as the actual security boundary until a second
+    // factor is enrolled per user rather than per request.
     if (dto.otp) {
-      const isValid = await this.emailService.verifyOtp(email, dto.otp);
+      const isValid = await this.emailService.verifyOtp(
+        email,
+        dto.otp,
+        'login_2fa',
+      );
       if (!isValid) {
         throw new BadRequestException('Invalid or expired 2FA verification code. Please request a new OTP.');
       }

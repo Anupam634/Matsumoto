@@ -4,6 +4,7 @@ import {
   IsIn,
   IsOptional,
   IsString,
+  Length,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -31,10 +32,16 @@ export class RegisterDto {
   @IsCountryCode()
   countryCode!: string;
 
-  /** OTP verification code (dummy: 12345). */
-  @IsOptional()
+  /**
+   * The 6-digit code mailed by `POST /auth/send-otp` with purpose `signup`.
+   *
+   * Required, and required at the DTO level rather than only in the service:
+   * when this was optional a caller could open an account on any address by
+   * leaving the field out.
+   */
   @IsString()
-  otp?: string;
+  @Length(6, 6, { message: 'Enter the 6-digit code sent to your email.' })
+  otp!: string;
 
   /** Client-side device fingerprint, used by the anti-abuse guard (SPEC §7). */
   @IsOptional()
@@ -51,9 +58,14 @@ export class LoginDto {
   @MaxLength(128)
   password!: string;
 
-  /** OTP verification code (dummy: 12345). */
+  /**
+   * Optional second factor. Unlike signup, no client requests a login code
+   * today, so this stays optional — but when it is sent it must be a valid
+   * `login_2fa` code (see AuthService.login).
+   */
   @IsOptional()
   @IsString()
+  @Length(6, 6)
   otp?: string;
 
   @IsOptional()
@@ -72,6 +84,7 @@ export class ResetPasswordDto {
   email!: string;
 
   @IsString()
+  @Length(6, 6, { message: 'Enter the 6-digit code sent to your email.' })
   otp!: string;
 
   @IsString()

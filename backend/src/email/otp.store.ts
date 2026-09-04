@@ -28,14 +28,27 @@ export interface OtpStore {
    * attacker mail-bombing someone else's inbox through the signup form.
    */
   allowSend(email: string, max: number, windowMs: number): Promise<boolean>;
+  /**
+   * Count one wrong guess against `email` and return the running total.
+   *
+   * Atomic on purpose: a plain read-modify-write lets an attacker fire a
+   * thousand guesses in parallel, every one of them reading a count of zero,
+   * which is exactly the case the cap exists to stop. A six-digit code with
+   * no cap is a few hours of scripted requests away from a password reset.
+   */
+  failAttempt(email: string, windowMs: number): Promise<number>;
+  /** Forget the wrong guesses — called when a fresh code is issued. */
+  clearAttempts(email: string): Promise<void>;
 }
 
 const key = (email: string) => `otp:${email}`;
 const sendKey = (email: string) => `otp:sends:${email}`;
+const failKey = (email: string) => `otp:fails:${email}`;
 
 export class MemoryOtpStore implements OtpStore {
   private readonly codes = new Map<string, OtpRecord>();
   private readonly sends = new Map<string, number[]>();
+  private readonly fails = new Map<string, { count: number; until: number }>();
 
   async put(email: string, record: OtpRecord) {
     this.codes.set(email, record);
@@ -66,6 +79,18 @@ export class MemoryOtpStore implements OtpStore {
     recent.push(now);
     this.sends.set(email, recent);
     return true;
+  }
+
+  async failAttempt(email: string, windowMs: number) {
+    const now = Date.now();
+    const current = this.fails.get(email);
+    const count = current && current.until > now ? current.count + 1 : 1;
+    this.fails.set(email, { count, until: now + windowMs });
+    return count;
+  }
+
+  async clearAttempts(email: string) {
+    this.fails.delete(email);
   }
 }
 
@@ -100,6 +125,18 @@ export class RedisOtpStore implements OtpStore {
       await this.redis.pexpire(sendKey(email), windowMs);
     }
     return count <= max;
+  }
+
+  async failAttempt(email: string, windowMs: number) {
+    const count = await this.redis.incr(failKey(email));
+    if (count === 1) {
+      await this.redis.pexpire(failKey(email), windowMs);
+    }
+    return count;
+  }
+
+  async clearAttempts(email: string) {
+    await this.redis.del(failKey(email));
   }
 }
 
@@ -189,6 +226,22 @@ export class FailSoftOtpStore implements OtpStore {
       'allowSend',
       (s) => s.allowSend(email, max, windowMs),
       (s) => s.allowSend(email, max, windowMs),
+    );
+  }
+
+  failAttempt(email: string, windowMs: number) {
+    return this.run(
+      'failAttempt',
+      (s) => s.failAttempt(email, windowMs),
+      (s) => s.failAttempt(email, windowMs),
+    );
+  }
+
+  clearAttempts(email: string) {
+    return this.run(
+      'clearAttempts',
+      (s) => s.clearAttempts(email),
+      (s) => s.clearAttempts(email),
     );
   }
 }

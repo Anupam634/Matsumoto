@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { JwtAuthGuard } from './jwt.guard';
 import { PrismaService } from '../prisma.service';
 import { AntiabuseModule } from '../antiabuse/antiabuse.module';
+import { requireJwtSecret } from '../common/jwt-secret';
 
 /**
  * Exports JwtModule + JwtAuthGuard so any feature module can guard its routes
@@ -18,9 +19,7 @@ import { AntiabuseModule } from '../antiabuse/antiabuse.module';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret:
-          config.get<string>('JWT_SECRET') ??
-          'bondkoin_super_secret_jwt_key_production_fallback_key_2026',
+        secret: requireJwtSecret(config.get<string>('JWT_SECRET')),
         signOptions: {
           expiresIn: config.get<string>('JWT_EXPIRES_IN') ?? '7d',
         },

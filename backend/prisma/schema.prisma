@@ -195,6 +195,13 @@ model Task {
   cooldownHours Int         @default(24)
   active        Boolean     @default(true)
   claims        TaskClaim[]
+
+  // Admin-editable extras. These lived in a module-level Map, so everything
+  // an admin configured here was lost on the next deploy and was never
+  // visible to a second instance. Null means "use the built-in default".
+  wheelSegments Json? // number[] — point value of each wheel segment, in order
+  quizQuestions Json? // QuizQuestionDto[]
+  actionUrl     String? // where a social/YouTube task sends the miner
 }
 
 model TaskClaim {

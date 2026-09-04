@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { TtlCache } from '../common/ttl-cache';
 import { maskIdentity } from '../common/mask-identity';
 import {
   assignRanks,
@@ -41,24 +42,16 @@ interface OwnStanding {
 export class LeaderboardService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private readonly cache = new Map<string, { at: number; value: unknown }>();
+  /**
+   * The `me:` keys carry a user id, so the key space grows with the number of
+   * distinct callers rather than with the number of boards. TtlCache caps it
+   * and dedupes concurrent loads of the same key.
+   */
+  private readonly cache = new TtlCache(CACHE_TTL_MS, 5_000);
 
   /** Memoise an expensive aggregate for CACHE_TTL_MS. */
-  private async memo<T>(key: string, load: () => Promise<T>): Promise<T> {
-    const hit = this.cache.get(key);
-    const now = Date.now();
-    if (hit && now - hit.at < CACHE_TTL_MS) return hit.value as T;
-
-    const value = await load();
-    this.cache.set(key, { at: now, value });
-    // The key space is bounded (categories × periods × limits × callers),
-    // but evict stale entries so an idle process does not hold them for ever.
-    if (this.cache.size > 500) {
-      for (const [k, v] of this.cache) {
-        if (now - v.at >= CACHE_TTL_MS) this.cache.delete(k);
-      }
-    }
-    return value;
+  private memo<T>(key: string, load: () => Promise<T>): Promise<T> {
+    return this.cache.wrap(key, load);
   }
 
   /**

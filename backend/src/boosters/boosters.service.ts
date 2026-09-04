@@ -235,12 +235,23 @@ export class BoostersService {
 
     // Activate and mark paid together, so a booster can never exist without
     // its confirmed purchase (or vice versa).
-    const [, booster] = await this.prisma.$transaction([
-      this.prisma.boosterPurchase.update({
-        where: { id: purchaseId },
+    //
+    // The CONFIRMED transition is a conditional update rather than a plain
+    // one: the "already paid" check at the top of this method reads state
+    // that two concurrent submissions of the same purchase both saw as
+    // unpaid, and they would then each create a booster off one payment. The
+    // unique index on `txHash` does not catch it — both writes target the
+    // same purchase row.
+    const booster = await this.prisma.$transaction(async (tx) => {
+      const confirmed = await tx.boosterPurchase.updateMany({
+        where: { id: purchaseId, status: { not: 'CONFIRMED' } },
         data: { status: 'CONFIRMED', txHash, confirmedAt: now },
-      }),
-      this.prisma.booster.create({
+      });
+      if (confirmed.count === 0) {
+        throw new BadRequestException('This purchase is already paid.');
+      }
+
+      const created = await tx.booster.create({
         data: {
           userId,
           planId: purchase.planId,
@@ -249,8 +260,8 @@ export class BoostersService {
           txHash,
           purchaseId,
         },
-      }),
-      this.prisma.ledgerEntry.create({
+      });
+      await tx.ledgerEntry.create({
         data: {
           userId,
           reason: 'BOOSTER_PURCHASE',
@@ -264,8 +275,9 @@ export class BoostersService {
             rateBonusMilli: purchase.plan.rateBonusMilli,
           },
         },
-      }),
-    ]);
+      });
+      return created;
+    });
 
     this.logger.log(
       `booster activated: user=${userId} plan=$${purchase.plan.priceUsd} tx=${txHash}`,

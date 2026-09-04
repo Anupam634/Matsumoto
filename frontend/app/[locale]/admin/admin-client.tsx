@@ -30,6 +30,7 @@ import { CmsTab } from '../../../components/admin/tabs/CmsTab';
 import { ReportsTab } from '../../../components/admin/tabs/ReportsTab';
 import { SecurityTab } from '../../../components/admin/tabs/SecurityTab';
 import { SystemTab } from '../../../components/admin/tabs/SystemTab';
+import { usePolling } from '../../../lib/use-polling';
 
 export default function AdminClient() {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -66,9 +67,11 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
 
   useEffect(() => {
     loadStats();
-    const interval = setInterval(loadStats, 20_000);
-    return () => clearInterval(interval);
   }, [loadStats]);
+
+  // Paused while the tab is hidden. An admin panel is the tab most likely to
+  // be left open and forgotten, and `stats` is the heaviest read in the API.
+  usePolling(loadStats, 20_000);
 
   return (
     <div className="flex min-h-dvh bg-slate-950 text-slate-100 antialiased selection:bg-amber-500 selection:text-slate-950">

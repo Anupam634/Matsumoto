@@ -195,16 +195,44 @@ run migrations — Prisma never migrates on its own, something has to call
 - Don't put a real `HOT_WALLET_PRIVATE_KEY` or mainnet contract address
   into a free-tier test deploy's environment variables.
 
+## Breaking changes to carry into an existing deployment
+
+- **`JWT_SECRET` is now required.** There is no fallback any more: the API
+  refuses to boot without one, and rejects the two example values that used
+  to ship in the repo. If the running deployment relied on the fallback,
+  setting a real secret invalidates every existing session — miners and
+  admins both sign in again once. Generate with `openssl rand -hex 32`.
+- **Run the new migration.** `20260904140000_task_config_columns` moves the
+  admin-editable quiz questions, wheel segments and bounty URLs onto the
+  `Task` row. They previously lived in memory, so whatever is configured in
+  the running instance is not in the database and has to be re-entered once
+  after deploying. `start:prod` applies migrations automatically.
+- **`NEXT_PUBLIC_API_URL` must be set at frontend build time.** It was
+  already inlined into the bundle; it now also feeds the `connect-src`
+  directive of the Content-Security-Policy in `next.config.js`. Building
+  without it produces a policy that blocks the app's own API calls, and the
+  only symptom is a console error in the browser.
+- **Deploy the new nginx config** — see "CORS" below.
+
 ## Production hardening still owed on the server
 
 These are host-side, not code: the app cannot fix them from inside.
 
-### CORS is enforced in two places
+### CORS: deploy the current nginx config
 
-nginx in front of the API adds its **own** CORS headers and answers
-preflights itself — its response carries `Access-Control-Max-Age: 1728000`
-and a method list in a different format from the app's, which is how you can
-tell them apart:
+`backend/nginx/bondkoin.conf` no longer touches CORS — the `add_header
+Access-Control-*` lines and the `if ($request_method = 'OPTIONS')` block are
+gone, so the app's allowlist in `src/common/cors-origins.ts` is the single
+source of truth. **The running server keeps whatever config was installed
+there**, so copy the current file over and reload:
+
+```
+sudo cp backend/nginx/bondkoin.conf /etc/nginx/sites-available/bondkoin
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Then verify an unlisted origin is refused — this must come back with **no**
+`Access-Control-Allow-Origin` header at all:
 
 ```
 curl -sS -X OPTIONS -D - -o /dev/null \
@@ -213,11 +241,9 @@ curl -sS -X OPTIONS -D - -o /dev/null \
   https://api.bondkoinlabs.com/api/auth/login
 ```
 
-If that still returns `Access-Control-Allow-Origin: https://evil.example.com`,
-nginx is reflecting the origin regardless of what the app does. Remove the
-`add_header Access-Control-*` lines (and any `if ($request_method = OPTIONS)`
-block) from the site config so the app is the single source of truth, then
-`nginx -t && systemctl reload nginx`.
+If it still echoes `Access-Control-Allow-Origin: https://evil.example.com`,
+the old config is still installed: nginx is reflecting whatever origin asks,
+which makes every endpoint callable from any page on the internet.
 
 ### The API is HTTP/1.1 with no TLS-level caching
 
