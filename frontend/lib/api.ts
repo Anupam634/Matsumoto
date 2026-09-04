@@ -297,28 +297,63 @@ export interface TaskDto {
   lastClaimedAt: string | null;
   /** Point value of each wheel segment, in order. Null for non-wheel tasks. */
   wheelSegments: number[] | null;
-  /** Dynamic quiz questions configured by admin. */
-  quizQuestions?: {
-    id: number;
-    question: string;
-    options: string[];
-    correctIndex: number;
-    explanation: string;
-  }[] | null;
+  /**
+   * Dynamic quiz questions configured by admin.
+   *
+   * The answers are not here. The server withholds `correctIndex` and the
+   * explanation (which names the answer in prose) until the claim is
+   * submitted — grading happens there, not in this client.
+   */
+  quizQuestions?: QuizQuestionDto[] | null;
   /** Custom social/target URL */
   actionUrl?: string | null;
 }
 
+export interface QuizQuestionDto {
+  id: number;
+  question: string;
+  options: string[];
+}
+
+/** How one answer was marked, returned by the server after a quiz claim. */
+export interface QuizAnswerResultDto {
+  id: number;
+  yourAnswer: number;
+  correctIndex: number;
+  correct: boolean;
+  explanation: string;
+}
+
+export interface QuizResultDto {
+  correctCount: number;
+  total: number;
+  results: QuizAnswerResultDto[];
+}
+
+export interface ClaimTaskResultDto {
+  earnedPoints: number;
+  balancePoints: number;
+  nextAvailableAt: string;
+  /** Which wheel segment the server drew. Null for non-wheel tasks. */
+  spinIndex: number | null;
+  /** Marking and explanations for a QUIZ claim. Null for other tasks. */
+  quiz: QuizResultDto | null;
+}
+
 export const getTasks = () => apiFetch<TaskDto[]>('/tasks');
 
-export const claimTask = (id: string) =>
-  apiFetch<{
-    earnedPoints: number;
-    balancePoints: number;
-    nextAvailableAt: string;
-    /** Which wheel segment the server drew. Null for non-wheel tasks. */
-    spinIndex: number | null;
-  }>(`/tasks/${id}/claim`, { method: 'POST' });
+/**
+ * Claim a task reward.
+ *
+ * `answers` is required for QUIZ tasks — the chosen option index per
+ * question, in order. The reward is scaled by how many were right, and the
+ * cooldown starts either way.
+ */
+export const claimTask = (id: string, answers?: number[]) =>
+  apiFetch<ClaimTaskResultDto>(`/tasks/${id}/claim`, {
+    method: 'POST',
+    body: JSON.stringify(answers ? { answers } : {}),
+  });
 
 // ──────────────────────────── KYC ───────────────────────────
 

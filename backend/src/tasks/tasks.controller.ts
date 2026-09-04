@@ -1,5 +1,6 @@
-import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { TasksService } from './tasks.service';
+import { ClaimTaskDto } from './dto';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 
@@ -14,9 +15,18 @@ export class TasksController {
     return this.tasks.list(userId);
   }
 
-  /** POST /api/tasks/:id/claim — credit the reward. */
+  /**
+   * POST /api/tasks/:id/claim — credit the reward.
+   *
+   * QUIZ tasks must carry `answers`; they are marked server-side and the
+   * reward is scaled by the score. Every other type ignores the body.
+   */
   @Post(':id/claim')
-  claim(@CurrentUser('id') userId: string, @Param('id') taskId: string) {
-    return this.tasks.claim(userId, taskId);
+  claim(
+    @CurrentUser('id') userId: string,
+    @Param('id') taskId: string,
+    @Body() dto: ClaimTaskDto,
+  ) {
+    return this.tasks.claim(userId, taskId, dto.answers);
   }
 }

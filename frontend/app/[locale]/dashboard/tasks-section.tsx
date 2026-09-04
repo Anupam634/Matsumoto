@@ -227,12 +227,17 @@ export default function TasksSection({
         <QuizModal
           rewardPoints={quizTask.rewardPoints}
           customQuestions={quizTask.quizQuestions}
-          onComplete={async () => {
-            const res = await claimTask(quizTask.id);
-            setWon({ id: quizTask.id, points: res.earnedPoints });
-            setTimeout(() => setWon(null), 2000);
+          onSubmit={async (answers) => {
+            // The modal keeps itself open to show the marking, so refresh
+            // the list and the balance behind it rather than on close.
+            const res = await claimTask(quizTask.id, answers);
+            if (res.earnedPoints > 0) {
+              setWon({ id: quizTask.id, points: res.earnedPoints });
+              setTimeout(() => setWon(null), 2000);
+            }
             await load();
             onClaimed();
+            return res;
           }}
           onClose={() => setQuizTask(null)}
         />

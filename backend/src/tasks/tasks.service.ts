@@ -4,12 +4,40 @@ import { PrismaService } from '../prisma.service';
 import { pickSegmentIndex, segmentValuesMilli } from './spin';
 import { lockUserRow } from '../common/row-lock';
 
+/** A quiz question as stored and as the admin panel edits it. */
 export interface QuizQuestionDto {
   id: number;
   question: string;
   options: string[];
   correctIndex: number;
   explanation: string;
+}
+
+/**
+ * A quiz question as a miner is allowed to see it *before* answering.
+ *
+ * `correctIndex` is obviously withheld; so is `explanation`, because every
+ * one of them names the right answer in prose. Both come back in the claim
+ * response once the answers are in.
+ */
+export type PublicQuizQuestionDto = Omit<
+  QuizQuestionDto,
+  'correctIndex' | 'explanation'
+>;
+
+/** How one submitted answer was marked, returned after grading. */
+export interface QuizAnswerResultDto {
+  id: number;
+  yourAnswer: number;
+  correctIndex: number;
+  correct: boolean;
+  explanation: string;
+}
+
+export interface QuizResultDto {
+  correctCount: number;
+  total: number;
+  results: QuizAnswerResultDto[];
 }
 
 export interface TaskDto {
@@ -21,8 +49,8 @@ export interface TaskDto {
   canClaim: boolean;
   /** Point value of each wheel segment, in order. Null for other tasks. */
   wheelSegments: number[] | null;
-  /** Interactive quiz questions if type is QUIZ. */
-  quizQuestions?: QuizQuestionDto[] | null;
+  /** Interactive quiz questions if type is QUIZ — answers withheld. */
+  quizQuestions?: PublicQuizQuestionDto[] | null;
   /** Social or target URL for social tasks */
   actionUrl?: string | null;
   /** When the cooldown lifts, or null if claimable right now. */
@@ -137,6 +165,63 @@ function defaultActionUrl(type: string, referralCode: string): string | null {
   }
 }
 
+/**
+ * Mark a submitted set of answers against the stored questions.
+ *
+ * Throws rather than scoring zero when the submission is the wrong shape: a
+ * client that sends three answers to a four-question quiz has a bug, and
+ * silently marking the missing one wrong would burn the miner's cooldown for
+ * it. A wrong *answer* is a legitimate outcome; a malformed submission is not.
+ */
+export function gradeQuiz(
+  questions: QuizQuestionDto[],
+  answers: number[] | undefined,
+): QuizResultDto {
+  if (!answers) {
+    throw new BadRequestException(
+      'Answer the quiz before claiming this reward.',
+    );
+  }
+  if (answers.length !== questions.length) {
+    throw new BadRequestException(
+      `This quiz has ${questions.length} questions; ${answers.length} answers were submitted.`,
+    );
+  }
+
+  const results = questions.map((q, i) => {
+    const yourAnswer = answers[i];
+    if (
+      !Number.isInteger(yourAnswer) ||
+      yourAnswer < 0 ||
+      yourAnswer >= q.options.length
+    ) {
+      throw new BadRequestException(
+        `Answer ${i + 1} is not one of the available options.`,
+      );
+    }
+    return {
+      id: q.id,
+      yourAnswer,
+      correctIndex: q.correctIndex,
+      correct: yourAnswer === q.correctIndex,
+      // Released now that the answer is in — this is the teaching half of the
+      // task, and it is why it is withheld from the question list.
+      explanation: q.explanation,
+    };
+  });
+
+  return {
+    correctCount: results.filter((r) => r.correct).length,
+    total: results.length,
+    results,
+  };
+}
+
+/** Drop everything that gives the answer away before a miner has answered. */
+export function stripAnswer(q: QuizQuestionDto): PublicQuizQuestionDto {
+  return { id: q.id, question: q.question, options: q.options };
+}
+
 /** Rows seeded under the project's old working name keep their id; fix the label. */
 function brandTitle(title: string): string {
   return title.replace(/Matsumoto/gi, 'BONDKOIN');
@@ -225,9 +310,11 @@ export class TasksService {
         wheelSegments = customConfig.wheelSegments || segmentValuesMilli(t.rewardMilli).map((m) => m / 1000);
       }
 
-      let quizQuestions: QuizQuestionDto[] | null = null;
+      let quizQuestions: PublicQuizQuestionDto[] | null = null;
       if (t.type === 'QUIZ') {
-        quizQuestions = customConfig.quizQuestions || DEFAULT_QUIZ_QUESTIONS;
+        quizQuestions = (
+          customConfig.quizQuestions || DEFAULT_QUIZ_QUESTIONS
+        ).map(stripAnswer);
       }
 
       let actionUrl: string | null = customConfig.actionUrl || null;
@@ -260,7 +347,7 @@ export class TasksService {
    * same "last claim" and all paid out — the cooldown only ever slowed down a
    * client that waited for its own response.
    */
-  async claim(userId: string, taskId: string) {
+  async claim(userId: string, taskId: string, answers?: number[]) {
     const task = await this.prisma.task.findUniqueOrThrow({
       where: { id: taskId },
     });
@@ -274,10 +361,30 @@ export class TasksService {
       segmentValuesMilli(task.rewardMilli).map((m) => m / 1000);
 
     const spinIndex = task.type === 'SPIN_WHEEL' ? pickSegmentIndex() : null;
-    const rewardMilli =
-      spinIndex === null
-        ? task.rewardMilli
-        : Math.round(spinSegments[spinIndex % spinSegments.length] * 1000);
+
+    // A quiz is marked here, against the questions as stored. The client used
+    // to be handed `correctIndex` with the questions and decide for itself
+    // whether it had passed, then claim the full reward either way — the
+    // grading was decoration on both sides.
+    const quiz =
+      task.type === 'QUIZ'
+        ? gradeQuiz(config.quizQuestions || DEFAULT_QUIZ_QUESTIONS, answers)
+        : null;
+
+    let rewardMilli: number;
+    if (quiz) {
+      // Partial credit, so one wrong answer costs a quarter of the reward
+      // rather than all of it.
+      rewardMilli = Math.round(
+        (task.rewardMilli * quiz.correctCount) / quiz.total,
+      );
+    } else if (spinIndex !== null) {
+      rewardMilli = Math.round(
+        spinSegments[spinIndex % spinSegments.length] * 1000,
+      );
+    } else {
+      rewardMilli = task.rewardMilli;
+    }
     const reward = BigInt(rewardMilli);
 
     const balance = await this.prisma.$transaction(async (tx) => {
@@ -302,15 +409,23 @@ export class TasksService {
         data: { pointsBalance: { increment: reward } },
         select: { pointsBalance: true },
       });
+      // A graded quiz is the one task type the server can actually vouch for.
       await tx.taskClaim.create({
-        data: { userId, taskId, verified: false },
+        data: { userId, taskId, verified: quiz !== null },
       });
       await tx.ledgerEntry.create({
         data: {
           userId,
           reason: 'TASK_REWARD',
           deltaMilli: reward,
-          meta: { taskId, type: task.type, ...(spinIndex !== null && { spinIndex }) },
+          meta: {
+            taskId,
+            type: task.type,
+            ...(spinIndex !== null && { spinIndex }),
+            ...(quiz && {
+              quizScore: `${quiz.correctCount}/${quiz.total}`,
+            }),
+          },
         },
       });
       return user.pointsBalance;
@@ -319,8 +434,13 @@ export class TasksService {
     return {
       earnedPoints: rewardMilli / 1000,
       balancePoints: Number(balance) / 1000,
+      // The cooldown starts on submission regardless of score. Letting a bad
+      // score retry immediately would mean four questions of four options
+      // could simply be walked until they all landed, which puts the answers
+      // back in the client's hands by another route.
       nextAvailableAt: new Date(Date.now() + task.cooldownHours * 3_600_000),
       spinIndex,
+      quiz,
     };
   }
 

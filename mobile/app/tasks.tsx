@@ -293,11 +293,18 @@ export default function TasksScreen() {
         <QuizSheet
           rewardPoints={quizTask.rewardPoints}
           questions={quizTask.quizQuestions}
-          onComplete={async () => {
-            const res = await claimTask(quizTask.id);
-            showWon(quizTask.id, res.earnedPoints);
-            toast.success(t('tasksScreen.claimed', { points: res.earnedPoints }));
+          onSubmit={async (answers) => {
+            // The sheet stays open to show the marking, so refresh behind it
+            // rather than on close.
+            const res = await claimTask(quizTask.id, answers);
+            if (res.earnedPoints > 0) {
+              showWon(quizTask.id, res.earnedPoints);
+              toast.success(
+                t('tasksScreen.claimed', { points: res.earnedPoints }),
+              );
+            }
             await afterClaim();
+            return res;
           }}
           onClose={() => setQuizTask(null)}
         />
