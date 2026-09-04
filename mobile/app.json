@@ -1,0 +1,112 @@
+{
+  "expo": {
+    "name": "BONDKOIN",
+    "slug": "bondkoin",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "bondkoin",
+    "userInterfaceStyle": "automatic",
+    "primaryColor": "#2563EB",
+    "backgroundColor": "#FFFFFF",
+    "description": "Node mining rewards on BNB Chain. Mine daily, stack boosters, invite miners and withdraw $BONDKOIN to your own wallet.",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bondkoinlabs.app",
+      "buildNumber": "1",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSCameraUsageDescription": "BONDKOIN uses the camera so you can photograph your ID document and take a selfie for identity verification.",
+        "NSPhotoLibraryUsageDescription": "BONDKOIN needs access to your photos so you can attach your ID document and selfie for identity verification.",
+        "NSFaceIDUsageDescription": "BONDKOIN uses Face ID to unlock the app when App Lock is enabled."
+      }
+    },
+    "android": {
+      "package": "com.bondkoinlabs.app",
+      "versionCode": 1,
+      "predictiveBackGestureEnabled": false,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0B1220"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.SCHEDULE_EXACT_ALARM"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/mark.png",
+          "color": "#2563EB",
+          "defaultChannel": "mining"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "BONDKOIN needs access to your photos so you can attach your ID document and selfie for identity verification.",
+          "cameraPermission": "BONDKOIN uses the camera so you can photograph your ID document and take a selfie for identity verification."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "BONDKOIN uses Face ID to unlock the app when App Lock is enabled."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#F7F8FA",
+          "dark": {
+            "backgroundColor": "#0B1220"
+          }
+        }
+      ],
+      "expo-localization",
+      "expo-audio",
+      "expo-font",
+      "expo-asset"
+    ],
+    "extra": {
+      "apiUrl": "https://api.bondkoinlabs.com/api",
+      "webUrl": "https://bondkoinlabs.com",
+      "router": {},
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

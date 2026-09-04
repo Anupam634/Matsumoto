@@ -11,7 +11,8 @@ Cloud mining / reward-**simulation** platform on BNB Chain. See [`SPEC.md`](./SP
 minig-withdraw/
 ├── SPEC.md          # Single source of truth for all rules & numbers
 ├── backend/         # NestJS + Prisma (PostgreSQL) + Redis + ethers.js
-└── frontend/        # Next.js (PWA) + Tailwind + next-intl (en/zh/ko)
+├── frontend/        # Next.js (PWA) + Tailwind + next-intl (en/zh/ko)
+└── mobile/          # Expo (React Native) app for Google Play — see mobile/README.md
 ```
 
 ## Quick start
@@ -33,6 +34,18 @@ cp .env.example .env.local
 npm install
 npm run dev                 # http://localhost:3000
 ```
+
+### Mobile
+```bash
+cd mobile
+npm install
+npx expo start              # scan the QR with Expo Go
+```
+
+Same API, same message catalogue (`frontend/messages/*.json` is reused
+verbatim), plus two things the web app does not have: a **Settings** screen
+and a **notification centre** with OS-scheduled mining reminders.
+Build and Play Store submission steps are in [`mobile/README.md`](./mobile/README.md).
 
 ## Core modules (backend `src/`)
 
