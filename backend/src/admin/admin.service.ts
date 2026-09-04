@@ -1,6 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
+import { toCsv, CSV_MAX_ROWS } from '../common/csv';
+import { TtlCache } from '../common/ttl-cache';
 import { verifyPassword } from '../auth/password';
 import {
   effectiveRateMilli,
@@ -44,6 +46,12 @@ export interface TreeNode {
 
 @Injectable()
 export class AdminService {
+  /**
+   * Short TTL: an operator watching the dashboard should still see a
+   * withdrawal land within a few seconds of it arriving.
+   */
+  private readonly cache = new TtlCache(15_000, 100);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
@@ -72,8 +80,19 @@ export class AdminService {
 
   // ───────────────────────── Overview ────────────────────────
 
-  /** Platform totals, growth velocity, and time-series for executive analytics. */
-  async stats() {
+  /**
+   * Platform totals, growth velocity, and time-series for executive analytics.
+   *
+   * Cached: the admin dashboard polls this every 20 seconds and it is a dozen
+   * aggregates plus a scan of every account created in the last month, none
+   * of which changes meaningfully second to second. The cache also collapses
+   * several admins (or several open tabs) onto one set of queries.
+   */
+  stats() {
+    return this.cache.wrap('stats', () => this.computeStats());
+  }
+
+  private async computeStats() {
     const now = Date.now();
     const activeSince = new Date(now - ACTIVE_WINDOW_MS);
     const dayAgo = new Date(now - 24 * 3_600_000);
@@ -121,9 +140,14 @@ export class AdminService {
         orderBy: { createdAt: 'desc' },
         include: { user: { select: { email: true } } },
       }),
+      // Only the signup dates are needed, to bucket them by day. This is the
+      // one query here that grows without bound as the userbase does; the
+      // cache is what keeps it off the hot path.
       this.prisma.user.findMany({
         where: { createdAt: { gte: monthAgo } },
         select: { createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 100_000,
       }),
     ]);
 
@@ -576,6 +600,7 @@ export class AdminService {
   async exportUsersCsv(): Promise<string> {
     const users = await this.prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
+      take: CSV_MAX_ROWS,
       include: { kyc: true, _count: { select: { referrals: true } } },
     });
 
@@ -592,24 +617,24 @@ export class AdminService {
     ];
 
     const rows = users.map((u) => [
-      `"${u.id}"`,
-      `"${u.email ?? 'Wallet'}"`,
-      `"${u.countryCode ?? 'Global'}"`,
+      u.id,
+      u.email ?? 'Wallet',
+      u.countryCode ?? 'Global',
       (Number(u.pointsBalance) / 1000).toFixed(2),
       u._count.referrals,
-      `"${u.kyc?.status ?? 'NONE'}"`,
+      u.kyc?.status ?? 'NONE',
       u.isBlocked ? 'YES' : 'NO',
-      `"${u.createdAt.toISOString()}"`,
-      `"${u.lastMineAt ? u.lastMineAt.toISOString() : 'Never'}"`,
+      u.createdAt.toISOString(),
+      u.lastMineAt ? u.lastMineAt.toISOString() : 'Never',
     ]);
 
-    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    return toCsv(headers, rows);
   }
 
   async exportMiningCsv(): Promise<string> {
     const entries = await this.prisma.ledgerEntry.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 5000,
+      take: Math.min(5000, CSV_MAX_ROWS),
       include: { user: { select: { email: true } } },
     });
 
@@ -623,20 +648,21 @@ export class AdminService {
     ];
 
     const rows = entries.map((e) => [
-      `"${e.id}"`,
-      `"${e.userId}"`,
-      `"${e.user?.email ?? 'Wallet'}"`,
-      `"${e.reason}"`,
+      e.id,
+      e.userId,
+      e.user?.email ?? 'Wallet',
+      e.reason,
       (Number(e.deltaMilli) / 1000).toFixed(2),
-      `"${e.createdAt.toISOString()}"`,
+      e.createdAt.toISOString(),
     ]);
 
-    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    return toCsv(headers, rows);
   }
 
   async exportWithdrawalsCsv(): Promise<string> {
     const withdrawals = await this.prisma.withdrawal.findMany({
       orderBy: { requestedAt: 'desc' },
+      take: CSV_MAX_ROWS,
       include: { user: { select: { email: true } } },
     });
 
@@ -655,26 +681,27 @@ export class AdminService {
     ];
 
     const rows = withdrawals.map((w) => [
-      `"${w.id}"`,
-      `"${w.userId}"`,
-      `"${w.user?.email ?? 'Wallet'}"`,
+      w.id,
+      w.userId,
+      w.user?.email ?? 'Wallet',
       (Number(w.pointsAmount) / 1000).toFixed(2),
-      `"${w.tokenAmount}"`,
-      `"${w.toAddress}"`,
-      `"${w.txHash ?? 'N/A'}"`,
-      `"${w.status}"`,
-      `"${w.requestedAt.toISOString()}"`,
-      `"${w.resolvedAt ? w.resolvedAt.toISOString() : 'Pending'}"`,
-      `"${(w.adminNote ?? '').replace(/"/g, '""')}"`,
+      w.tokenAmount,
+      w.toAddress,
+      w.txHash ?? 'N/A',
+      w.status,
+      w.requestedAt.toISOString(),
+      w.resolvedAt ? w.resolvedAt.toISOString() : 'Pending',
+      (w.adminNote ?? '').replace(/"/g, '""'),
     ]);
 
-    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    return toCsv(headers, rows);
   }
 
   async exportReferralsCsv(): Promise<string> {
     const users = await this.prisma.user.findMany({
       where: { referredById: { not: null } },
       orderBy: { createdAt: 'desc' },
+      take: CSV_MAX_ROWS,
       include: {
         referredBy: { select: { id: true, email: true } },
       },
@@ -689,19 +716,20 @@ export class AdminService {
     ];
 
     const rows = users.map((u) => [
-      `"${u.id}"`,
-      `"${u.email ?? 'Wallet'}"`,
-      `"${u.referredBy?.id ?? ''}"`,
-      `"${u.referredBy?.email ?? 'Unknown'}"`,
-      `"${u.createdAt.toISOString()}"`,
+      u.id,
+      u.email ?? 'Wallet',
+      u.referredBy?.id ?? '',
+      u.referredBy?.email ?? 'Unknown',
+      u.createdAt.toISOString(),
     ]);
 
-    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    return toCsv(headers, rows);
   }
 
   async exportKycCsv(): Promise<string> {
     const kycRecords = await this.prisma.kycRecord.findMany({
       orderBy: { updatedAt: 'desc' },
+      take: CSV_MAX_ROWS,
       include: { user: { select: { email: true } } },
     });
 
@@ -719,24 +747,25 @@ export class AdminService {
     ];
 
     const rows = kycRecords.map((k) => [
-      `"${k.id}"`,
-      `"${k.userId}"`,
-      `"${k.user?.email ?? 'Wallet'}"`,
-      `"${k.fullName ?? 'N/A'}"`,
-      `"${k.documentType ?? 'N/A'}"`,
-      `"${k.documentNumber ?? 'N/A'}"`,
-      `"${k.status}"`,
-      `"${k.submittedAt ? k.submittedAt.toISOString() : 'N/A'}"`,
-      `"${k.reviewedAt ? k.reviewedAt.toISOString() : 'N/A'}"`,
-      `"${(k.reviewerNote ?? '').replace(/"/g, '""')}"`,
+      k.id,
+      k.userId,
+      k.user?.email ?? 'Wallet',
+      k.fullName ?? 'N/A',
+      k.documentType ?? 'N/A',
+      k.documentNumber ?? 'N/A',
+      k.status,
+      k.submittedAt ? k.submittedAt.toISOString() : 'N/A',
+      k.reviewedAt ? k.reviewedAt.toISOString() : 'N/A',
+      k.reviewerNote,
     ]);
 
-    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    return toCsv(headers, rows);
   }
 
   async exportRevenueCsv(): Promise<string> {
     const purchases = await this.prisma.boosterPurchase.findMany({
       orderBy: { createdAt: 'desc' },
+      take: CSV_MAX_ROWS,
       include: {
         user: { select: { email: true } },
         plan: true,
@@ -756,18 +785,18 @@ export class AdminService {
     ];
 
     const rows = purchases.map((p) => [
-      `"${p.id}"`,
-      `"${p.userId}"`,
-      `"${p.user?.email ?? 'Wallet'}"`,
-      `"${p.plan?.priceUsd ? '$' + p.plan.priceUsd : 'Custom'}"`,
+      p.id,
+      p.userId,
+      p.user?.email ?? 'Wallet',
+      p.plan?.priceUsd ? '$' + p.plan.priceUsd : 'Custom',
       p.plan?.priceUsd ?? 0,
-      `"${p.status}"`,
-      `"${p.txHash ?? 'N/A'}"`,
-      `"${p.createdAt.toISOString()}"`,
-      `"${p.confirmedAt ? p.confirmedAt.toISOString() : 'N/A'}"`,
+      p.status,
+      p.txHash ?? 'N/A',
+      p.createdAt.toISOString(),
+      p.confirmedAt ? p.confirmedAt.toISOString() : 'N/A',
     ]);
 
-    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    return toCsv(headers, rows);
   }
 
   // ───────────────────── Booster Plans & Purchases Suite ────────────────────

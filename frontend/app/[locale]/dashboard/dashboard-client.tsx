@@ -26,6 +26,7 @@ import { ThemeToggle } from '../../../components/ThemeToggle';
 import { MobileTabBar } from '../../../components/MobileTabBar';
 import { BnbBadge, BnbLogo } from '../../../components/BnbLogo';
 import { useMiningFX } from '../../../lib/use-mining-fx';
+import { usePolling } from '../../../lib/use-polling';
 
 /** How often the live accrual counter repaints. 10fps reads as smooth. */
 const TICK_MS = 100;
@@ -86,10 +87,8 @@ export default function DashboardClient() {
       .catch(() => setPlans([]));
   }, [load, router, locale]);
 
-  useEffect(() => {
-    const id = setInterval(load, REFRESH_MS);
-    return () => clearInterval(id);
-  }, [load]);
+  // Paused while the tab is hidden — see usePolling.
+  usePolling(load, REFRESH_MS);
 
   async function mine() {
     playMiningStrike();

@@ -128,6 +128,12 @@ describe('FailSoftOtpStore', () => {
         broken ? Promise.reject(new Error('down')) : memory.drop(...args),
       allowSend: (...args) =>
         broken ? Promise.reject(new Error('down')) : memory.allowSend(...args),
+      failAttempt: (...args) =>
+        broken ? Promise.reject(new Error('down')) : memory.failAttempt(...args),
+      clearAttempts: (...args) =>
+        broken
+          ? Promise.reject(new Error('down'))
+          : memory.clearAttempts(...args),
     };
     const store = new FailSoftOtpStore(primary, quietLogger(), 0);
 

@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AdminService } from './admin.service';
 import { AdminAuthGuard } from './admin.guard';
 import { WithdrawalsService } from '../withdrawals/withdrawals.service';
@@ -28,7 +29,15 @@ export class AdminController {
     private readonly withdrawals: WithdrawalsService,
   ) {}
 
-  /** POST /api/admin/login — unguarded; issues the admin-scoped token. */
+  /**
+   * POST /api/admin/login — unguarded; issues the admin-scoped token.
+   *
+   * Tighter than the app-wide 300/min: this is the one unauthenticated route
+   * that leads to approving withdrawals, and there is exactly one account
+   * behind it, so the global ceiling left room for thousands of password
+   * guesses an hour from a single host.
+   */
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('login')
   login(@Body() dto: AdminLoginDto) {
     return this.admin.login(dto.email, dto.password);

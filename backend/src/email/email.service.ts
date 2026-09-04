@@ -8,6 +8,17 @@ export type { OtpRecord, OtpPurpose } from './otp.store';
 /** A single address may request this many codes per window. */
 export const OTP_SENDS_PER_ADDRESS = 3;
 export const OTP_SEND_WINDOW_MS = 10 * 60 * 1000;
+/**
+ * Wrong guesses allowed against one address before its live code is burned.
+ *
+ * A code is six digits and lives for ten minutes; the only per-IP limit is
+ * the blanket 300/min throttle, which a handful of hosts walks straight
+ * past. Without a cap here, guessing a reset code is arithmetic, not luck.
+ * The counter is cleared whenever a fresh code is issued, so a user who
+ * fat-fingers the code and asks for a new one is not locked out — and
+ * `OTP_SENDS_PER_ADDRESS` still bounds how often that can happen.
+ */
+export const OTP_MAX_ATTEMPTS = 5;
 /** Upper bound on how long a caller waits for SMTP before giving up. */
 const SMTP_DEADLINE_MS = 12_000;
 
@@ -72,10 +83,12 @@ export class EmailService {
           port: 465,
           secure: true,
           auth: { user, pass },
-          tls: {
-            servername: 'mail.spacemail.com',
-            rejectUnauthorized: false,
-          },
+          // `rejectUnauthorized: false` used to be set on both Spacemail
+          // transports, which accepts any certificate — including one
+          // presented by whatever is between this box and the mail host. The
+          // SMTP password is sent right after the handshake, so that turned a
+          // network attacker into a holder of the company mailbox.
+          tls: { servername: 'mail.spacemail.com' },
           connectionTimeout: 15000,
           greetingTimeout: 10000,
           socketTimeout: 20000,
@@ -88,10 +101,7 @@ export class EmailService {
           secure: false,
           requireTLS: true,
           auth: { user, pass },
-          tls: {
-            servername: 'mail.spacemail.com',
-            rejectUnauthorized: false,
-          },
+          tls: { servername: 'mail.spacemail.com' },
           connectionTimeout: 15000,
           greetingTimeout: 10000,
           socketTimeout: 20000,
@@ -110,9 +120,6 @@ export class EmailService {
           connectionTimeout: 12000,
           greetingTimeout: 10000,
           socketTimeout: 20000,
-          tls: {
-            rejectUnauthorized: false,
-          },
         });
         this.logger.log(`[EmailService] SMTP Transporter configured for ${user}@${host}:${port} (secure: ${secure})`);
       }
@@ -150,15 +157,28 @@ export class EmailService {
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     await this.otpStore.put(cleanEmail, { code, expiresAt, purpose });
+    // A new code starts with a clean slate, so a legitimate user who mistyped
+    // the last one is not locked out of this one.
+    await this.otpStore.clearAttempts(cleanEmail);
     this.logger.log(`[OTP GENERATED] ${cleanEmail} | purpose=${purpose} | ttl=10m`);
 
     return code;
   }
 
   /**
-   * Verify whether the provided OTP code matches the stored unexpired code for this email.
+   * Verify the provided code against the stored, unexpired code for this
+   * address.
+   *
+   * `expectedPurpose` is required: the store holds one record per address,
+   * so without this check a code mailed out for one flow satisfies another —
+   * a signup code would complete a password reset. The code and the purpose
+   * are issued together and must be redeemed together.
    */
-  async verifyOtp(rawEmail: string, code: string): Promise<boolean> {
+  async verifyOtp(
+    rawEmail: string,
+    code: string,
+    expectedPurpose: OtpPurpose,
+  ): Promise<boolean> {
     const cleanEmail = this.sanitizeEmail(rawEmail);
     const cleanCode = code.trim();
     const record = await this.otpStore.take(cleanEmail);
@@ -174,14 +194,40 @@ export class EmailService {
       return false;
     }
 
+    if (record.purpose !== expectedPurpose) {
+      // Burn it: a code being presented to the wrong flow is either a client
+      // bug or someone walking a code between endpoints.
+      this.logger.warn(
+        `[OTP VERIFY FAILED] purpose mismatch for ${cleanEmail} (issued=${record.purpose} presented=${expectedPurpose})`,
+      );
+      await this.otpStore.drop(cleanEmail);
+      return false;
+    }
+
     // Neither the expected nor the supplied code is logged: a rejected
     // attempt is still someone's live credential.
     if (record.code !== cleanCode) {
-      this.logger.warn(`[OTP VERIFY FAILED] code mismatch for ${cleanEmail}`);
+      const attempts = await this.otpStore.failAttempt(
+        cleanEmail,
+        OTP_SEND_WINDOW_MS,
+      );
+      if (attempts >= OTP_MAX_ATTEMPTS) {
+        // Burn the code rather than the account: the address can request a
+        // new one, but this code is no longer guessable.
+        await this.otpStore.drop(cleanEmail);
+        this.logger.warn(
+          `[OTP BURNED] ${cleanEmail} after ${attempts} wrong codes`,
+        );
+        return false;
+      }
+      this.logger.warn(
+        `[OTP VERIFY FAILED] code mismatch for ${cleanEmail} (${attempts}/${OTP_MAX_ATTEMPTS})`,
+      );
       return false;
     }
 
     await this.otpStore.drop(cleanEmail);
+    await this.otpStore.clearAttempts(cleanEmail);
     this.logger.log(`[OTP VERIFY SUCCESS] ${cleanEmail}`);
     return true;
   }

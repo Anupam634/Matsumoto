@@ -1,13 +1,43 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { Prisma, TaskType } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { pickSegmentIndex, segmentValuesMilli } from './spin';
+import { lockUserRow } from '../common/row-lock';
 
+/** A quiz question as stored and as the admin panel edits it. */
 export interface QuizQuestionDto {
   id: number;
   question: string;
   options: string[];
   correctIndex: number;
   explanation: string;
+}
+
+/**
+ * A quiz question as a miner is allowed to see it *before* answering.
+ *
+ * `correctIndex` is obviously withheld; so is `explanation`, because every
+ * one of them names the right answer in prose. Both come back in the claim
+ * response once the answers are in.
+ */
+export type PublicQuizQuestionDto = Omit<
+  QuizQuestionDto,
+  'correctIndex' | 'explanation'
+>;
+
+/** How one submitted answer was marked, returned after grading. */
+export interface QuizAnswerResultDto {
+  id: number;
+  yourAnswer: number;
+  correctIndex: number;
+  correct: boolean;
+  explanation: string;
+}
+
+export interface QuizResultDto {
+  correctCount: number;
+  total: number;
+  results: QuizAnswerResultDto[];
 }
 
 export interface TaskDto {
@@ -19,8 +49,8 @@ export interface TaskDto {
   canClaim: boolean;
   /** Point value of each wheel segment, in order. Null for other tasks. */
   wheelSegments: number[] | null;
-  /** Interactive quiz questions if type is QUIZ. */
-  quizQuestions?: QuizQuestionDto[] | null;
+  /** Interactive quiz questions if type is QUIZ — answers withheld. */
+  quizQuestions?: PublicQuizQuestionDto[] | null;
   /** Social or target URL for social tasks */
   actionUrl?: string | null;
   /** When the cooldown lifts, or null if claimable right now. */
@@ -135,17 +165,109 @@ function defaultActionUrl(type: string, referralCode: string): string | null {
   }
 }
 
+/**
+ * Mark a submitted set of answers against the stored questions.
+ *
+ * Throws rather than scoring zero when the submission is the wrong shape: a
+ * client that sends three answers to a four-question quiz has a bug, and
+ * silently marking the missing one wrong would burn the miner's cooldown for
+ * it. A wrong *answer* is a legitimate outcome; a malformed submission is not.
+ */
+export function gradeQuiz(
+  questions: QuizQuestionDto[],
+  answers: number[] | undefined,
+): QuizResultDto {
+  if (!answers) {
+    throw new BadRequestException(
+      'Answer the quiz before claiming this reward.',
+    );
+  }
+  if (answers.length !== questions.length) {
+    throw new BadRequestException(
+      `This quiz has ${questions.length} questions; ${answers.length} answers were submitted.`,
+    );
+  }
+
+  const results = questions.map((q, i) => {
+    const yourAnswer = answers[i];
+    if (
+      !Number.isInteger(yourAnswer) ||
+      yourAnswer < 0 ||
+      yourAnswer >= q.options.length
+    ) {
+      throw new BadRequestException(
+        `Answer ${i + 1} is not one of the available options.`,
+      );
+    }
+    return {
+      id: q.id,
+      yourAnswer,
+      correctIndex: q.correctIndex,
+      correct: yourAnswer === q.correctIndex,
+      // Released now that the answer is in — this is the teaching half of the
+      // task, and it is why it is withheld from the question list.
+      explanation: q.explanation,
+    };
+  });
+
+  return {
+    correctCount: results.filter((r) => r.correct).length,
+    total: results.length,
+    results,
+  };
+}
+
+/** Drop everything that gives the answer away before a miner has answered. */
+export function stripAnswer(q: QuizQuestionDto): PublicQuizQuestionDto {
+  return { id: q.id, question: q.question, options: q.options };
+}
+
 /** Rows seeded under the project's old working name keep their id; fix the label. */
 function brandTitle(title: string): string {
   return title.replace(/Matsumoto/gi, 'BONDKOIN');
 }
 
-// Persistent runtime config store for extended dynamic task metadata
-const taskConfigMap = new Map<string, {
+/**
+ * Narrow an admin-supplied array to what Prisma accepts for a `Json?` column.
+ * `null` (or an absent value) clears the override back to the built-in
+ * default; `Prisma.DbNull` is the SQL NULL rather than a JSON `null` literal.
+ */
+function asJson(
+  value: unknown[] | null | undefined,
+): Prisma.InputJsonValue | typeof Prisma.DbNull {
+  return value == null ? Prisma.DbNull : (value as Prisma.InputJsonValue);
+}
+
+/** The admin-editable extras that live in the Task row's JSON columns. */
+interface TaskConfig {
   quizQuestions?: QuizQuestionDto[] | null;
   wheelSegments?: number[] | null;
   actionUrl?: string | null;
-}>();
+}
+
+/**
+ * Read the extras off a Task row.
+ *
+ * These used to sit in a module-level `Map`, which meant every quiz question,
+ * wheel layout and bounty URL an admin configured survived only until the
+ * next deploy — and a second instance never saw them at all. They are columns
+ * now; this just narrows the `Json` type back to what was written.
+ */
+function configOf(task: {
+  wheelSegments: unknown;
+  quizQuestions: unknown;
+  actionUrl: string | null;
+}): TaskConfig {
+  return {
+    wheelSegments: Array.isArray(task.wheelSegments)
+      ? (task.wheelSegments as number[])
+      : null,
+    quizQuestions: Array.isArray(task.quizQuestions)
+      ? (task.quizQuestions as QuizQuestionDto[])
+      : null,
+    actionUrl: task.actionUrl,
+  };
+}
 
 @Injectable()
 export class TasksService {
@@ -181,16 +303,18 @@ export class TasksService {
         ? new Date(last.getTime() + t.cooldownHours * 3_600_000)
         : null;
       const canClaim = !readyAt || readyAt.getTime() <= now;
-      const customConfig = taskConfigMap.get(t.id) || {};
+      const customConfig = configOf(t);
 
       let wheelSegments: number[] | null = null;
       if (t.type === 'SPIN_WHEEL') {
         wheelSegments = customConfig.wheelSegments || segmentValuesMilli(t.rewardMilli).map((m) => m / 1000);
       }
 
-      let quizQuestions: QuizQuestionDto[] | null = null;
+      let quizQuestions: PublicQuizQuestionDto[] | null = null;
       if (t.type === 'QUIZ') {
-        quizQuestions = customConfig.quizQuestions || DEFAULT_QUIZ_QUESTIONS;
+        quizQuestions = (
+          customConfig.quizQuestions || DEFAULT_QUIZ_QUESTIONS
+        ).map(stripAnswer);
       }
 
       let actionUrl: string | null = customConfig.actionUrl || null;
@@ -215,8 +339,15 @@ export class TasksService {
     });
   }
 
-  /** Credit a task reward, subject to the task's cooldown. */
-  async claim(userId: string, taskId: string) {
+  /**
+   * Credit a task reward, subject to the task's cooldown.
+   *
+   * Cooldown and credit share one transaction behind a lock on the user's
+   * row. Read separately, concurrent claims on the same task all found the
+   * same "last claim" and all paid out — the cooldown only ever slowed down a
+   * client that waited for its own response.
+   */
+  async claim(userId: string, taskId: string, answers?: number[]) {
     const task = await this.prisma.task.findUniqueOrThrow({
       where: { id: taskId },
     });
@@ -224,53 +355,92 @@ export class TasksService {
       throw new BadRequestException('This task is no longer available.');
     }
 
-    const last = await this.prisma.taskClaim.findFirst({
-      where: { userId, taskId },
-      orderBy: { claimedAt: 'desc' },
-    });
-    if (last) {
-      const readyAt = last.claimedAt.getTime() + task.cooldownHours * 3_600_000;
-      if (readyAt > Date.now()) {
-        throw new BadRequestException(
-          `Task is on cooldown for another ${Math.ceil((readyAt - Date.now()) / 60_000)} minutes.`,
-        );
-      }
-    }
-
-    const customConfig = taskConfigMap.get(task.id) || {};
-    const spinSegments = customConfig.wheelSegments || segmentValuesMilli(task.rewardMilli).map((m) => m / 1000);
+    const config = configOf(task);
+    const spinSegments =
+      config.wheelSegments ||
+      segmentValuesMilli(task.rewardMilli).map((m) => m / 1000);
 
     const spinIndex = task.type === 'SPIN_WHEEL' ? pickSegmentIndex() : null;
-    const rewardMilli =
-      spinIndex === null
-        ? task.rewardMilli
-        : Math.round(spinSegments[spinIndex % spinSegments.length] * 1000);
 
+    // A quiz is marked here, against the questions as stored. The client used
+    // to be handed `correctIndex` with the questions and decide for itself
+    // whether it had passed, then claim the full reward either way — the
+    // grading was decoration on both sides.
+    const quiz =
+      task.type === 'QUIZ'
+        ? gradeQuiz(config.quizQuestions || DEFAULT_QUIZ_QUESTIONS, answers)
+        : null;
+
+    let rewardMilli: number;
+    if (quiz) {
+      // Partial credit, so one wrong answer costs a quarter of the reward
+      // rather than all of it.
+      rewardMilli = Math.round(
+        (task.rewardMilli * quiz.correctCount) / quiz.total,
+      );
+    } else if (spinIndex !== null) {
+      rewardMilli = Math.round(
+        spinSegments[spinIndex % spinSegments.length] * 1000,
+      );
+    } else {
+      rewardMilli = task.rewardMilli;
+    }
     const reward = BigInt(rewardMilli);
-    const [user] = await this.prisma.$transaction([
-      this.prisma.user.update({
+
+    const balance = await this.prisma.$transaction(async (tx) => {
+      await lockUserRow(tx, userId);
+
+      const last = await tx.taskClaim.findFirst({
+        where: { userId, taskId },
+        orderBy: { claimedAt: 'desc' },
+      });
+      if (last) {
+        const readyAt =
+          last.claimedAt.getTime() + task.cooldownHours * 3_600_000;
+        if (readyAt > Date.now()) {
+          throw new BadRequestException(
+            `Task is on cooldown for another ${Math.ceil((readyAt - Date.now()) / 60_000)} minutes.`,
+          );
+        }
+      }
+
+      const user = await tx.user.update({
         where: { id: userId },
         data: { pointsBalance: { increment: reward } },
         select: { pointsBalance: true },
-      }),
-      this.prisma.taskClaim.create({
-        data: { userId, taskId, verified: false },
-      }),
-      this.prisma.ledgerEntry.create({
+      });
+      // A graded quiz is the one task type the server can actually vouch for.
+      await tx.taskClaim.create({
+        data: { userId, taskId, verified: quiz !== null },
+      });
+      await tx.ledgerEntry.create({
         data: {
           userId,
           reason: 'TASK_REWARD',
           deltaMilli: reward,
-          meta: { taskId, type: task.type, ...(spinIndex !== null && { spinIndex }) },
+          meta: {
+            taskId,
+            type: task.type,
+            ...(spinIndex !== null && { spinIndex }),
+            ...(quiz && {
+              quizScore: `${quiz.correctCount}/${quiz.total}`,
+            }),
+          },
         },
-      }),
-    ]);
+      });
+      return user.pointsBalance;
+    });
 
     return {
       earnedPoints: rewardMilli / 1000,
-      balancePoints: Number(user.pointsBalance) / 1000,
+      balancePoints: Number(balance) / 1000,
+      // The cooldown starts on submission regardless of score. Letting a bad
+      // score retry immediately would mean four questions of four options
+      // could simply be walked until they all landed, which puts the answers
+      // back in the client's hands by another route.
       nextAvailableAt: new Date(Date.now() + task.cooldownHours * 3_600_000),
       spinIndex,
+      quiz,
     };
   }
 
@@ -281,7 +451,7 @@ export class TasksService {
     });
 
     return tasks.map((t) => {
-      const customConfig = taskConfigMap.get(t.id) || {};
+      const customConfig = configOf(t);
       return {
         id: t.id,
         type: t.type,
@@ -297,22 +467,23 @@ export class TasksService {
   }
 
   async adminUpdateTask(id: string, dto: Partial<AdminTaskConfigDto>) {
-    const data: any = {};
+    const data: Prisma.TaskUpdateInput = {};
     if (dto.title !== undefined) data.title = dto.title;
     if (dto.rewardPoints !== undefined) data.rewardMilli = Math.round(dto.rewardPoints * 1000);
     if (dto.cooldownHours !== undefined) data.cooldownHours = dto.cooldownHours;
     if (dto.active !== undefined) data.active = dto.active;
+    // `null` clears an override and restores the built-in default; leaving a
+    // key out of the request leaves the stored value alone.
+    if (dto.quizQuestions !== undefined) {
+      data.quizQuestions = asJson(dto.quizQuestions);
+    }
+    if (dto.wheelSegments !== undefined) {
+      data.wheelSegments = asJson(dto.wheelSegments);
+    }
+    if (dto.actionUrl !== undefined) data.actionUrl = dto.actionUrl ?? null;
 
-    const task = await this.prisma.task.update({
-      where: { id },
-      data,
-    });
-
-    const currentConfig = taskConfigMap.get(id) || {};
-    if (dto.quizQuestions !== undefined) currentConfig.quizQuestions = dto.quizQuestions;
-    if (dto.wheelSegments !== undefined) currentConfig.wheelSegments = dto.wheelSegments;
-    if (dto.actionUrl !== undefined) currentConfig.actionUrl = dto.actionUrl;
-    taskConfigMap.set(id, currentConfig);
+    const task = await this.prisma.task.update({ where: { id }, data });
+    const config = configOf(task);
 
     return {
       id: task.id,
@@ -321,36 +492,33 @@ export class TasksService {
       rewardPoints: task.rewardMilli / 1000,
       cooldownHours: task.cooldownHours,
       active: task.active,
-      wheelSegments: currentConfig.wheelSegments,
-      quizQuestions: currentConfig.quizQuestions,
-      actionUrl: currentConfig.actionUrl,
+      wheelSegments: config.wheelSegments,
+      quizQuestions: config.quizQuestions,
+      actionUrl: config.actionUrl,
     };
   }
 
   async adminCreateTask(dto: Omit<AdminTaskConfigDto, 'id'>) {
-    const task = await this.prisma.task.create({
+    return this.prisma.task.create({
       data: {
-        type: dto.type as any,
+        type: dto.type as TaskType,
         title: dto.title,
         rewardMilli: Math.round((dto.rewardPoints || 10) * 1000),
         cooldownHours: dto.cooldownHours || 24,
         active: dto.active ?? true,
+        quizQuestions: asJson(dto.quizQuestions),
+        wheelSegments: asJson(dto.wheelSegments),
+        actionUrl: dto.actionUrl ?? null,
       },
     });
-
-    if (dto.quizQuestions || dto.wheelSegments || dto.actionUrl) {
-      taskConfigMap.set(task.id, {
-        quizQuestions: dto.quizQuestions || undefined,
-        wheelSegments: dto.wheelSegments || undefined,
-        actionUrl: dto.actionUrl || undefined,
-      });
-    }
-
-    return task;
   }
 
   async adminDeleteTask(id: string) {
-    taskConfigMap.delete(id);
-    return this.prisma.task.delete({ where: { id } });
+    // The claim history references the task, so clear it first rather than
+    // letting the delete fail on a foreign key.
+    return this.prisma.$transaction(async (tx) => {
+      await tx.taskClaim.deleteMany({ where: { taskId: id } });
+      return tx.task.delete({ where: { id } });
+    });
   }
 }

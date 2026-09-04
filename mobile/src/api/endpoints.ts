@@ -159,12 +159,42 @@ export type TaskType =
   | 'QUIZ'
   | 'SPIN_WHEEL';
 
+/**
+ * A question as the client is allowed to see it before answering.
+ *
+ * `correctIndex` and `explanation` (which names the answer in prose) are
+ * withheld by the server until the answers are submitted — grading happens
+ * there, not here.
+ */
 export interface QuizQuestion {
   id: number;
   question: string;
   options: string[];
+}
+
+/** How one submitted answer was marked. */
+export interface QuizAnswerResult {
+  id: number;
+  yourAnswer: number;
   correctIndex: number;
+  correct: boolean;
   explanation: string;
+}
+
+export interface QuizResult {
+  correctCount: number;
+  total: number;
+  results: QuizAnswerResult[];
+}
+
+export interface ClaimTaskResult {
+  earnedPoints: number;
+  balancePoints: number;
+  nextAvailableAt: string;
+  /** Which wheel segment the server drew. Null for non-wheel tasks. */
+  spinIndex: number | null;
+  /** Marking and explanations for a QUIZ claim. Null for other tasks. */
+  quiz: QuizResult | null;
 }
 
 export interface TaskDto {
@@ -184,14 +214,18 @@ export interface TaskDto {
 
 export const getTasks = () => apiFetch<TaskDto[]>('/tasks');
 
-export const claimTask = (id: string) =>
-  apiFetch<{
-    earnedPoints: number;
-    balancePoints: number;
-    nextAvailableAt: string;
-    /** Which wheel segment the server drew. Null for non-wheel tasks. */
-    spinIndex: number | null;
-  }>(`/tasks/${id}/claim`, { method: 'POST' });
+/**
+ * Claim a task reward.
+ *
+ * `answers` is required for QUIZ tasks — the chosen option index per
+ * question, in order. The reward is scaled by how many were right, and the
+ * cooldown starts either way.
+ */
+export const claimTask = (id: string, answers?: number[]) =>
+  apiFetch<ClaimTaskResult>(`/tasks/${id}/claim`, {
+    method: 'POST',
+    body: JSON.stringify(answers ? { answers } : {}),
+  });
 
 /* ───────────────────────────── Referrals ──────────────────────────── */
 

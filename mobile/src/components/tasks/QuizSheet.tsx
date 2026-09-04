@@ -18,7 +18,7 @@ import { ErrorNote } from '../ui/Chrome';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useT } from '../../i18n';
 import { useFeedback } from '../../lib/feedback';
-import type { QuizQuestion } from '../../api/endpoints';
+import type { ClaimTaskResult, QuizQuestion } from '../../api/endpoints';
 
 /** Fallback deck, used when the admin has not configured questions. */
 const DEFAULT_QUESTIONS: QuizQuestion[] = [
@@ -31,9 +31,6 @@ const DEFAULT_QUESTIONS: QuizQuestion[] = [
       'Solana (SPL)',
       'Bitcoin Lightning',
     ],
-    correctIndex: 0,
-    explanation:
-      'Payouts settle on BNB Smart Chain as BEP-20 transfers — low fees, fast finality.',
   },
   {
     id: 2,
@@ -44,23 +41,16 @@ const DEFAULT_QUESTIONS: QuizQuestion[] = [
       '10 points = 1 $BONDKOIN',
       '5 points = 1 $BONDKOIN',
     ],
-    correctIndex: 1,
-    explanation: 'Three points convert to one $BONDKOIN, fixed at withdrawal time.',
   },
   {
     id: 3,
     question: 'What is the base mining rate on a free account?',
     options: ['0.25 /h', '0.50 /h', '0.90 /h', '1.50 /h'],
-    correctIndex: 2,
-    explanation: 'Every account accrues 0.90 points an hour before boosters.',
   },
   {
     id: 4,
     question: 'How often must you tap Mine to keep accruing?',
     options: ['Every hour', 'Every 6 hours', 'Every 12 hours', 'Every 24 hours'],
-    correctIndex: 3,
-    explanation:
-      'Accrual is capped at 24 hours worth — tapping Mine banks it and restarts the window.',
   },
 ];
 
@@ -69,19 +59,22 @@ const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 /**
  * The knowledge-check bounty.
  *
- * Answering is a formality the server does not grade: the reward is fixed and
- * claimed on completion. The explanations are the actual point — they teach
- * the rules the platform runs on.
+ * The server marks the submission and scales the reward by the score, so the
+ * answers never reach this client until they have been sent. Answering is one
+ * pass with no per-question feedback; the explanations — which are the actual
+ * point, since they teach the rules the platform runs on — come back with the
+ * marking.
  */
 export function QuizSheet({
   rewardPoints,
   questions,
-  onComplete,
+  onSubmit,
   onClose,
 }: {
   rewardPoints: number;
   questions?: QuizQuestion[] | null;
-  onComplete: () => Promise<void>;
+  /** Sends the answers to be marked and returns what the server awarded. */
+  onSubmit: (answers: number[]) => Promise<ClaimTaskResult>;
   onClose: () => void;
 }) {
   const { c, spacing, radius, alpha, glow } = useTheme();
@@ -94,49 +87,56 @@ export function QuizSheet({
   );
 
   const [index, setIndex] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [score, setScore] = useState(0);
-  const [finished, setFinished] = useState(false);
-  const [claiming, setClaiming] = useState(false);
+  const [answers, setAnswers] = useState<number[]>([]);
+  const [outcome, setOutcome] = useState<ClaimTaskResult | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const question = deck[Math.min(index, deck.length - 1)];
+  const selected = answers[index] ?? null;
   const answered = selected !== null;
-  const progress = (index + (answered ? 1 : 0)) / deck.length;
+  const answeredCount = answers.filter((a) => a !== undefined).length;
+  const progress = answeredCount / deck.length;
+  const isLast = index + 1 === deck.length;
+  const quiz = outcome?.quiz ?? null;
 
+  // Recording a choice, not marking it — so it can still be changed while the
+  // miner is on the question.
   const choose = (choice: number) => {
-    if (answered) return;
-    setSelected(choice);
-    if (choice === question.correctIndex) {
-      setScore((s) => s + 1);
-      feedback.success();
-    } else {
-      feedback.warn();
+    feedback.select();
+    setAnswers((prev) => {
+      const next = [...prev];
+      next[index] = choice;
+      return next;
+    });
+  };
+
+  const submit = async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await onSubmit(answers);
+      setOutcome(result);
+      if (result.quiz && result.quiz.correctCount === result.quiz.total) {
+        feedback.win();
+      } else {
+        feedback.success();
+      }
+    } catch (err) {
+      // Stay on the last question so the answers survive a blip.
+      feedback.error();
+      setError(err instanceof Error ? err.message : t('app.offline'));
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const next = () => {
-    if (index + 1 < deck.length) {
+    if (!isLast) {
       setIndex((i) => i + 1);
-      setSelected(null);
       return;
     }
-    setFinished(true);
-    feedback.win();
-  };
-
-  const claim = async () => {
-    setClaiming(true);
-    setError(null);
-    try {
-      await onComplete();
-      onClose();
-    } catch (err) {
-      feedback.error();
-      setError(err instanceof Error ? err.message : t('app.offline'));
-    } finally {
-      setClaiming(false);
-    }
+    void submit();
   };
 
   return (
@@ -145,12 +145,12 @@ export function QuizSheet({
       onClose={onClose}
       title={t('tasksScreen.quizTitle')}
       subtitle={
-        finished
+        quiz
           ? t('tasksScreen.quizDoneTitle')
           : t('tasksScreen.quizProgress', { n: index + 1, total: deck.length })
       }
     >
-      {finished ? (
+      {quiz ? (
         <Animated.View
           entering={ZoomIn.duration(300)}
           style={{ gap: spacing.lg, alignItems: 'center' }}
@@ -169,7 +169,11 @@ export function QuizSheet({
                 justifyContent: 'center',
               }}
             >
-              <Ionicons name="trophy" size={32} color={c.onGold} />
+              <Ionicons
+                name={quiz.correctCount === quiz.total ? 'trophy' : 'book'}
+                size={32}
+                color={c.onGold}
+              />
             </LinearGradient>
           </View>
           <View style={{ alignItems: 'center', gap: 4 }}>
@@ -177,7 +181,10 @@ export function QuizSheet({
               {t('tasksScreen.quizDoneTitle')}
             </Text>
             <Text variant="footnote" tone="secondary" center>
-              {t('tasksScreen.quizDoneBody', { score, total: deck.length })}
+              {t('tasksScreen.quizDoneBody', {
+                score: quiz.correctCount,
+                total: quiz.total,
+              })}
             </Text>
           </View>
 
@@ -199,21 +206,58 @@ export function QuizSheet({
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
               <Text variant="display" mono tone="info">
-                +{rewardPoints}
+                +{outcome?.earnedPoints ?? 0}
               </Text>
               <Text variant="callout" tone="info" weight="800" uppercase>
                 {t('dashboard.pointsShort')}
               </Text>
             </View>
+            {quiz.correctCount < quiz.total ? (
+              <Text variant="caption" tone="gold" center>
+                {quiz.correctCount}/{quiz.total} of {rewardPoints}
+              </Text>
+            ) : null}
           </View>
 
-          {error ? <ErrorNote message={error} /> : null}
+          {/* Per-question review, straight from the server's marking. */}
+          <View style={{ width: '100%', gap: spacing.sm }}>
+            {quiz.results.map((r, i) => (
+              <View
+                key={r.id}
+                style={{
+                  padding: spacing.md,
+                  borderRadius: radius.lg,
+                  backgroundColor: alpha(r.correct ? c.success : c.danger, 0.1),
+                  borderWidth: 1,
+                  borderColor: alpha(r.correct ? c.success : c.danger, 0.4),
+                  gap: 4,
+                }}
+              >
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                  <Ionicons
+                    name={r.correct ? 'checkmark-circle' : 'close-circle'}
+                    size={17}
+                    color={r.correct ? c.success : c.danger}
+                  />
+                  <Text variant="caption" weight="800" style={{ flex: 1 }}>
+                    {deck[i]?.question}
+                  </Text>
+                </View>
+                {!r.correct ? (
+                  <Text variant="caption" tone="success">
+                    {deck[i]?.options[r.correctIndex]}
+                  </Text>
+                ) : null}
+                <Text variant="caption" tone="tertiary">
+                  {r.explanation}
+                </Text>
+              </View>
+            ))}
+          </View>
 
           <Button
-            label={t('tasksScreen.claimReward', { points: rewardPoints })}
-            icon="sparkles"
-            onPress={() => void claim()}
-            loading={claiming}
+            label={t('app.close')}
+            onPress={onClose}
             fullWidth
             size="lg"
           />
@@ -232,7 +276,10 @@ export function QuizSheet({
               Q {index + 1}/{deck.length}
             </Text>
             <Text variant="caption" tone="info" mono weight="700" uppercase>
-              {t('tasksScreen.quizScore', { score, total: deck.length })}
+              {t('tasksScreen.quizScore', {
+                score: answeredCount,
+                total: deck.length,
+              })}
             </Text>
           </View>
           <View
@@ -281,8 +328,7 @@ export function QuizSheet({
                 <Option
                   letter={LETTERS[i] ?? String(i + 1)}
                   label={option}
-                  answered={answered}
-                  isCorrect={i === question.correctIndex}
+                  disabled={submitting}
                   isSelected={selected === i}
                   onPress={() => choose(i)}
                 />
@@ -290,55 +336,46 @@ export function QuizSheet({
             ))}
           </View>
 
-          {answered ? (
-            <Animated.View entering={FadeIn.duration(200)} style={{ gap: spacing.md }}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  gap: spacing.sm,
-                  padding: spacing.md,
-                  borderRadius: radius.lg,
-                  backgroundColor: alpha(c.info, 0.1),
-                  borderWidth: 1,
-                  borderColor: alpha(c.info, 0.3),
-                }}
-              >
-                <Ionicons name="bulb-outline" size={17} color={c.info} />
-                <Text variant="caption" tone="info" style={{ flex: 1 }}>
-                  {question.explanation}
-                </Text>
-              </View>
+          <Animated.View entering={FadeIn.duration(200)} style={{ gap: spacing.md }}>
+            {index > 0 && !submitting ? (
               <Button
-                label={
-                  index + 1 === deck.length
-                    ? t('tasksScreen.quizFinish')
-                    : t('tasksScreen.quizNext')
-                }
-                onPress={next}
-                iconRight="arrow-forward"
+                label={t('app.back')}
+                variant="ghost"
+                onPress={() => setIndex((i) => i - 1)}
                 fullWidth
               />
-            </Animated.View>
-          ) : null}
+            ) : null}
+
+            {error ? <ErrorNote message={error} /> : null}
+
+            <Button
+              label={
+                isLast ? t('tasksScreen.quizFinish') : t('tasksScreen.quizNext')
+              }
+              onPress={next}
+              disabled={!answered}
+              loading={submitting}
+              iconRight="arrow-forward"
+              fullWidth
+            />
+          </Animated.View>
         </>
       )}
     </Sheet>
   );
 }
 
-/** One answer row: neutral glass until answered, then emerald / red / dimmed. */
+/** One answer row: neutral glass, tinted cyan while it is the chosen one. */
 function Option({
   letter,
   label,
-  answered,
-  isCorrect,
+  disabled,
   isSelected,
   onPress,
 }: {
   letter: string;
   label: string;
-  answered: boolean;
-  isCorrect: boolean;
+  disabled: boolean;
   isSelected: boolean;
   onPress: () => void;
 }) {
@@ -346,7 +383,9 @@ function Option({
   const scale = useSharedValue(1);
   const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  const tint = !answered ? null : isCorrect ? c.success : isSelected ? c.danger : null;
+  // Selection only. Emerald and red belong on the review screen now — this
+  // client has nothing to mark against until the server has seen the answers.
+  const tint = isSelected ? c.info : null;
   const bg = tint
     ? alpha(tint, c.dark ? 0.15 : 0.1)
     : c.dark
@@ -358,8 +397,8 @@ function Option({
     <Animated.View style={style}>
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ selected: isSelected, disabled: answered }}
-        disabled={answered}
+        accessibilityState={{ selected: isSelected, disabled }}
+        disabled={disabled}
         onPressIn={() => {
           scale.value = withSpring(0.98, { damping: 20, stiffness: 320 });
         }}
@@ -377,7 +416,7 @@ function Option({
           backgroundColor: bg,
           borderWidth: 1,
           borderColor: border,
-          opacity: answered && !isCorrect && !isSelected ? 0.45 : 1,
+          opacity: disabled ? 0.6 : 1,
         }}
       >
         <View
@@ -404,10 +443,8 @@ function Option({
         <Text variant="callout" weight="600" style={{ flex: 1 }}>
           {label}
         </Text>
-        {answered && isCorrect ? (
-          <Ionicons name="checkmark-circle" size={20} color={c.success} />
-        ) : answered && isSelected ? (
-          <Ionicons name="close-circle" size={20} color={c.danger} />
+        {isSelected ? (
+          <Ionicons name="radio-button-on" size={20} color={c.info} />
         ) : null}
       </Pressable>
     </Animated.View>

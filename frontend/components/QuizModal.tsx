@@ -3,13 +3,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
+import type { ClaimTaskResultDto } from '../lib/api';
 
+/**
+ * A question as the client sees it. No `correctIndex`, no `explanation`:
+ * this modal used to be handed both and decide for itself whether the miner
+ * had passed, which meant the answers sat in the network payload and the
+ * grade meant nothing. The server marks the submission now.
+ */
 interface QuizQuestion {
   id: number;
   question: string;
   options: string[];
-  correctIndex: number;
-  explanation: string;
 }
 
 const QUIZ_QUESTIONS: QuizQuestion[] = [
@@ -22,8 +27,6 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
       'Solana Network (SPL)',
       'Bitcoin Lightning Network',
     ],
-    correctIndex: 0,
-    explanation: 'BONDKOIN utilizes the high-speed, low-gas BNB Smart Chain (BEP-20) for automated withdrawals.',
   },
   {
     id: 2,
@@ -34,8 +37,6 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
       '10 Points = 1 $BONDKOIN',
       '5 Points = 1 $BONDKOIN',
     ],
-    correctIndex: 1,
-    explanation: 'According to tokenomics, 3 BONDKOIN Points convert directly to 1 mainnet $BONDKOIN token.',
   },
   {
     id: 3,
@@ -46,8 +47,6 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
       '0.90 BONDKOIN/h',
       '1.50 BONDKOIN/h',
     ],
-    correctIndex: 2,
-    explanation: 'Every verified miner receives a baseline node allocation of 0.90 BONDKOIN points every hour.',
   },
   {
     id: 4,
@@ -58,8 +57,6 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
       'Every 12 Hours',
       'Every 24 Hours',
     ],
-    correctIndex: 3,
-    explanation: 'Mining runs on an automated 24-hour cycle before requiring a session claim and reboot.',
   },
 ];
 
@@ -142,22 +139,22 @@ function useQuizSound(muted: boolean) {
 export function QuizModal({
   rewardPoints,
   customQuestions,
-  onComplete,
+  onSubmit,
   onClose,
 }: {
   rewardPoints: number;
   customQuestions?: QuizQuestion[] | null;
-  onComplete: () => Promise<void>;
+  /** Sends the answers to be marked and returns what the server awarded. */
+  onSubmit: (answers: number[]) => Promise<ClaimTaskResultDto>;
   onClose: () => void;
 }) {
   const [mounted, setMounted] = useState(false);
   const questionsList = customQuestions && customQuestions.length > 0 ? customQuestions : QUIZ_QUESTIONS;
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
-  const [score, setScore] = useState(0);
-  const [isAnswered, setIsAnswered] = useState(false);
-  const [isFinished, setIsFinished] = useState(false);
-  const [claiming, setClaiming] = useState(false);
+  const [answers, setAnswers] = useState<number[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [outcome, setOutcome] = useState<ClaimTaskResultDto | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
 
   useEffect(() => {
@@ -166,45 +163,52 @@ export function QuizModal({
 
   const { playCorrect, playWrong, playComplete } = useQuizSound(muted);
   const currentQ = questionsList[currentIdx] || questionsList[0];
+  const selectedIdx = answers[currentIdx] ?? null;
+  const isAnswered = selectedIdx !== null;
+  const isLast = currentIdx + 1 === questionsList.length;
 
+  // Selecting is now just recording a choice — there is nothing to mark
+  // against until the whole set goes to the server, so an answer can still be
+  // changed while the miner is on the question.
   const handleSelect = (idx: number) => {
-    if (isAnswered) return;
-    setSelectedIdx(idx);
-    setIsAnswered(true);
+    setAnswers((prev) => {
+      const next = [...prev];
+      next[currentIdx] = idx;
+      return next;
+    });
+  };
 
-    const isCorrect = idx === currentQ.correctIndex;
-    if (isCorrect) {
-      setScore((s) => s + 1);
-      playCorrect();
-    } else {
-      playWrong();
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await onSubmit(answers);
+      setOutcome(result);
+      const quiz = result.quiz;
+      if (quiz && quiz.correctCount === quiz.total) playCorrect();
+      else if (quiz && quiz.correctCount === 0) playWrong();
+      else playComplete();
+    } catch (err) {
+      // Stay on the last question so the answers are not lost to a blip.
+      setError(err instanceof Error ? err.message : 'Could not submit the quiz.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleNext = () => {
-    if (currentIdx + 1 < questionsList.length) {
+    if (!isLast) {
       setCurrentIdx((c) => c + 1);
-      setSelectedIdx(null);
-      setIsAnswered(false);
-    } else {
-      setIsFinished(true);
-      playComplete();
+      return;
     }
-  };
-
-  const handleClaim = async () => {
-    setClaiming(true);
-    try {
-      await onComplete();
-      onClose();
-    } finally {
-      setClaiming(false);
-    }
+    void handleSubmit();
   };
 
   if (!mounted) return null;
 
-  const progressPercent = ((currentIdx + (isAnswered ? 1 : 0)) / questionsList.length) * 100;
+  const answeredCount = answers.filter((a) => a !== undefined).length;
+  const progressPercent = (answeredCount / questionsList.length) * 100;
+  const quiz = outcome?.quiz ?? null;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xl animate-in fade-in duration-200">
@@ -247,12 +251,12 @@ export function QuizModal({
             </div>
           </div>
 
-          {!isFinished ? (
+          {!quiz ? (
             <div className="mt-5 text-left">
               {/* Progress Bar */}
               <div className="flex items-center justify-between text-xs font-mono font-bold text-slate-400">
                 <span>QUESTION {currentIdx + 1} OF {questionsList.length}</span>
-                <span className="text-cyan-400">SCORE: {score}/{questionsList.length}</span>
+                <span className="text-cyan-400">ANSWERED: {answeredCount}/{questionsList.length}</span>
               </div>
               <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800/80">
                 <div
@@ -268,90 +272,148 @@ export function QuizModal({
                 </p>
               </div>
 
-              {/* Options List */}
+              {/* Options List. Selection only — the marking comes back with
+                  the claim, so there is nothing to colour green here yet. */}
               <div className="mt-4 space-y-2.5">
                 {currentQ.options.map((option, idx) => {
                   const isSelected = selectedIdx === idx;
-                  const isCorrect = idx === currentQ.correctIndex;
-                  let btnStyle = 'border-white/10 bg-slate-900/40 text-slate-200 hover:border-cyan-400/50 hover:bg-slate-900/60';
-
-                  if (isAnswered) {
-                    if (isCorrect) {
-                      btnStyle = 'border-emerald-500/80 bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/50 shadow-lg';
-                    } else if (isSelected) {
-                      btnStyle = 'border-red-500/80 bg-red-500/20 text-red-300 ring-1 ring-red-400/50';
-                    } else {
-                      btnStyle = 'opacity-40 border-white/5 bg-slate-900/20 text-slate-400';
-                    }
-                  }
+                  const btnStyle = isSelected
+                    ? 'border-cyan-400/80 bg-cyan-500/15 text-cyan-200 ring-1 ring-cyan-400/50 shadow-lg'
+                    : 'border-white/10 bg-slate-900/40 text-slate-200 hover:border-cyan-400/50 hover:bg-slate-900/60';
 
                   return (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => handleSelect(idx)}
-                      disabled={isAnswered}
-                      className={`w-full text-left rounded-2xl border p-3.5 text-sm font-semibold transition-all duration-200 flex items-center justify-between ${btnStyle}`}
+                      disabled={submitting}
+                      className={`w-full text-left rounded-2xl border p-3.5 text-sm font-semibold transition-all duration-200 flex items-center justify-between disabled:opacity-60 ${btnStyle}`}
                     >
                       <span>{option}</span>
-                      {isAnswered && (
-                        <span className="font-bold text-xs">
-                          {isCorrect ? '✓ CORRECT' : isSelected ? '✕ WRONG' : ''}
-                        </span>
-                      )}
+                      {isSelected && <span className="text-xs font-bold">●</span>}
                     </button>
                   );
                 })}
               </div>
 
-              {/* Explanation Note & Next Button */}
-              {isAnswered && (
-                <div className="mt-4 space-y-3 animate-in fade-in duration-200">
-                  <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3 text-xs text-cyan-200 leading-relaxed backdrop-blur-md">
-                    💡 <strong>Explanation:</strong> {currentQ.explanation}
-                  </div>
-
+              <div className="mt-4 space-y-3">
+                {currentIdx > 0 && !submitting && (
                   <button
                     type="button"
-                    onClick={handleNext}
-                    className="btn-gold w-full rounded-2xl py-3 text-xs font-black uppercase tracking-wider text-slate-950 shadow-lg"
+                    onClick={() => setCurrentIdx((c) => c - 1)}
+                    className="w-full rounded-2xl border border-white/10 bg-slate-900/40 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 transition hover:border-slate-700 hover:text-slate-200"
                   >
-                    {currentIdx + 1 === questionsList.length ? 'Finish Challenge →' : 'Next Question →'}
+                    ← Back
                   </button>
-                </div>
-              )}
+                )}
+
+                {error && (
+                  <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs font-semibold text-red-300">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={!isAnswered || submitting}
+                  className="btn-gold w-full rounded-2xl py-3 text-xs font-black uppercase tracking-wider text-slate-950 shadow-lg disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {submitting
+                    ? 'Marking…'
+                    : !isAnswered
+                      ? 'Choose an answer'
+                      : isLast
+                        ? 'Submit Answers →'
+                        : 'Next Question →'}
+                </button>
+
+                {isLast && isAnswered && !submitting && (
+                  <p className="text-center text-[11px] font-medium text-slate-500">
+                    Answers are marked once. You can try again after the cooldown.
+                  </p>
+                )}
+              </div>
             </div>
           ) : (
-            /* Finished Screen */
-            <div className="mt-6 text-center animate-in zoom-in-95 duration-300">
-              <div className="inline-grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-tr from-amber-500 to-yellow-400 text-3xl shadow-xl">
-                🏆
-              </div>
-              <h3 className="mt-4 text-2xl font-black text-slate-100">
-                Quiz Completed!
-              </h3>
-              <p className="mt-1 text-sm text-slate-400">
-                You scored {score} out of {questionsList.length} questions correctly.
-              </p>
+            /* Result screen — everything here comes from the server's
+               marking, including the explanations, which are withheld until
+               the answers are in. */
+            <div className="mt-6 animate-in zoom-in-95 duration-300">
+              <div className="text-center">
+                <div className="inline-grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-tr from-amber-500 to-yellow-400 text-3xl shadow-xl">
+                  {quiz.correctCount === quiz.total ? '🏆' : '📘'}
+                </div>
+                <h3 className="mt-4 text-2xl font-black text-slate-100">
+                  {quiz.correctCount === quiz.total
+                    ? 'Perfect Score!'
+                    : 'Quiz Completed'}
+                </h3>
+                <p className="mt-1 text-sm text-slate-400">
+                  You answered {quiz.correctCount} of {quiz.total} correctly.
+                </p>
 
-            <div className="mt-5 rounded-2xl border border-amber-400/40 bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 p-4 backdrop-blur-md">
-              <div className="text-xs uppercase font-black tracking-widest text-amber-400">
-                BOUNTY REWARD UNLOCKED
+                <div className="mt-5 rounded-2xl border border-amber-400/40 bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 p-4 backdrop-blur-md">
+                  <div className="text-xs uppercase font-black tracking-widest text-amber-400">
+                    {outcome && outcome.earnedPoints > 0
+                      ? 'Bounty Credited'
+                      : 'No Points This Round'}
+                  </div>
+                  <div className="mt-1 font-mono text-3xl font-black text-cyan-300">
+                    +{outcome?.earnedPoints ?? 0} BONDKOIN PTS
+                  </div>
+                  {quiz.correctCount < quiz.total && (
+                    <div className="mt-1 text-[11px] font-medium text-amber-200/80">
+                      {quiz.correctCount}/{quiz.total} of the full {rewardPoints} pts
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="mt-1 font-mono text-3xl font-black text-cyan-300">
-                +{rewardPoints} BONDKOIN PTS
+
+              {/* Per-question review */}
+              <div className="mt-5 max-h-64 space-y-2.5 overflow-y-auto pr-1 text-left">
+                {quiz.results.map((r, i) => {
+                  const q = questionsList[i];
+                  return (
+                    <div
+                      key={r.id}
+                      className={`rounded-2xl border p-3 backdrop-blur-md ${
+                        r.correct
+                          ? 'border-emerald-500/40 bg-emerald-500/10'
+                          : 'border-red-500/40 bg-red-500/10'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className="text-sm font-black">
+                          {r.correct ? '✓' : '✕'}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold leading-snug text-slate-100">
+                            {q?.question}
+                          </p>
+                          {!r.correct && (
+                            <p className="mt-1 text-[11px] font-semibold text-emerald-300">
+                              Correct answer: {q?.options[r.correctIndex]}
+                            </p>
+                          )}
+                          <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
+                            💡 {r.explanation}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="btn-brand mt-6 flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-xs font-black uppercase tracking-wider text-white shadow-xl"
+              >
+                Close →
+              </button>
             </div>
-
-            <button
-              type="button"
-              onClick={handleClaim}
-              disabled={claiming}
-              className="btn-brand mt-6 flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-xs font-black uppercase tracking-wider text-white shadow-xl"
-            >
-              {claiming ? 'Crediting Bounty…' : '✨ Claim Reward & Close →'}
-            </button>
-          </div>
         )}
       </div>
     </div>,
