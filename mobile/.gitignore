@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# EAS local credentials (contains the keystore password)
+credentials.json

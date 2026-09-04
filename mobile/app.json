@@ -123,7 +123,7 @@
       "webUrl": "https://bondkoinlabs.com",
       "router": {},
       "eas": {
-        "projectId": "00000000-0000-0000-0000-000000000000"
+        "projectId": "2c23423c-f64f-44a3-a9ce-08748d6631a0"
       }
     },
     "runtimeVersion": {
@@ -131,6 +131,7 @@
     },
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "owner": "anupam634"
   }
 }
