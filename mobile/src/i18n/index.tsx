@@ -25,10 +25,29 @@ export const LOCALE_LABELS: Record<Locale, { label: string; english: string; fla
 
 type Dict = Record<string, unknown>;
 
+function isDict(value: unknown): value is Dict {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Recursive merge — a namespace that exists in both catalogues (`auth` does)
+ * keeps the web keys and gains the mobile ones. A shallow spread would replace
+ * the whole namespace and leave the web strings unreachable.
+ */
+function mergeDicts(base: Dict, extra: Dict): Dict {
+  const out: Dict = { ...base };
+  for (const [key, value] of Object.entries(extra)) {
+    const current = out[key];
+    out[key] =
+      isDict(current) && isDict(value) ? mergeDicts(current, value) : value;
+  }
+  return out;
+}
+
 const CATALOGUE: Record<Locale, Dict> = {
-  en: { ...(en as Dict), ...mobileStrings.en },
-  zh: { ...(zh as Dict), ...mobileStrings.zh },
-  ko: { ...(ko as Dict), ...mobileStrings.ko },
+  en: mergeDicts(en as Dict, mobileStrings.en),
+  zh: mergeDicts(zh as Dict, mobileStrings.zh),
+  ko: mergeDicts(ko as Dict, mobileStrings.ko),
 };
 
 function lookup(dict: Dict, path: string): string | undefined {

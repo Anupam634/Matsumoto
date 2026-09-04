@@ -1,6 +1,6 @@
 # BONDKOIN — mobile app
 
-The native app for the BONDKOIN mining platform. Expo (SDK 57) + expo-router,
+The native app for the BONDKOIN mining platform. Expo (SDK 54) + expo-router,
 talking to the same API as `../frontend`, with the web app's message catalogue
 reused verbatim so both clients say the same thing in en / 中文 / 한국어.
 

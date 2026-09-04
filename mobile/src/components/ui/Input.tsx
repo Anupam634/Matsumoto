@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from './Text';
 import { useTheme } from '../../theme/ThemeProvider';
+import { useT } from '../../i18n';
 
 export interface InputProps extends Omit<TextInputProps, 'style'> {
   label?: string;
@@ -44,10 +45,13 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   },
   ref,
 ) {
-  const { c, radius, spacing, type, monoFont } = useTheme();
+  const { c, radius, spacing, type, monoFont, glow } = useTheme();
+  const t = useT();
   const [focused, setFocused] = useState(false);
 
-  const borderColor = error ? c.danger : focused ? c.primary : c.border;
+  const borderColor = error ? c.danger : focused ? c.primary : c.borderStrong;
+  // The site's focus ring: `box-shadow: 0 0 0 3px rgba(37,99,235,.3)`.
+  const focusRing = focused && !error ? glow(c.primaryGlow, 1) : null;
 
   return (
     <View style={containerStyle}>
@@ -60,12 +64,12 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             marginBottom: 6,
           }}
         >
-          <Text variant="footnote" tone="secondary" weight="600">
+          <Text variant="overline" tone="tertiary" uppercase>
             {label}
           </Text>
           {optional ? (
             <Text variant="caption" tone="tertiary">
-              ·
+              {t('app.optional')}
             </Text>
           ) : null}
         </View>
@@ -83,6 +87,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
           borderRadius: radius.lg,
           borderWidth: 1.5,
           borderColor,
+          ...focusRing,
         }}
       >
         {icon ? (
@@ -96,6 +101,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
 
         <TextInput
           ref={ref}
+          accessibilityLabel={label}
           {...rest}
           multiline={multiline}
           onFocus={(e) => {
@@ -150,22 +156,35 @@ export function InputAction({
   label,
   onPress,
   icon,
+  accessibilityLabel,
+  disabled,
+  tint,
 }: {
   label?: string;
   onPress: () => void;
   icon?: keyof typeof Ionicons.glyphMap;
+  /** Required for icon-only actions — the glyph name is not a label. */
+  accessibilityLabel?: string;
+  disabled?: boolean;
+  /** Icon colour override, e.g. brand once there is something to send. */
+  tint?: string;
 }) {
   const { c, radius } = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label ?? icon}
-      hitSlop={8}
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled: !!disabled }}
+      disabled={disabled}
+      hitSlop={10}
       onPress={onPress}
       style={({ pressed }) => ({
-        opacity: pressed ? 0.6 : 1,
+        opacity: disabled ? 0.4 : pressed ? 0.6 : 1,
+        minHeight: 32,
+        minWidth: 32,
         paddingHorizontal: label ? 10 : 4,
-        paddingVertical: 6,
+        alignItems: 'center',
+        justifyContent: 'center',
         borderRadius: radius.sm,
         backgroundColor: label ? c.primaryMuted : 'transparent',
       })}
@@ -175,7 +194,7 @@ export function InputAction({
           {label}
         </Text>
       ) : (
-        <Ionicons name={icon!} size={18} color={c.textTertiary} />
+        <Ionicons name={icon!} size={18} color={tint ?? c.textTertiary} />
       )}
     </Pressable>
   );

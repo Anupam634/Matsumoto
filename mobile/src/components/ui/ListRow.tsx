@@ -73,6 +73,9 @@ export function ListRow({
 
   const showChevron = chevron ?? (!!onPress && !toggle && !trailing);
 
+  // iOS-style inset separator: starts at the text, not the card edge.
+  const separatorInset = icon ? spacing.lg + 30 + spacing.md : spacing.lg;
+
   const content = (
     <View
       style={{
@@ -83,8 +86,6 @@ export function ListRow({
         paddingHorizontal: spacing.lg,
         minHeight: 52,
         opacity: disabled ? 0.45 : 1,
-        borderBottomWidth: last ? 0 : 1,
-        borderBottomColor: c.border,
       }}
     >
       {icon ? (
@@ -127,7 +128,7 @@ export function ListRow({
               toggle.onChange(next);
             }}
             trackColor={{ false: c.borderStrong, true: c.primary }}
-            thumbColor="#FFFFFF"
+            thumbColor={c.onPrimary}
             ios_backgroundColor={c.borderStrong}
           />
         ) : (
@@ -145,7 +146,24 @@ export function ListRow({
     </View>
   );
 
-  if (!onPress || disabled) return <View style={style}>{content}</View>;
+  const separator = last ? null : (
+    <View
+      style={{
+        height: 1,
+        marginLeft: separatorInset,
+        backgroundColor: c.border,
+      }}
+    />
+  );
+
+  if (!onPress || disabled) {
+    return (
+      <View style={style}>
+        {content}
+        {separator}
+      </View>
+    );
+  }
 
   return (
     <Pressable
@@ -161,6 +179,7 @@ export function ListRow({
       ]}
     >
       {content}
+      {separator}
     </Pressable>
   );
 }

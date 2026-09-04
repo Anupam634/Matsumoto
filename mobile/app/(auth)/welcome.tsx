@@ -1,265 +1,308 @@
-import React, { useRef, useState } from 'react';
-import {
-  Dimensions,
-  Pressable,
-  ScrollView,
-  View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from 'react-native';
+import React from 'react';
+import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Text } from '../../src/components/ui/Text';
 import { Button } from '../../src/components/ui/Button';
+import { Card } from '../../src/components/ui/Card';
 import { Screen } from '../../src/components/ui/Chrome';
+import { PulseDot } from '../../src/components/ui/Pulse';
+import { Coin3D } from '../../src/components/mining/Coin3D';
+import { LivePill } from '../../src/components/common/AuthShell';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useT } from '../../src/i18n';
 import { useSettings } from '../../src/store/settings';
-import { useFeedback } from '../../src/lib/feedback';
-
-const { width } = Dimensions.get('window');
 
 /**
- * First-run carousel.
+ * First run — the site's landing hero, folded onto one phone screen.
  *
- * Three slides that say what the product actually is — accrual, boosters and
- * referrals, on-chain payout — before asking anyone to create an account.
- * Shown once; the flag lives in Settings so a reinstall shows it again.
+ * Network status strip, brand row, the pulse-dot badge, the headline with its
+ * cyan accent, the terminal card with the rotating coin, the three key
+ * figures, then the two CTAs. Shown once; the flag lives in Settings so a
+ * reinstall shows it again.
  */
 export default function Welcome() {
-  const { c, spacing, radius } = useTheme();
+  const { c, spacing, radius, alpha, glow } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const t = useT();
   const { update } = useSettings();
-  const feedback = useFeedback();
-
-  const [page, setPage] = useState(0);
-  const scroller = useRef<ScrollView>(null);
-
-  const slides = [
-    {
-      icon: 'flash' as const,
-      tint: c.gold,
-      title: t('onboarding.slide1Title'),
-      body: t('onboarding.slide1Body'),
-    },
-    {
-      icon: 'rocket' as const,
-      tint: c.primary,
-      title: t('onboarding.slide2Title'),
-      body: t('onboarding.slide2Body'),
-    },
-    {
-      icon: 'wallet' as const,
-      tint: c.success,
-      title: t('onboarding.slide3Title'),
-      body: t('onboarding.slide3Body'),
-    },
-  ];
-
-  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const next = Math.round(e.nativeEvent.contentOffset.x / width);
-    if (next !== page) {
-      setPage(next);
-      feedback.select();
-    }
-  };
 
   const finish = (destination: '/(auth)/sign-up' | '/(auth)/sign-in') => {
     update({ onboarded: true });
     router.replace(destination);
   };
 
-  const isLast = page === slides.length - 1;
+  const figures = [
+    { value: '0.90 /h', label: t('landing.figures.baseRate') },
+    { value: '3 : 1', label: t('landing.figures.conversion') },
+    { value: '100 PTS', label: t('landing.figures.minWithdrawal') },
+  ];
 
   return (
     <Screen>
-      <LinearGradient
-        colors={[c.primaryMuted, c.bg]}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 320 }}
-      />
-
+      {/* ── Network status strip ── */}
       <View
         style={{
-          paddingTop: insets.top + spacing.sm,
-          paddingHorizontal: spacing.lg,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Image
-            source={require('../../assets/logo.png')}
-            style={{ width: 34, height: 34, borderRadius: radius.sm }}
-            contentFit="contain"
-          />
-          <View>
-            <Text variant="headline">{t('app.name')}</Text>
-            <Text variant="caption" tone="tertiary">
-              {t('app.tagline')}
-            </Text>
-          </View>
-        </View>
-
-        <Pressable
-          accessibilityRole="button"
-          hitSlop={10}
-          onPress={() => finish('/(auth)/sign-up')}
-        >
-          <Text variant="callout" tone="secondary" weight="600">
-            {t('onboarding.skip')}
-          </Text>
-        </Pressable>
-      </View>
-
-      <ScrollView
-        ref={scroller}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={onScroll}
-        style={{ flex: 1 }}
-      >
-        {slides.map((slide, i) => (
-          <View
-            key={slide.title}
-            style={{
-              width,
-              paddingHorizontal: spacing.xl,
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: spacing.lg,
-            }}
-          >
-            <Animated.View
-              entering={FadeInDown.delay(80).duration(420)}
-              style={{
-                width: 108,
-                height: 108,
-                borderRadius: radius.xxl,
-                backgroundColor: c.surface,
-                borderWidth: 1,
-                borderColor: c.border,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Ionicons name={slide.icon} size={46} color={slide.tint} />
-            </Animated.View>
-
-            <View style={{ gap: spacing.sm, alignItems: 'center' }}>
-              <Text variant="title1" center>
-                {slide.title}
-              </Text>
-              <Text
-                variant="body"
-                tone="secondary"
-                center
-                style={{ maxWidth: 330 }}
-              >
-                {slide.body}
-              </Text>
-            </View>
-
-            {i === 2 ? (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  gap: spacing.sm,
-                  marginTop: spacing.sm,
-                }}
-              >
-                <Figure label="0.90 /h" caption={t('landing.figures.baseRate')} />
-                <Figure label="3 : 1" caption={t('landing.figures.conversion')} />
-              </View>
-            ) : null}
-          </View>
-        ))}
-      </ScrollView>
-
-      <View
-        style={{
-          paddingHorizontal: spacing.xl,
-          paddingBottom: insets.bottom + spacing.xl,
-          gap: spacing.lg,
+          paddingTop: insets.top,
+          backgroundColor: c.dark ? alpha(c.bg, 0.9) : c.chrome,
+          borderBottomWidth: 1,
+          borderBottomColor: c.border,
         }}
       >
         <View
           style={{
             flexDirection: 'row',
-            justifyContent: 'center',
-            gap: 7,
+            alignItems: 'center',
+            gap: spacing.sm,
+            paddingHorizontal: spacing.lg,
+            height: 32,
           }}
         >
-          {slides.map((slide, i) => (
-            <View
-              key={slide.title}
-              style={{
-                width: i === page ? 22 : 7,
-                height: 7,
-                borderRadius: 4,
-                backgroundColor: i === page ? c.primary : c.borderStrong,
-              }}
-            />
-          ))}
+          <PulseDot color={c.success} size={7} />
+          <Text variant="caption" tone="gold" weight="700" numberOfLines={1} style={{ flexShrink: 1 }}>
+            {t('landing.network.mainnetStatus')}
+          </Text>
+          <Text variant="caption" tone="tertiary" style={{ opacity: 0.6 }}>
+            |
+          </Text>
+          <Text variant="caption" tone="secondary" weight="500" numberOfLines={1} style={{ flex: 1 }}>
+            {t('landing.network.chain')}
+          </Text>
+          <Text variant="caption" tone="success" mono weight="700" numberOfLines={1}>
+            {t('landing.network.conversionSpec')}
+          </Text>
+        </View>
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingHorizontal: spacing.lg,
+          paddingBottom: insets.bottom + spacing.xl,
+        }}
+      >
+        {/* ── Brand row ── */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            height: 60,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+            <View style={{ borderRadius: radius.md, ...glow(c.primary, 1) }}>
+              <Image
+                source={require('../../assets/logo.png')}
+                style={{ width: 38, height: 38, borderRadius: radius.md }}
+                contentFit="contain"
+              />
+            </View>
+            <View>
+              <Text variant="headline" weight="900" style={{ letterSpacing: -0.3 }}>
+                {t('app.name')}
+              </Text>
+              <Text
+                mono
+                tone="info"
+                uppercase
+                style={{ fontSize: 10, lineHeight: 13, letterSpacing: 1.8, fontWeight: '800' }}
+              >
+                Labs · BNB Chain
+              </Text>
+            </View>
+          </View>
+
+          <Button
+            label={t('onboarding.skip')}
+            variant="ghost"
+            size="sm"
+            onPress={() => finish('/(auth)/sign-up')}
+            style={{ marginRight: -spacing.sm }}
+          />
         </View>
 
-        <View style={{ gap: spacing.sm }}>
-          <Button
-            label={isLast ? t('auth.createAccount') : t('app.next')}
-            iconRight={isLast ? undefined : 'arrow-forward'}
-            onPress={() => {
-              if (isLast) {
-                finish('/(auth)/sign-up');
-                return;
-              }
-              const next = page + 1;
-              setPage(next);
-              scroller.current?.scrollTo({ x: next * width, animated: true });
+        {/* ── Hero copy ── */}
+        <Animated.View entering={FadeInDown.duration(420)} style={{ marginTop: spacing.md }}>
+          <View
+            style={{
+              alignSelf: 'flex-start',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.sm,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: radius.pill,
+              borderWidth: 1,
+              borderColor: alpha(c.primary, 0.4),
+              backgroundColor: alpha(c.primary, 0.1),
+              maxWidth: '100%',
             }}
+          >
+            <PulseDot color={c.info} size={7} />
+            <Text
+              variant="overline"
+              tone="brand"
+              uppercase
+              numberOfLines={1}
+              style={{ flexShrink: 1, letterSpacing: 0.8 }}
+            >
+              {t('landing.hero.badge')}
+            </Text>
+          </View>
+
+          <Text variant="display" style={{ marginTop: spacing.lg, fontSize: 38, lineHeight: 44 }}>
+            {t('landing.hero.title')}{' '}
+            <Text variant="display" tone="info" style={{ fontSize: 38, lineHeight: 44 }}>
+              {t('landing.hero.titleAccent')}
+            </Text>
+          </Text>
+
+          <Text variant="body" tone="secondary" style={{ marginTop: spacing.md, maxWidth: 360 }}>
+            {t('landing.hero.subtitle')}
+          </Text>
+        </Animated.View>
+
+        {/* ── Terminal card with the coin ── */}
+        <Animated.View entering={FadeInDown.delay(120).duration(460)} style={{ marginTop: spacing.xl }}>
+          <Card glow padded={false}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: spacing.sm,
+                paddingHorizontal: spacing.lg,
+                paddingVertical: spacing.md,
+                borderBottomWidth: 1,
+                borderBottomColor: c.border,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+                <Dot color={c.danger} />
+                <Dot color={c.gold} />
+                <Dot color={c.success} />
+                <Text
+                  variant="caption"
+                  tone="tertiary"
+                  mono
+                  weight="600"
+                  numberOfLines={1}
+                  style={{ marginLeft: 6, flexShrink: 1 }}
+                >
+                  bondkoin://node-cluster.bep20
+                </Text>
+              </View>
+              <LivePill label={t('landing.simulator.networkStatus')} />
+            </View>
+
+            <View style={{ alignItems: 'center', justifyContent: 'center', height: 236 }}>
+              <Coin3D size={150} />
+            </View>
+
+            <View
+              style={{
+                marginHorizontal: spacing.lg,
+                marginBottom: spacing.lg,
+                paddingVertical: spacing.md,
+                paddingHorizontal: spacing.lg,
+                borderRadius: radius.lg,
+                borderWidth: 1,
+                borderColor: alpha(c.gold, 0.3),
+                backgroundColor: alpha(c.gold, c.dark ? 0.08 : 0.06),
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: spacing.md,
+              }}
+            >
+              <Text variant="overline" tone="tertiary" uppercase>
+                {t('landing.simulator.baseSpeed')}
+              </Text>
+              <Text variant="headline" tone="gold" mono weight="900">
+                {t('landing.simulator.simulatedRate')}
+              </Text>
+            </View>
+          </Card>
+        </Animated.View>
+
+        {/* ── Key figures ── */}
+        <Animated.View
+          entering={FadeInDown.delay(220).duration(460)}
+          style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}
+        >
+          {figures.map((figure) => (
+            <Card key={figure.label} elevation={0} padded={false} style={{ flex: 1, padding: spacing.md }}>
+              <Text variant="title3" tone="brand" mono numberOfLines={1} adjustsFontSizeToFit>
+                {figure.value}
+              </Text>
+              <Text
+                variant="overline"
+                tone="secondary"
+                uppercase
+                numberOfLines={2}
+                style={{ marginTop: 6, fontSize: 10, lineHeight: 13, letterSpacing: 0.8 }}
+              >
+                {figure.label}
+              </Text>
+            </Card>
+          ))}
+        </Animated.View>
+
+        {/* ── CTAs ── */}
+        <Animated.View
+          entering={FadeInDown.delay(320).duration(460)}
+          style={{ gap: spacing.sm, marginTop: spacing.xl }}
+        >
+          <Button
+            label={t('auth.createAccount')}
+            iconRight="arrow-forward"
+            onPress={() => finish('/(auth)/sign-up')}
             fullWidth
             size="lg"
           />
           <Button
             label={t('auth.haveAccount')}
-            variant="ghost"
+            variant="secondary"
             onPress={() => finish('/(auth)/sign-in')}
             fullWidth
+            size="lg"
           />
-        </View>
-      </View>
+
+          <View
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: spacing.sm,
+              marginTop: spacing.md,
+              paddingTop: spacing.md,
+              borderTopWidth: 1,
+              borderTopColor: c.border,
+            }}
+          >
+            <Text variant="caption" tone="success" weight="700">
+              ✓
+            </Text>
+            <Text variant="caption" tone="tertiary" numberOfLines={1} style={{ flexShrink: 1 }}>
+              {t('landing.hero.verifiedNode')}
+            </Text>
+          </View>
+        </Animated.View>
+      </ScrollView>
     </Screen>
   );
 }
 
-function Figure({ label, caption }: { label: string; caption: string }) {
-  const { c, spacing, radius } = useTheme();
+/** One of the three terminal-window dots. */
+function Dot({ color }: { color: string }) {
+  const { alpha } = useTheme();
   return (
-    <View
-      style={{
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
-        borderRadius: radius.lg,
-        backgroundColor: c.surface,
-        borderWidth: 1,
-        borderColor: c.border,
-        alignItems: 'center',
-        minWidth: 132,
-      }}
-    >
-      <Text variant="title3" mono tone="brand">
-        {label}
-      </Text>
-      <Text variant="caption" tone="tertiary" center numberOfLines={2}>
-        {caption}
-      </Text>
-    </View>
+    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: alpha(color, 0.8) }} />
   );
 }

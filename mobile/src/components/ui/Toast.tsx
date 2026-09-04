@@ -7,8 +7,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FullWindowOverlay } from 'react-native-screens';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -95,46 +96,59 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         ? 'alert-circle'
         : 'information-circle';
 
+  const banner = toast ? (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        {
+          position: 'absolute',
+          top: insets.top + spacing.sm,
+          left: spacing.lg,
+          right: spacing.lg,
+          zIndex: 1000,
+        },
+        animatedStyle,
+      ]}
+    >
+      <View
+        accessibilityRole="alert"
+        accessibilityLiveRegion="polite"
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.sm,
+          paddingVertical: spacing.md,
+          paddingHorizontal: spacing.lg,
+          borderRadius: radius.lg,
+          backgroundColor: c.surface,
+          borderWidth: 1,
+          borderColor: c.border,
+          ...elevation(2),
+        }}
+      >
+        <Ionicons name={icon} size={19} color={accent} />
+        <Text variant="footnote" weight="600" style={{ flex: 1 }}>
+          {toast.message}
+        </Text>
+      </View>
+    </Animated.View>
+  ) : null;
+
   return (
     <ToastContext.Provider value={value}>
       {children}
-      {toast ? (
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            {
-              position: 'absolute',
-              top: insets.top + spacing.sm,
-              left: spacing.lg,
-              right: spacing.lg,
-              zIndex: 1000,
-            },
-            animatedStyle,
-          ]}
-        >
-          <View
-            accessibilityRole="alert"
-            accessibilityLiveRegion="polite"
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: spacing.sm,
-              paddingVertical: spacing.md,
-              paddingHorizontal: spacing.lg,
-              borderRadius: radius.lg,
-              backgroundColor: c.surface,
-              borderWidth: 1,
-              borderColor: c.border,
-              ...elevation(2),
-            }}
-          >
-            <Ionicons name={icon} size={19} color={accent} />
-            <Text variant="footnote" weight="600" style={{ flex: 1 }}>
-              {toast.message}
-            </Text>
+      {/* iOS: a window-level overlay so the toast sits above any open Sheet
+          (a native Modal). Android draws Modals in their own window, so the
+          toast stays in the root view there. */}
+      {Platform.OS === 'ios' ? (
+        <FullWindowOverlay>
+          <View pointerEvents="box-none" style={{ flex: 1 }}>
+            {banner}
           </View>
-        </Animated.View>
-      ) : null}
+        </FullWindowOverlay>
+      ) : (
+        banner
+      )}
     </ToastContext.Provider>
   );
 }

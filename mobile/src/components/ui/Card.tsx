@@ -10,6 +10,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from './Text';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -17,24 +18,34 @@ import { useFeedback } from '../../lib/feedback';
 
 export interface CardProps {
   children: React.ReactNode;
-  /** 0 flat, 1 resting, 2 lifted. Cards on a sunken ground want 1. */
+  /** 0 flat, 1 resting, 2 lifted. */
   elevation?: 0 | 1 | 2;
   padded?: boolean;
   onPress?: () => void;
+  /** Brand-coloured halo around the panel — the site's `.card-glow-gold`. */
+  glow?: boolean;
+  /** Border tint override, e.g. an amber ring on the popular plan. */
+  accent?: string;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
 }
 
-/** The surface everything sits on: 20pt radius, hairline border, soft lift. */
+/**
+ * The glass panel from the site: a navy gradient surface, a blue-tinted
+ * hairline, a soft drop shadow and a one-pixel highlight along the top edge.
+ * On Executive Light it collapses to a plain white card with a grey border.
+ */
 export function Card({
   children,
   elevation: level = 1,
   padded = true,
   onPress,
+  glow,
+  accent,
   style,
   accessibilityLabel,
 }: CardProps) {
-  const { c, radius, spacing, elevation } = useTheme();
+  const { c, radius, spacing, elevation, glow: glowShadow } = useTheme();
   const feedback = useFeedback();
   const scale = useSharedValue(1);
 
@@ -46,12 +57,51 @@ export function Card({
     backgroundColor: c.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: c.border,
+    borderColor: accent ?? (glow ? c.borderStrong : c.border),
     ...(padded ? { padding: spacing.lg } : null),
-    ...elevation(level),
+    ...(glow ? glowShadow(accent ?? c.primaryGlow, level === 0 ? 1 : 2) : elevation(level)),
   };
 
-  if (!onPress) return <View style={[base, style]}>{children}</View>;
+  const surface = (
+    <>
+      <LinearGradient
+        pointerEvents="none"
+        colors={[c.surfaceGradient[0], c.surfaceGradient[1]]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          borderRadius: radius.xl - 1,
+        }}
+      />
+      {c.dark ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: radius.md,
+            right: radius.md,
+            height: 1,
+            backgroundColor: 'rgba(255,255,255,0.08)',
+          }}
+        />
+      ) : null}
+    </>
+  );
+
+  if (!onPress) {
+    return (
+      <View style={[base, style]}>
+        {surface}
+        {children}
+      </View>
+    );
+  }
 
   return (
     <Animated.View style={animatedStyle}>
@@ -70,6 +120,7 @@ export function Card({
         }}
         style={[base, style]}
       >
+        {surface}
         {children}
       </Pressable>
     </Animated.View>
@@ -109,6 +160,8 @@ export function CardHeader({
             height: 34,
             borderRadius: radius.md,
             backgroundColor: c.primaryMuted,
+            borderWidth: 1,
+            borderColor: c.border,
             alignItems: 'center',
             justifyContent: 'center',
           }}
@@ -132,9 +185,10 @@ export function CardHeader({
             feedback.select();
             onAction();
           }}
+          style={{ minHeight: 32, justifyContent: 'center' }}
         >
-          <Text variant="callout" tone="brand" weight="600">
-            {actionLabel}
+          <Text variant="callout" tone="brand" weight="700">
+            {actionLabel} →
           </Text>
         </Pressable>
       ) : null}
@@ -142,7 +196,7 @@ export function CardHeader({
   );
 }
 
-/** Section label above a group of cards (iOS grouped-list style). */
+/** Section label above a group of cards — the site's uppercase tracked label. */
 export function SectionLabel({
   children,
   style,

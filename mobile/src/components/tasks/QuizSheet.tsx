@@ -1,7 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  ZoomIn,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
 import { Text } from '../ui/Text';
 import { Button } from '../ui/Button';
@@ -56,6 +64,8 @@ const DEFAULT_QUESTIONS: QuizQuestion[] = [
   },
 ];
 
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
+
 /**
  * The knowledge-check bounty.
  *
@@ -74,7 +84,7 @@ export function QuizSheet({
   onComplete: () => Promise<void>;
   onClose: () => void;
 }) {
-  const { c, spacing, radius } = useTheme();
+  const { c, spacing, radius, alpha, glow } = useTheme();
   const t = useT();
   const feedback = useFeedback();
 
@@ -141,129 +151,143 @@ export function QuizSheet({
       }
     >
       {finished ? (
-        <View style={{ gap: spacing.lg, alignItems: 'center' }}>
-          <View
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: radius.xl,
-              backgroundColor: c.goldMuted,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Ionicons name="trophy" size={32} color={c.gold} />
+        <Animated.View
+          entering={ZoomIn.duration(300)}
+          style={{ gap: spacing.lg, alignItems: 'center' }}
+        >
+          {/* Trophy on the amber → yellow gradient tile */}
+          <View style={{ borderRadius: radius.xl, ...glow(c.gold, c.dark ? 2 : 1) }}>
+            <LinearGradient
+              colors={[...c.goldGradient] as [string, string, ...string[]]}
+              start={{ x: 0, y: 1 }}
+              end={{ x: 1, y: 0 }}
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: radius.xl,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="trophy" size={32} color={c.onGold} />
+            </LinearGradient>
           </View>
-          <Text variant="title3" center>
-            {t('tasksScreen.quizDoneTitle')}
-          </Text>
-          <Text variant="footnote" tone="secondary" center>
-            {t('tasksScreen.quizDoneBody', { score, total: deck.length })}
-          </Text>
+          <View style={{ alignItems: 'center', gap: 4 }}>
+            <Text variant="title2" center>
+              {t('tasksScreen.quizDoneTitle')}
+            </Text>
+            <Text variant="footnote" tone="secondary" center>
+              {t('tasksScreen.quizDoneBody', { score, total: deck.length })}
+            </Text>
+          </View>
 
+          {/* Reward panel — amber ring, cyan mono figure */}
           <View
             style={{
               width: '100%',
               alignItems: 'center',
               padding: spacing.lg,
               borderRadius: radius.lg,
-              backgroundColor: c.successMuted,
+              backgroundColor: alpha(c.gold, c.dark ? 0.15 : 0.08),
+              borderWidth: 1,
+              borderColor: alpha(c.gold, 0.4),
+              overflow: 'hidden',
             }}
           >
-            <Text variant="display" mono tone="success">
-              +{rewardPoints}
+            <Text variant="overline" tone="gold" uppercase>
+              {t('tasksScreen.reward')}
             </Text>
-            <Text variant="caption" tone="success" uppercase>
-              {t('dashboard.pointsShort')}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+              <Text variant="display" mono tone="info">
+                +{rewardPoints}
+              </Text>
+              <Text variant="callout" tone="info" weight="800" uppercase>
+                {t('dashboard.pointsShort')}
+              </Text>
+            </View>
           </View>
 
           {error ? <ErrorNote message={error} /> : null}
 
           <Button
             label={t('tasksScreen.claimReward', { points: rewardPoints })}
+            icon="sparkles"
             onPress={() => void claim()}
             loading={claiming}
             fullWidth
             size="lg"
           />
-        </View>
+        </Animated.View>
       ) : (
         <>
-          {/* Progress */}
+          {/* Progress — "Q 2/4" left, "SCORE: 1/4" in cyan right */}
           <View
             style={{
-              height: 5,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Text variant="caption" tone="tertiary" mono weight="700">
+              Q {index + 1}/{deck.length}
+            </Text>
+            <Text variant="caption" tone="info" mono weight="700" uppercase>
+              {t('tasksScreen.quizScore', { score, total: deck.length })}
+            </Text>
+          </View>
+          <View
+            style={{
+              height: 6,
               borderRadius: 3,
-              backgroundColor: c.surfaceAlt,
+              backgroundColor: c.dark ? 'rgba(30,41,59,0.8)' : c.surfaceAlt,
               overflow: 'hidden',
             }}
           >
-            <View
+            <LinearGradient
+              colors={[c.info, c.gold]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
               style={{
-                height: 5,
-                width: `${progress * 100}%`,
+                height: 6,
+                width: `${Math.max(2, progress * 100)}%`,
                 borderRadius: 3,
-                backgroundColor: c.primary,
               }}
             />
           </View>
-          <Text variant="caption" tone="tertiary">
-            {t('tasksScreen.quizScore', { score, total: deck.length })}
-          </Text>
 
-          <Text variant="title3">{question.question}</Text>
+          {/* Question card */}
+          <Animated.View
+            key={`q-${question.id}`}
+            entering={FadeInDown.duration(240)}
+            style={{
+              padding: spacing.lg,
+              borderRadius: radius.lg,
+              backgroundColor: c.dark ? 'rgba(15,23,42,0.5)' : c.surfaceAlt,
+              borderWidth: 1,
+              borderColor: c.border,
+            }}
+          >
+            <Text variant="headline" weight="800">
+              {question.question}
+            </Text>
+          </Animated.View>
 
           <View style={{ gap: spacing.sm }}>
-            {question.options.map((option, i) => {
-              const isCorrect = i === question.correctIndex;
-              const isSelected = selected === i;
-
-              const bg = !answered
-                ? c.surfaceAlt
-                : isCorrect
-                  ? c.successMuted
-                  : isSelected
-                    ? c.dangerMuted
-                    : c.surfaceAlt;
-              const border = !answered
-                ? c.border
-                : isCorrect
-                  ? c.success
-                  : isSelected
-                    ? c.danger
-                    : c.border;
-
-              return (
-                <Pressable
-                  key={option}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: isSelected, disabled: answered }}
-                  disabled={answered}
+            {question.options.map((option, i) => (
+              <Animated.View
+                key={`${question.id}-${i}`}
+                entering={FadeInDown.delay(40 + i * 40).duration(240)}
+              >
+                <Option
+                  letter={LETTERS[i] ?? String(i + 1)}
+                  label={option}
+                  answered={answered}
+                  isCorrect={i === question.correctIndex}
+                  isSelected={selected === i}
                   onPress={() => choose(i)}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: spacing.sm,
-                    padding: spacing.md,
-                    borderRadius: radius.lg,
-                    backgroundColor: bg,
-                    borderWidth: 1.5,
-                    borderColor: border,
-                    opacity: answered && !isCorrect && !isSelected ? 0.5 : 1,
-                  }}
-                >
-                  <Text variant="callout" weight="500" style={{ flex: 1 }}>
-                    {option}
-                  </Text>
-                  {answered && isCorrect ? (
-                    <Ionicons name="checkmark-circle" size={19} color={c.success} />
-                  ) : answered && isSelected ? (
-                    <Ionicons name="close-circle" size={19} color={c.danger} />
-                  ) : null}
-                </Pressable>
-              );
-            })}
+                />
+              </Animated.View>
+            ))}
           </View>
 
           {answered ? (
@@ -274,11 +298,13 @@ export function QuizSheet({
                   gap: spacing.sm,
                   padding: spacing.md,
                   borderRadius: radius.lg,
-                  backgroundColor: c.infoMuted,
+                  backgroundColor: alpha(c.info, 0.1),
+                  borderWidth: 1,
+                  borderColor: alpha(c.info, 0.3),
                 }}
               >
                 <Ionicons name="bulb-outline" size={17} color={c.info} />
-                <Text variant="caption" style={{ color: c.info, flex: 1 }}>
+                <Text variant="caption" tone="info" style={{ flex: 1 }}>
                   {question.explanation}
                 </Text>
               </View>
@@ -297,5 +323,93 @@ export function QuizSheet({
         </>
       )}
     </Sheet>
+  );
+}
+
+/** One answer row: neutral glass until answered, then emerald / red / dimmed. */
+function Option({
+  letter,
+  label,
+  answered,
+  isCorrect,
+  isSelected,
+  onPress,
+}: {
+  letter: string;
+  label: string;
+  answered: boolean;
+  isCorrect: boolean;
+  isSelected: boolean;
+  onPress: () => void;
+}) {
+  const { c, spacing, radius, alpha } = useTheme();
+  const scale = useSharedValue(1);
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const tint = !answered ? null : isCorrect ? c.success : isSelected ? c.danger : null;
+  const bg = tint
+    ? alpha(tint, c.dark ? 0.15 : 0.1)
+    : c.dark
+      ? 'rgba(15,23,42,0.6)'
+      : c.surfaceAlt;
+  const border = tint ? alpha(tint, 0.6) : c.border;
+
+  return (
+    <Animated.View style={style}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ selected: isSelected, disabled: answered }}
+        disabled={answered}
+        onPressIn={() => {
+          scale.value = withSpring(0.98, { damping: 20, stiffness: 320 });
+        }}
+        onPressOut={() => {
+          scale.value = withSpring(1, { damping: 16, stiffness: 260 });
+        }}
+        onPress={onPress}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.md,
+          minHeight: 52,
+          padding: spacing.md,
+          borderRadius: radius.lg,
+          backgroundColor: bg,
+          borderWidth: 1,
+          borderColor: border,
+          opacity: answered && !isCorrect && !isSelected ? 0.45 : 1,
+        }}
+      >
+        <View
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: radius.sm,
+            backgroundColor: tint ? alpha(tint, 0.2) : alpha(c.primary, 0.15),
+            borderWidth: 1,
+            borderColor: tint ? alpha(tint, 0.5) : alpha(c.primary, 0.3),
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text
+            variant="caption"
+            mono
+            weight="800"
+            style={{ color: tint ?? c.primary }}
+          >
+            {letter}
+          </Text>
+        </View>
+        <Text variant="callout" weight="600" style={{ flex: 1 }}>
+          {label}
+        </Text>
+        {answered && isCorrect ? (
+          <Ionicons name="checkmark-circle" size={20} color={c.success} />
+        ) : answered && isSelected ? (
+          <Ionicons name="close-circle" size={20} color={c.danger} />
+        ) : null}
+      </Pressable>
+    </Animated.View>
   );
 }

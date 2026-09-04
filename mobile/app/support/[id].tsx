@@ -2,15 +2,19 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
   ScrollView,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Text } from '../../src/components/ui/Text';
-import { Badge } from '../../src/components/ui/Badge';
+import { Card } from '../../src/components/ui/Card';
+import { Badge, type BadgeTone } from '../../src/components/ui/Badge';
 import { Input, InputAction } from '../../src/components/ui/Input';
 import {
   EmptyState,
@@ -19,7 +23,6 @@ import {
   Screen,
   Skeleton,
 } from '../../src/components/ui/Chrome';
-import { STATUS_TONE } from './index';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useI18n, useT } from '../../src/i18n';
 import { useFeedback } from '../../src/lib/feedback';
@@ -28,9 +31,17 @@ import {
   getSupportTickets,
   replyToSupportTicket,
   type SupportTicketDto,
+  type TicketStatus,
 } from '../../src/api/endpoints';
 import { errorMessage } from '../../src/api/client';
 import { formatDateTime } from '../../src/lib/format';
+
+/** The site's chips: OPEN blue, ANSWERED emerald, CLOSED slate. */
+const STATUS_TONE: Record<TicketStatus, BadgeTone> = {
+  OPEN: 'brand',
+  ANSWERED: 'success',
+  CLOSED: 'neutral',
+};
 
 /**
  * One support thread, as a conversation.
@@ -40,7 +51,7 @@ import { formatDateTime } from '../../src/lib/format';
  * thread from disagreeing about status.
  */
 export default function TicketScreen() {
-  const { c, spacing, radius } = useTheme();
+  const { c, spacing, radius, alpha, glow } = useTheme();
   const insets = useSafeAreaInsets();
   const t = useT();
   const { locale } = useI18n();
@@ -52,7 +63,7 @@ export default function TicketScreen() {
     (err: unknown) => errorMessage(err, t('app.offline')),
     [t],
   );
-  const { data: tickets, error, loading, reload } =
+  const { data: tickets, error, loading, refreshing, reload } =
     useAsyncData<SupportTicketDto[]>(load, toMessage);
 
   const [draft, setDraft] = useState('');
@@ -61,6 +72,7 @@ export default function TicketScreen() {
   const scroller = useRef<ScrollView>(null);
 
   const ticket = tickets?.find((x) => x.id === id) ?? null;
+  const hasDraft = draft.trim().length > 0;
 
   useEffect(() => {
     // Land on the newest message, the way a chat should open.
@@ -70,7 +82,7 @@ export default function TicketScreen() {
   }, [ticket?.messages.length, ticket]);
 
   const send = async () => {
-    if (!ticket || !draft.trim()) return;
+    if (sending || !ticket || !hasDraft) return;
     setSending(true);
     setReplyError(null);
     try {
@@ -90,7 +102,7 @@ export default function TicketScreen() {
   const closed = ticket?.status === 'CLOSED';
 
   return (
-    <Screen sunken>
+    <Screen>
       <NavBar
         title={ticket?.subject ?? t('supportScreen.threadTitle')}
         right={
@@ -98,6 +110,7 @@ export default function TicketScreen() {
             <Badge
               label={t(`support.status.${ticket.status}`)}
               tone={STATUS_TONE[ticket.status]}
+              dot
             />
           ) : undefined
         }
@@ -111,6 +124,14 @@ export default function TicketScreen() {
         <ScrollView
           ref={scroller}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => void reload()}
+              tintColor={c.primary}
+              colors={[c.primary]}
+            />
+          }
           contentContainerStyle={{
             padding: spacing.lg,
             gap: spacing.md,
@@ -127,49 +148,97 @@ export default function TicketScreen() {
               ))}
             </View>
           ) : !ticket ? (
-            <EmptyState icon="chatbubbles-outline" title={t('support.empty')} />
+            <Card>
+              <EmptyState icon="chatbubbles-outline" title={t('supportScreen.notFound')} />
+            </Card>
           ) : (
-            ticket.messages.map((message) => (
-              <View
-                key={message.id}
-                style={{
-                  maxWidth: '86%',
-                  alignSelf: message.fromAdmin ? 'flex-start' : 'flex-end',
-                  padding: spacing.md,
-                  borderRadius: radius.lg,
-                  borderBottomLeftRadius: message.fromAdmin ? 4 : radius.lg,
-                  borderBottomRightRadius: message.fromAdmin ? radius.lg : 4,
-                  backgroundColor: message.fromAdmin ? c.surface : c.primary,
-                  borderWidth: message.fromAdmin ? 1 : 0,
-                  borderColor: c.border,
-                  gap: 4,
-                }}
-              >
-                <Text
-                  variant="caption"
-                  weight="700"
+            ticket.messages.map((message, i) => {
+              const mine = !message.fromAdmin;
+              return (
+                <Animated.View
+                  key={message.id}
+                  entering={FadeInDown.delay(Math.min(i, 8) * 40).duration(240)}
                   style={{
-                    color: message.fromAdmin ? c.textTertiary : `${c.onPrimary}B3`,
+                    maxWidth: '86%',
+                    alignSelf: mine ? 'flex-end' : 'flex-start',
+                    borderRadius: radius.lg,
+                    borderBottomLeftRadius: mine ? radius.lg : 4,
+                    borderBottomRightRadius: mine ? 4 : radius.lg,
+                    overflow: 'hidden',
+                    borderWidth: 1,
+                    borderColor: mine ? 'transparent' : c.border,
+                    backgroundColor: mine ? c.primary : c.surface,
+                    ...(mine && c.dark ? glow(c.primaryGlow, 1) : null),
                   }}
                 >
-                  {message.fromAdmin ? t('support.fromSupport') : t('support.fromYou')}
-                </Text>
-                <Text
-                  variant="body"
-                  style={{ color: message.fromAdmin ? c.textPrimary : c.onPrimary }}
-                >
-                  {message.body}
-                </Text>
-                <Text
-                  variant="caption"
-                  style={{
-                    color: message.fromAdmin ? c.textTertiary : `${c.onPrimary}99`,
-                  }}
-                >
-                  {formatDateTime(message.createdAt, locale)}
-                </Text>
-              </View>
-            ))
+                  {mine ? (
+                    // You: the site's blue gradient bubble.
+                    <LinearGradient
+                      pointerEvents="none"
+                      colors={[...c.primaryGradient] as [string, string, ...string[]]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                    />
+                  ) : (
+                    // Operator: glass slate.
+                    <LinearGradient
+                      pointerEvents="none"
+                      colors={[c.surfaceGradient[0], c.surfaceGradient[1]]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                    />
+                  )}
+                  <View style={{ padding: spacing.md, gap: 4 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      {!mine ? (
+                        <View
+                          style={{
+                            width: 18,
+                            height: 18,
+                            borderRadius: 5,
+                            backgroundColor: alpha(c.primary, 0.15),
+                            borderWidth: 1,
+                            borderColor: alpha(c.primary, 0.3),
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Ionicons name="headset-outline" size={10} color={c.primary} />
+                        </View>
+                      ) : null}
+                      <Text
+                        variant="overline"
+                        uppercase
+                        style={{
+                          fontSize: 9,
+                          color: mine ? alpha(c.onPrimary, 0.75) : c.primary,
+                        }}
+                      >
+                        {mine ? t('support.fromYou') : t('support.fromSupport')}
+                      </Text>
+                    </View>
+                    <Text
+                      variant="body"
+                      style={{ color: mine ? c.onPrimary : c.textPrimary }}
+                    >
+                      {message.body}
+                    </Text>
+                    <Text
+                      variant="caption"
+                      mono
+                      style={{
+                        fontSize: 10,
+                        color: mine ? alpha(c.onPrimary, 0.6) : c.textTertiary,
+                      }}
+                    >
+                      {formatDateTime(message.createdAt, locale)}
+                    </Text>
+                  </View>
+                </Animated.View>
+              );
+            })
           )}
 
           {replyError ? <ErrorNote message={replyError} /> : null}
@@ -180,7 +249,7 @@ export default function TicketScreen() {
           style={{
             padding: spacing.lg,
             paddingBottom: insets.bottom + spacing.md,
-            backgroundColor: c.surface,
+            backgroundColor: c.chrome,
             borderTopWidth: 1,
             borderTopColor: c.border,
           }}
@@ -192,6 +261,7 @@ export default function TicketScreen() {
                 alignItems: 'center',
                 gap: spacing.sm,
                 justifyContent: 'center',
+                minHeight: 44,
               }}
             >
               <Ionicons name="lock-closed-outline" size={15} color={c.textTertiary} />
@@ -209,6 +279,9 @@ export default function TicketScreen() {
               trailing={
                 <InputAction
                   icon={sending ? 'hourglass-outline' : 'send'}
+                  accessibilityLabel={t('support.send')}
+                  disabled={sending || !hasDraft}
+                  tint={hasDraft && !sending ? c.primary : undefined}
                   onPress={() => void send()}
                 />
               }

@@ -171,7 +171,10 @@ export async function apiFetch<T>(
     } catch {
       /* non-JSON error body — keep the status text */
     }
-    if (res.status === 401 || res.status === 403) {
+    // Only a rejected *session* should sign the app out. A 401 from an
+    // unauthenticated `/auth/*` call (wrong password, bad OTP, …) is the
+    // user's mistake, not an expired token — and there was no token to drop.
+    if (token && (res.status === 401 || res.status === 403)) {
       unauthorizedListeners.forEach((l) => l());
     }
     throw new ApiError(message, res.status);

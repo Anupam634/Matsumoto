@@ -53,8 +53,17 @@ export function Segmented<T extends string>({
     setWidth(e.nativeEvent.layout.width);
   };
 
-  // Keep the thumb glued to the selected segment when either changes.
+  // Keep the thumb glued to the selected segment when either changes. The
+  // first layout snaps rather than springs, so a non-zero initial selection
+  // does not slide in from the left edge on mount.
+  const laidOut = React.useRef(false);
   React.useEffect(() => {
+    if (segmentWidth === 0) return;
+    if (!laidOut.current) {
+      laidOut.current = true;
+      offset.value = index * segmentWidth;
+      return;
+    }
     offset.value = withSpring(index * segmentWidth, {
       damping: 20,
       stiffness: 240,
@@ -111,7 +120,9 @@ export function Segmented<T extends string>({
             }}
             style={{
               flex: 1,
+              minHeight: 38,
               paddingVertical: spacing.sm,
+              paddingHorizontal: spacing.xs,
               alignItems: 'center',
               justifyContent: 'center',
             }}
@@ -136,11 +147,14 @@ export function Chips<T extends string>({
   options,
   value,
   onChange,
+  disabled,
   style,
 }: {
   options: { value: T; label: string; count?: number }[];
   value: T;
   onChange: (next: T) => void;
+  /** Greys the row out and ignores taps — e.g. periods on an all-time board. */
+  disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const { c, radius, spacing } = useTheme();
@@ -159,22 +173,27 @@ export function Chips<T extends string>({
           <Pressable
             key={option.value}
             accessibilityRole="button"
-            accessibilityState={{ selected: active }}
+            accessibilityState={{ selected: active, disabled: !!disabled }}
+            disabled={disabled}
+            hitSlop={{ top: 4, bottom: 4 }}
             onPress={() => {
+              if (active) return;
               feedback.select();
               onChange(option.value);
             }}
-            style={{
+            style={({ pressed }) => ({
               flexDirection: 'row',
               alignItems: 'center',
               gap: 6,
+              minHeight: 36,
               paddingHorizontal: 14,
-              paddingVertical: 8,
+              paddingVertical: 9,
               borderRadius: radius.pill,
               backgroundColor: active ? c.primary : c.surface,
               borderWidth: 1,
               borderColor: active ? c.primary : c.border,
-            }}
+              opacity: disabled ? 0.45 : pressed ? 0.7 : 1,
+            })}
           >
             <Text
               variant="footnote"

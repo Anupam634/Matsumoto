@@ -40,33 +40,40 @@ export function useLiveAccrual(status: MiningStatus | null): number {
   return pending;
 }
 
-/** Eases a number towards a new target, so balances roll rather than jump. */
+/**
+ * Eases a number towards a new target, so balances roll rather than jump.
+ *
+ * Each animation starts from whatever is currently on screen, so a target
+ * that changes mid-roll (a claim landing while the last one is still
+ * settling) bends the curve rather than snapping to its endpoint first.
+ */
 export function useCountUp(target: number, duration = 800): number {
   const [display, setDisplay] = useState(target);
-  const from = useRef(target);
-  const raf = useRef<ReturnType<typeof setInterval> | null>(null);
+  const shown = useRef(target);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    const origin = from.current;
+    const origin = shown.current;
     if (origin === target) return;
 
     const start = Date.now();
-    if (raf.current) clearInterval(raf.current);
-    raf.current = setInterval(() => {
+    if (timer.current) clearInterval(timer.current);
+    timer.current = setInterval(() => {
       const p = Math.min(1, (Date.now() - start) / duration);
       const eased = 1 - Math.pow(1 - p, 3);
-      setDisplay(origin + (target - origin) * eased);
+      const next = origin + (target - origin) * eased;
+      shown.current = next;
+      setDisplay(next);
       if (p >= 1) {
-        from.current = target;
-        if (raf.current) clearInterval(raf.current);
-        raf.current = null;
+        shown.current = target;
+        if (timer.current) clearInterval(timer.current);
+        timer.current = null;
       }
     }, 16);
 
     return () => {
-      if (raf.current) clearInterval(raf.current);
-      raf.current = null;
-      from.current = target;
+      if (timer.current) clearInterval(timer.current);
+      timer.current = null;
     };
   }, [target, duration]);
 

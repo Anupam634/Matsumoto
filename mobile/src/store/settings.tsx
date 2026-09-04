@@ -17,7 +17,8 @@ import type { Locale } from '../i18n';
  * the handset it was set on.
  */
 
-export type ThemeMode = 'system' | 'light' | 'dark';
+/** The site's four themes, plus 'system' which picks dark or light from the OS. */
+export type ThemeMode = 'system' | 'light' | 'dark' | 'cyber' | 'red';
 export type LocalePref = 'system' | Locale;
 
 export interface NotificationPrefs {
@@ -64,7 +65,8 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  themeMode: 'system',
+  // Midnight Sapphire is the site's default; the app matches it.
+  themeMode: 'dark',
   locale: 'system',
   haptics: true,
   sounds: true,
@@ -160,7 +162,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           ...settings,
           quietHours: { ...settings.quietHours, ...patch },
         }),
-      reset: () => persist(DEFAULT_SETTINGS),
+      // Onboarding is a fact about this install, not a preference: a reset
+      // must not send the user back through the intro carousel.
+      reset: () => persist({ ...DEFAULT_SETTINGS, onboarded: settings.onboarded }),
     }),
     [settings, hydrated, persist],
   );

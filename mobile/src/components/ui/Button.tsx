@@ -11,6 +11,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from './Text';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -39,10 +40,11 @@ const HEIGHT: Record<Size, number> = { sm: 38, md: 48, lg: 56 };
 const PADDING: Record<Size, number> = { sm: 14, md: 18, lg: 22 };
 
 /**
- * The app's button.
+ * The app's button — the site's `.btn-gold` / `.btn-primary`.
  *
- * Springs down to 0.97 on press — the iOS "this is a real control" cue — and
- * carries the haptic with it so every commit feels the same everywhere.
+ * Primary and gold are gradient fills with a coloured halo (sapphire → violet
+ * on the blue themes, crimson on the red one); secondary is the translucent
+ * outlined pill. Springs down to 0.97 on press and carries the haptic with it.
  */
 export function Button({
   label,
@@ -58,18 +60,36 @@ export function Button({
   silent,
   testID,
 }: ButtonProps) {
-  const { c, radius, elevation } = useTheme();
+  const { c, radius, glow } = useTheme();
   const feedback = useFeedback();
   const scale = useSharedValue(1);
 
   const isDisabled = disabled || loading;
 
   const palette = {
-    primary: { bg: c.primary, fg: c.onPrimary, border: 'transparent' },
-    gold: { bg: c.gold, fg: c.onGold, border: 'transparent' },
-    secondary: { bg: c.surfaceAlt, fg: c.textPrimary, border: c.border },
-    ghost: { bg: 'transparent', fg: c.primary, border: 'transparent' },
-    danger: { bg: c.dangerMuted, fg: c.danger, border: 'transparent' },
+    primary: {
+      bg: c.primary,
+      fg: c.onPrimary,
+      border: 'transparent',
+      gradient: c.primaryGradient,
+      halo: c.primaryGlow,
+    },
+    gold: {
+      bg: c.gold,
+      fg: c.onGold,
+      border: 'transparent',
+      gradient: c.goldGradient,
+      halo: c.gold,
+    },
+    secondary: {
+      bg: c.surfaceAlt,
+      fg: c.textPrimary,
+      border: c.borderStrong,
+      gradient: null,
+      halo: null,
+    },
+    ghost: { bg: 'transparent', fg: c.primary, border: 'transparent', gradient: null, halo: null },
+    danger: { bg: c.dangerMuted, fg: c.danger, border: 'transparent', gradient: null, halo: null },
   }[variant];
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -83,13 +103,21 @@ export function Button({
   }, [isDisabled, silent, feedback, onPress]);
 
   return (
-    <Animated.View style={[animatedStyle, fullWidth && { width: '100%' }, style]}>
+    <Animated.View
+      style={[
+        animatedStyle,
+        fullWidth && { width: '100%' },
+        palette.halo && !isDisabled ? { borderRadius: radius.lg, ...glow(palette.halo, 2) } : null,
+        style,
+      ]}
+    >
       <Pressable
         testID={testID}
         accessibilityRole="button"
         accessibilityState={{ disabled: !!isDisabled, busy: !!loading }}
         accessibilityLabel={label}
         disabled={isDisabled}
+        hitSlop={size === 'sm' ? { top: 4, bottom: 4 } : undefined}
         onPressIn={() => {
           scale.value = withSpring(0.97, { damping: 18, stiffness: 320 });
         }}
@@ -109,11 +137,32 @@ export function Button({
           justifyContent: 'center',
           gap: 8,
           opacity: isDisabled ? 0.45 : 1,
-          ...(variant === 'primary' || variant === 'gold'
-            ? elevation(isDisabled ? 0 : 1)
-            : {}),
+          overflow: 'hidden',
         }}
       >
+        {palette.gradient ? (
+          <LinearGradient
+            pointerEvents="none"
+            colors={[...palette.gradient] as [string, string, ...string[]]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+        ) : null}
+        {palette.gradient && c.dark ? (
+          // The site's inset top highlight on gradient buttons.
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 8,
+              right: 8,
+              height: 1,
+              backgroundColor: 'rgba(255,255,255,0.35)',
+            }}
+          />
+        ) : null}
         {loading ? (
           <ActivityIndicator color={palette.fg} size="small" />
         ) : (
@@ -217,7 +266,7 @@ export function IconButton({
             borderColor: c.bg,
           }}
         >
-          <Text variant="overline" style={{ color: '#FFFFFF', fontSize: 9 }}>
+          <Text variant="overline" style={{ color: c.onPrimary, fontSize: 9 }}>
             {badge > 9 ? '9+' : badge}
           </Text>
         </View>

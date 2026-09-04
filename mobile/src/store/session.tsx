@@ -107,7 +107,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signIn = useCallback(async () => {
-    setState('loading');
+    // Never drop back to 'loading' after boot: the root navigator unmounts the
+    // whole Stack on that state, which tears down the sign-in screen mid-await.
     await refresh({ silent: true });
     setState('signedIn');
   }, [refresh]);

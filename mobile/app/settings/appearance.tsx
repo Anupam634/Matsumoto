@@ -1,32 +1,47 @@
 import React from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Text } from '../../src/components/ui/Text';
-import { Card, SectionLabel } from '../../src/components/ui/Card';
+import { SectionLabel } from '../../src/components/ui/Card';
 import { ListGroup, ListRow } from '../../src/components/ui/ListRow';
 import { NavBar, Screen } from '../../src/components/ui/Chrome';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useT } from '../../src/i18n';
+import { useFeedback } from '../../src/lib/feedback';
 import { useSettings, type ThemeMode } from '../../src/store/settings';
-import { darkPalette, lightPalette } from '../../src/theme/tokens';
+import { palettes, type Palette, type ThemeName } from '../../src/theme/tokens';
 
-/** Theme picker, with a live preview of what each option looks like. */
+/**
+ * Theme picker — the website's four looks, previewed as live swatches.
+ * 🌙 Midnight Sapphire · ☀️ Executive Light · 🔵 Royal Blue · 🔴 Crimson
+ */
 export default function AppearanceScreen() {
-  const { c, spacing, radius } = useTheme();
+  const { c, spacing } = useTheme();
   const insets = useSafeAreaInsets();
   const t = useT();
   const { settings, update } = useSettings();
 
+  const themes: { value: ThemeName; label: string; name: string; emoji: string }[] = [
+    { value: 'dark', label: t('settings.themeDark'), name: t('settings.themeDarkName'), emoji: '🌙' },
+    { value: 'light', label: t('settings.themeLight'), name: t('settings.themeLightName'), emoji: '☀️' },
+    { value: 'cyber', label: t('settings.themeCyber'), name: t('settings.themeCyberName'), emoji: '🔵' },
+    { value: 'red', label: t('settings.themeRed'), name: t('settings.themeRedName'), emoji: '🔴' },
+  ];
+
   const options: { value: ThemeMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { value: 'system', label: t('settings.themeSystem'), icon: 'phone-portrait-outline' },
-    { value: 'light', label: t('settings.themeLight'), icon: 'sunny-outline' },
-    { value: 'dark', label: t('settings.themeDark'), icon: 'moon-outline' },
+    ...themes.map((theme) => ({
+      value: theme.value as ThemeMode,
+      label: theme.name,
+      icon: (theme.value === 'light' ? 'sunny-outline' : theme.value === 'dark' ? 'moon-outline' : 'color-palette-outline') as keyof typeof Ionicons.glyphMap,
+    })),
   ];
 
   return (
-    <Screen sunken>
+    <Screen>
       <NavBar title={t('settings.theme')} />
 
       <ScrollView
@@ -38,20 +53,18 @@ export default function AppearanceScreen() {
           gap: spacing.lg,
         }}
       >
-        {/* Swatches — the palette, not a description of it. */}
-        <View style={{ flexDirection: 'row', gap: spacing.md }}>
-          <Preview
-            label={t('settings.themeLight')}
-            palette={lightPalette}
-            active={settings.themeMode === 'light'}
-            onPress={() => update({ themeMode: 'light' })}
-          />
-          <Preview
-            label={t('settings.themeDark')}
-            palette={darkPalette}
-            active={settings.themeMode === 'dark'}
-            onPress={() => update({ themeMode: 'dark' })}
-          />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
+          {themes.map((theme) => (
+            <Preview
+              key={theme.value}
+              label={theme.label}
+              name={theme.name}
+              emoji={theme.emoji}
+              palette={palettes[theme.value]}
+              active={settings.themeMode === theme.value}
+              onPress={() => update({ themeMode: theme.value })}
+            />
+          ))}
         </View>
 
         <View>
@@ -86,103 +99,102 @@ export default function AppearanceScreen() {
         </View>
 
         <Text variant="caption" tone="tertiary">
-          {t('settings.themeSystem')} — {t('app.enabled').toLowerCase()}:{' '}
-          {t('settings.appearance').toLowerCase()}
+          {t('settings.themeBody')}
         </Text>
       </ScrollView>
     </Screen>
   );
 }
 
+/** A miniature of the theme: ground, glass panel, gradient button, amber numeral. */
 function Preview({
   label,
+  name,
+  emoji,
   palette,
   active,
   onPress,
 }: {
   label: string;
-  palette: typeof lightPalette;
+  name: string;
+  emoji: string;
+  palette: Palette;
   active: boolean;
   onPress: () => void;
 }) {
   const { c, spacing, radius } = useTheme();
+  const feedback = useFeedback();
 
   return (
-    <Card
-      onPress={onPress}
-      accessibilityLabel={label}
-      padded={false}
-      style={{
-        flex: 1,
-        borderColor: active ? c.primary : c.border,
-        borderWidth: active ? 2 : 1,
-        overflow: 'hidden',
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={`${label} — ${name}`}
+      onPress={() => {
+        feedback.select();
+        onPress();
       }}
+      style={({ pressed }) => ({
+        width: '47.5%',
+        borderRadius: radius.xl,
+        borderWidth: active ? 2 : 1,
+        borderColor: active ? c.primary : c.border,
+        overflow: 'hidden',
+        backgroundColor: palette.bg,
+        opacity: pressed ? 0.85 : 1,
+      })}
     >
-      <View style={{ backgroundColor: palette.bgSunken, padding: spacing.md, gap: 8 }}>
+      {/* Mini glass panel */}
+      <View style={{ padding: spacing.md, gap: spacing.sm }}>
         <View
           style={{
-            height: 30,
-            borderRadius: radius.sm,
-            backgroundColor: palette.surface,
+            borderRadius: radius.md,
             borderWidth: 1,
             borderColor: palette.border,
-            justifyContent: 'center',
-            paddingHorizontal: 8,
+            overflow: 'hidden',
+            padding: spacing.sm,
+            gap: 6,
           }}
         >
-          <View
-            style={{
-              width: '55%',
-              height: 6,
-              borderRadius: 3,
-              backgroundColor: palette.textPrimary,
-              opacity: 0.85,
-            }}
+          <LinearGradient
+            colors={[palette.surfaceGradient[0], palette.surfaceGradient[1]]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+          <View style={{ height: 6, width: '45%', borderRadius: 3, backgroundColor: palette.textTertiary }} />
+          <Text variant="title3" mono style={{ color: palette.gold }}>
+            21.60
+          </Text>
+          <LinearGradient
+            colors={[...palette.primaryGradient] as [string, string, ...string[]]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ height: 18, borderRadius: 6 }}
           />
         </View>
-        <View style={{ flexDirection: 'row', gap: 6 }}>
-          <View
-            style={{
-              flex: 1,
-              height: 26,
-              borderRadius: radius.sm,
-              backgroundColor: palette.primary,
-            }}
-          />
-          <View
-            style={{
-              width: 30,
-              height: 26,
-              borderRadius: radius.sm,
-              backgroundColor: palette.gold,
-            }}
-          />
-        </View>
-        <View
-          style={{
-            height: 20,
-            borderRadius: radius.sm,
-            backgroundColor: palette.surfaceAlt,
-          }}
-        />
       </View>
 
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: spacing.md,
+          gap: 6,
+          paddingHorizontal: spacing.md,
+          paddingBottom: spacing.md,
         }}
       >
-        <Text variant="footnote" weight="600">
-          {label}
-        </Text>
-        {active ? (
-          <Ionicons name="checkmark-circle" size={17} color={c.primary} />
-        ) : null}
+        <Text variant="caption">{emoji}</Text>
+        <View style={{ flex: 1 }}>
+          <Text variant="caption" weight="700" style={{ color: palette.textPrimary }} numberOfLines={1}>
+            {label}
+          </Text>
+          <Text variant="caption" style={{ color: palette.textTertiary, fontSize: 10, lineHeight: 13 }} numberOfLines={1}>
+            {name}
+          </Text>
+        </View>
+        {active ? <Ionicons name="checkmark-circle" size={18} color={c.primary} /> : null}
       </View>
-    </Card>
+    </Pressable>
   );
 }

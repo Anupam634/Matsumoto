@@ -172,14 +172,72 @@ export const PRODUCTS: Product[] = [
   },
 ];
 
-export const CATEGORIES: { id: ProductCategory | 'all'; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'hardware', label: 'Hardware' },
-  { id: 'merch', label: 'Merch' },
-  { id: 'digital', label: 'Digital' },
-  { id: 'regional', label: 'Regional' },
-  { id: 'vouchers', label: 'Vouchers' },
+/** Filter order on the storefront. Labels live in i18n: `marketScreen.cat.<id>`. */
+export const CATEGORY_IDS: ProductCategory[] = [
+  'hardware',
+  'merch',
+  'digital',
+  'regional',
+  'vouchers',
 ];
+
+/**
+ * Categories a merchant can apply under — the web form's five options.
+ * Labels live in i18n: `marketScreen.merchantCat.<id>`.
+ */
+export const MERCHANT_CATEGORIES = [
+  'electronics',
+  'apparel',
+  'digital',
+  'regional',
+  'giftcards',
+] as const;
+export type MerchantCategory = (typeof MERCHANT_CATEGORIES)[number];
+
+export interface LetterSection {
+  title: string;
+  paragraphs: string[];
+}
+
+export interface MarketLetter {
+  greeting: string;
+  intro: string;
+  sections: LetterSection[];
+  closing: string;
+}
+
+/**
+ * The official community announcement the web marketplace publishes above
+ * the storefront. English only for now; once the `marketScreen.letter*` keys
+ * land in the catalogue this constant can be replaced by `t()` lookups.
+ */
+export const MARKET_LETTER: MarketLetter = {
+  greeting: 'Dear BONDKOIN Network Community,',
+  intro:
+    'As part of our commitment to developing real world utilities around $BONDKOIN, we are pleased to share an update on one of the core Ecosystem utilities currently under development: the BONDKOIN Network Marketplace.',
+  sections: [
+    {
+      title: 'Shopping, Merchants & Regional Commerce',
+      paragraphs: [
+        'The BONDKOIN Network Marketplace will allow users to shop for goods from participating merchants, pay with $BONDKOIN, and have their purchases delivered to their location. Through our Merchant Program, verified businesses will be able to register their stores and upload products for buyers to discover and purchase.',
+        'The Marketplace will initially support regional commerce, connecting buyers with merchants within or close to their region. As the merchant network grows, our goal is to expand beyond regional commerce into a global marketplace where users can purchase goods from merchants around the world and have them delivered to their locations.',
+      ],
+    },
+    {
+      title: '$BONDKOIN As A Means Of Payment',
+      paragraphs: [
+        'At the heart of the Marketplace is $BONDKOIN as the means of payment. Goods and services offered through the platform will be purchased using $BONDKOIN, giving the coin a direct and practical function within the ecosystem. Merchants joining the Merchant Program will be required to accept $BONDKOIN and comply with applicable Marketplace policies covering product standards, merchant conduct, pricing, transactions, fulfilment, delivery and the applicable $BONDKOIN valuation.',
+      ],
+    },
+    {
+      title: 'One Of Many BONDKOIN Network Utilities',
+      paragraphs: [
+        'The Marketplace is one of many utilities planned for the BONDKOIN Network ecosystem and an important step toward our broader vision. Mining is only one part of that journey. We are building an ecosystem where $BONDKOIN is supported by genuine utility and can be used across products, services and utilities built around BONDKOIN Network.',
+      ],
+    },
+  ],
+  closing: 'Thank you for continuing to build with us. The future is BONDKOIN NETWORK.',
+};
 
 export function findProduct(id: string): Product | undefined {
   return PRODUCTS.find((p) => p.id === id);

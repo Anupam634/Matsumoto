@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Linking, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Text } from '../../src/components/ui/Text';
 import { Card, SectionLabel } from '../../src/components/ui/Card';
-import { Badge } from '../../src/components/ui/Badge';
 import { Button } from '../../src/components/ui/Button';
 import { ListGroup, ListRow } from '../../src/components/ui/ListRow';
 import { Sheet } from '../../src/components/ui/Sheet';
+import { PulseDot } from '../../src/components/ui/Pulse';
 import { NavBar, Screen } from '../../src/components/ui/Chrome';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useT } from '../../src/i18n';
@@ -31,7 +32,7 @@ import {
  * that leaves yesterday's alarms armed is not off.
  */
 export default function NotificationSettingsScreen() {
-  const { c, spacing, radius } = useTheme();
+  const { c, spacing, radius, alpha } = useTheme();
   const insets = useSafeAreaInsets();
   const t = useT();
   const toast = useToast();
@@ -60,9 +61,12 @@ export default function NotificationSettingsScreen() {
     }
   };
 
+  let order = 0;
+  const enter = () => FadeInDown.delay(order++ * 40).duration(260);
+
   return (
-    <Screen sunken>
-      <NavBar title={t('notify.settingsTitle')} />
+    <Screen>
+      <NavBar title={t('notify.settingsTitle')} transparent />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -73,53 +77,56 @@ export default function NotificationSettingsScreen() {
           gap: spacing.lg,
         }}
       >
-        {/* System permission state */}
+        {/* System permission state — amber, like the site's warning panels */}
         {permission !== 'granted' ? (
-          <Card>
-            <View
-              style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
-            >
+          <Animated.View entering={enter()}>
+            <Card accent={alpha(c.gold, c.dark ? 0.35 : 0.5)}>
               <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: radius.md,
-                  backgroundColor: c.warningMuted,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
               >
-                <Ionicons name="notifications-off" size={20} color={c.warning} />
+                <View
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: radius.md,
+                    backgroundColor: alpha(c.gold, 0.15),
+                    borderWidth: 1,
+                    borderColor: alpha(c.gold, 0.3),
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Ionicons name="notifications-off" size={20} color={c.gold} />
+                </View>
+                <Text variant="footnote" tone="secondary" style={{ flex: 1 }}>
+                  {permission === 'denied'
+                    ? t('notify.permissionDenied')
+                    : t('notify.permissionBody')}
+                </Text>
               </View>
-              <Text variant="footnote" tone="secondary" style={{ flex: 1 }}>
-                {permission === 'denied'
-                  ? t('notify.permissionDenied')
-                  : t('notify.permissionBody')}
-              </Text>
-            </View>
-            <Button
-              label={
-                permission === 'denied'
-                  ? t('notify.openSystemSettings')
-                  : t('notify.permissionCta')
-              }
-              variant="secondary"
-              onPress={async () => {
-                if (permission === 'denied') {
-                  await Linking.openSettings().catch(() => {});
-                  return;
+              <Button
+                label={
+                  permission === 'denied'
+                    ? t('notify.openSystemSettings')
+                    : t('notify.permissionCta')
                 }
-                const granted = await requestPermission();
-                setPermission(granted ? 'granted' : 'denied');
-                if (granted) feedback.success();
-              }}
-              fullWidth
-              style={{ marginTop: spacing.md }}
-            />
-          </Card>
+                onPress={async () => {
+                  if (permission === 'denied') {
+                    await Linking.openSettings().catch(() => {});
+                    return;
+                  }
+                  const granted = await requestPermission();
+                  setPermission(granted ? 'granted' : 'denied');
+                  if (granted) feedback.success();
+                }}
+                fullWidth
+                style={{ marginTop: spacing.md }}
+              />
+            </Card>
+          </Animated.View>
         ) : null}
 
-        <View>
+        <Animated.View entering={enter()}>
           <ListGroup>
             <ListRow
               icon="notifications-outline"
@@ -129,9 +136,25 @@ export default function NotificationSettingsScreen() {
               toggle={{ value: master, onChange: (v) => void toggleMaster(v) }}
             />
           </ListGroup>
-        </View>
+          {master && permission === 'granted' ? (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                marginTop: spacing.sm,
+                paddingHorizontal: spacing.xs,
+              }}
+            >
+              <PulseDot color={c.success} size={6} />
+              <Text variant="caption" mono tone="success" style={{ fontSize: 10 }}>
+                {t('app.enabled').toUpperCase()}
+              </Text>
+            </View>
+          ) : null}
+        </Animated.View>
 
-        <View>
+        <Animated.View entering={enter()}>
           <SectionLabel>{t('notify.title')}</SectionLabel>
           <ListGroup>
             <ListRow
@@ -159,6 +182,7 @@ export default function NotificationSettingsScreen() {
             />
             <ListRow
               icon="rocket-outline"
+              tone="brand"
               title={t('notify.boosters')}
               subtitle={t('notify.boostersBody')}
               disabled={!master}
@@ -214,10 +238,10 @@ export default function NotificationSettingsScreen() {
               }}
             />
           </ListGroup>
-        </View>
+        </Animated.View>
 
         {/* Quiet hours */}
-        <View>
+        <Animated.View entering={enter()}>
           <SectionLabel>{t('notify.quietHours')}</SectionLabel>
           <ListGroup>
             <ListRow
@@ -244,21 +268,23 @@ export default function NotificationSettingsScreen() {
               onPress={() => setEditingQuiet('end')}
             />
           </ListGroup>
-        </View>
+        </Animated.View>
 
-        <Button
-          label={t('notify.test')}
-          variant="secondary"
-          icon="send-outline"
-          disabled={!master || permission !== 'granted'}
-          onPress={async () => {
-            await presentNow(t('notify.miningReadyTitle'), t('notify.miningReadyMessage'), {
-              href: '/',
-            });
-            toast.success(t('notify.testSent'));
-          }}
-          fullWidth
-        />
+        <Animated.View entering={enter()}>
+          <Button
+            label={t('notify.test')}
+            variant="secondary"
+            icon="send-outline"
+            disabled={!master || permission !== 'granted'}
+            onPress={async () => {
+              await presentNow(t('notify.miningReadyTitle'), t('notify.miningReadyMessage'), {
+                href: '/',
+              });
+              toast.success(t('notify.testSent'));
+            }}
+            fullWidth
+          />
+        </Animated.View>
       </ScrollView>
 
       <HourPicker
@@ -300,7 +326,7 @@ function HourPicker({
   onClose: () => void;
   onSelect: (minute: number) => void;
 }) {
-  const { c, spacing, radius } = useTheme();
+  const { c, spacing, radius, alpha } = useTheme();
   const feedback = useFeedback();
 
   const slots = Array.from({ length: 48 }, (_, i) => i * 30);
@@ -326,19 +352,24 @@ function HourPicker({
                 feedback.select();
                 onSelect(minute);
               }}
-              style={{
+              style={({ pressed }) => ({
                 width: 72,
+                minHeight: 44,
                 paddingVertical: 10,
                 borderRadius: radius.md,
-                backgroundColor: active ? c.primary : c.surfaceAlt,
+                borderWidth: 1,
+                borderColor: active ? c.primary : c.border,
+                backgroundColor: active ? alpha(c.primary, 0.15) : c.surfaceAlt,
                 alignItems: 'center',
-              }}
+                justifyContent: 'center',
+                opacity: pressed ? 0.7 : 1,
+              })}
             >
               <Text
                 variant="footnote"
                 mono
                 weight={active ? '700' : '500'}
-                style={{ color: active ? c.onPrimary : c.textSecondary }}
+                style={{ color: active ? c.primary : c.textSecondary }}
               >
                 {formatMinute(minute)}
               </Text>

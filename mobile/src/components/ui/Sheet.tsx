@@ -1,8 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   View,
@@ -10,7 +8,14 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from 'react-native-gesture-handler';
 import Animated, {
+  runOnJS,
+  useAnimatedKeyboard,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -21,17 +26,29 @@ import { Text } from './Text';
 import { Button } from './Button';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useFeedback } from '../../lib/feedback';
+import { useT } from '../../i18n';
+
+const EXIT_MS = 180;
+const DISMISS_DISTANCE = 110;
+const DISMISS_VELOCITY = 900;
 
 /**
  * Bottom sheet.
  *
  * Slides in over a dimmed backdrop and springs to rest, which is the modal
- * idiom on both platforms now. Tapping the scrim or the grabber dismisses it,
- * and the content scrolls internally so a tall sheet never clips its actions.
+ * idiom on both platforms now. Tapping the scrim, pulling the grabber down,
+ * or the hardware back button dismisses it; the exit animation plays before
+ * the native modal unmounts, and `onDismiss` fires only once it is fully gone
+ * — the moment to present a camera or another modal on top.
+ *
+ * The keyboard is tracked with Reanimated rather than KeyboardAvoidingView:
+ * RN's Modal disables Android's resize behaviour when it is translucent, so
+ * KeyboardAvoidingView never fires there.
  */
 export function Sheet({
   visible,
   onClose,
+  onDismiss,
   title,
   subtitle,
   children,
@@ -44,6 +61,8 @@ export function Sheet({
 }: {
   visible: boolean;
   onClose: () => void;
+  /** Called after the close animation, once the modal is off screen. */
+  onDismiss?: () => void;
   title?: string;
   subtitle?: string;
   children: React.ReactNode;
@@ -54,68 +73,104 @@ export function Sheet({
   style?: StyleProp<ViewStyle>;
 }) {
   const { c, spacing, radius, elevation } = useTheme();
+  const t = useT();
   const insets = useSafeAreaInsets();
   const feedback = useFeedback();
 
+  const [mounted, setMounted] = useState(visible);
   const progress = useSharedValue(0);
+  const drag = useSharedValue(0);
+  // SDK 54 is edge-to-edge on Android, so the translucency flags are moot.
+  const keyboard = useAnimatedKeyboard();
+
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
+
+  const finishClose = useCallback(() => {
+    setMounted(false);
+    onDismissRef.current?.();
+  }, []);
 
   useEffect(() => {
-    progress.value = visible
-      ? withSpring(1, { damping: 22, stiffness: 240, mass: 0.7 })
-      : withTiming(0, { duration: 160 });
-  }, [visible, progress]);
+    if (visible) {
+      setMounted(true);
+      drag.value = 0;
+      progress.value = withSpring(1, { damping: 22, stiffness: 240, mass: 0.7 });
+      return;
+    }
+    if (!mounted) return;
+    progress.value = withTiming(0, { duration: EXIT_MS }, (done) => {
+      if (done) runOnJS(finishClose)();
+    });
+    // `mounted` is deliberately not a dependency: this effect reacts to
+    // `visible` flipping, and reads the current mount state when it does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, progress, drag, finishClose]);
+
+  const close = useCallback(() => {
+    if (!dismissable) return;
+    feedback.select();
+    onClose();
+  }, [dismissable, feedback, onClose]);
+
+  const pan = Gesture.Pan()
+    .enabled(dismissable)
+    .activeOffsetY(8)
+    .onUpdate((e) => {
+      drag.value = Math.max(0, e.translationY);
+    })
+    .onEnd((e) => {
+      if (e.translationY > DISMISS_DISTANCE || e.velocityY > DISMISS_VELOCITY) {
+        runOnJS(close)();
+      } else {
+        drag.value = withSpring(0, { damping: 20, stiffness: 260 });
+      }
+    });
 
   const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: (1 - progress.value) * 420 }],
+    transform: [{ translateY: (1 - progress.value) * 420 + drag.value }],
     opacity: progress.value,
+    marginBottom: keyboard.height.value,
   }));
 
   const scrimStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
 
-  const close = () => {
-    if (!dismissable) return;
-    feedback.select();
-    onClose();
-  };
+  if (!mounted) return null;
 
-  const inner = (
-    <View style={{ gap: spacing.md }}>{children}</View>
-  );
+  const inner = <View style={{ gap: spacing.md }}>{children}</View>;
 
   return (
     <Modal
-      visible={visible}
+      visible
       transparent
       animationType="none"
       statusBarTranslucent
+      navigationBarTranslucent
       onRequestClose={close}
     >
-      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <Animated.View
-          style={[
-            {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: c.scrim,
-            },
-            scrimStyle,
-          ]}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-            style={{ flex: 1 }}
-            onPress={close}
-          />
-        </Animated.View>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <Animated.View
+            style={[
+              {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: c.scrim,
+              },
+              scrimStyle,
+            ]}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('app.close')}
+              style={{ flex: 1 }}
+              onPress={close}
+            />
+          </Animated.View>
 
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={0}
-        >
           <Animated.View
             style={[
               {
@@ -130,65 +185,70 @@ export function Sheet({
               style,
             ]}
           >
-            {/* Grabber */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              onPress={close}
-              style={{ alignItems: 'center', paddingVertical: spacing.md }}
-            >
-              <View
-                style={{
-                  width: 38,
-                  height: 5,
-                  borderRadius: 3,
-                  backgroundColor: c.borderStrong,
-                }}
-              />
-            </Pressable>
-
-            {title ? (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'flex-start',
-                  gap: spacing.md,
-                  paddingHorizontal: spacing.lg,
-                  paddingBottom: spacing.md,
-                }}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text variant="title3">{title}</Text>
-                  {subtitle ? (
-                    <Text
-                      variant="footnote"
-                      tone="secondary"
-                      style={{ marginTop: 3 }}
-                    >
-                      {subtitle}
-                    </Text>
-                  ) : null}
-                </View>
-                {dismissable ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Close"
-                    hitSlop={10}
-                    onPress={close}
+            <GestureDetector gesture={pan}>
+              <View>
+                {/* Grabber */}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('app.close')}
+                  onPress={close}
+                  style={{ alignItems: 'center', paddingVertical: spacing.md }}
+                >
+                  <View
                     style={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: 15,
-                      backgroundColor: c.surfaceAlt,
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      width: 38,
+                      height: 5,
+                      borderRadius: 3,
+                      backgroundColor: c.borderStrong,
+                    }}
+                  />
+                </Pressable>
+
+                {title ? (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'flex-start',
+                      gap: spacing.md,
+                      paddingHorizontal: spacing.lg,
+                      paddingBottom: spacing.md,
                     }}
                   >
-                    <Ionicons name="close" size={17} color={c.textSecondary} />
-                  </Pressable>
+                    <View style={{ flex: 1 }}>
+                      <Text variant="title3">{title}</Text>
+                      {subtitle ? (
+                        <Text
+                          variant="footnote"
+                          tone="secondary"
+                          style={{ marginTop: 3 }}
+                        >
+                          {subtitle}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {dismissable ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={t('app.close')}
+                        hitSlop={10}
+                        onPress={close}
+                        style={({ pressed }) => ({
+                          width: 30,
+                          height: 30,
+                          borderRadius: 15,
+                          backgroundColor: c.surfaceAlt,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          opacity: pressed ? 0.6 : 1,
+                        })}
+                      >
+                        <Ionicons name="close" size={17} color={c.textSecondary} />
+                      </Pressable>
+                    ) : null}
+                  </View>
                 ) : null}
               </View>
-            ) : null}
+            </GestureDetector>
 
             {scrollable ? (
               <ScrollView
@@ -219,8 +279,8 @@ export function Sheet({
               </View>
             ) : null}
           </Animated.View>
-        </KeyboardAvoidingView>
-      </View>
+        </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

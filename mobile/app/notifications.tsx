@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
-  FadeIn,
+  FadeInDown,
   FadeOut,
   LinearTransition,
 } from 'react-native-reanimated';
@@ -12,6 +12,7 @@ import Animated, {
 import { Text } from '../src/components/ui/Text';
 import { Card } from '../src/components/ui/Card';
 import { Button, IconButton } from '../src/components/ui/Button';
+import { PulseDot } from '../src/components/ui/Pulse';
 import { EmptyState, NavBar, Screen } from '../src/components/ui/Chrome';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { useI18n, useT } from '../src/i18n';
@@ -44,7 +45,7 @@ const KIND_ICON: Record<NotificationItem['kind'], keyof typeof Ionicons.glyphMap
  * told while the app is closed, and is prompted for here, in context.
  */
 export default function NotificationsScreen() {
-  const { c, spacing, radius } = useTheme();
+  const { c, spacing, radius, alpha } = useTheme();
   const insets = useSafeAreaInsets();
   const t = useT();
   const { locale } = useI18n();
@@ -67,16 +68,26 @@ export default function NotificationsScreen() {
   };
 
   return (
-    <Screen sunken>
+    <Screen>
+      {/* Presented as a sheet, so it closes from the trailing edge, not a back chevron. */}
       <NavBar
         title={t('notify.title')}
         subtitle={unreadCount > 0 ? t('notify.unread', { n: unreadCount }) : undefined}
+        onBack={null}
+        transparent
         right={
-          <IconButton
-            icon="options-outline"
-            accessibilityLabel={t('notify.settingsTitle')}
-            onPress={() => router.push('/settings/notifications')}
-          />
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <IconButton
+              icon="options-outline"
+              accessibilityLabel={t('notify.settingsTitle')}
+              onPress={() => router.push('/settings/notifications')}
+            />
+            <IconButton
+              icon="close"
+              accessibilityLabel={t('app.close')}
+              onPress={() => router.back()}
+            />
+          </View>
         }
       />
 
@@ -91,67 +102,80 @@ export default function NotificationsScreen() {
       >
         {/* Permission prompt — only when it would actually change something. */}
         {permission !== 'granted' && settings.notifications.enabled ? (
-          <Card>
-            <View
-              style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
-            >
+          <Animated.View entering={FadeInDown.duration(260)}>
+            <Card glow>
               <View
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: radius.md,
-                  backgroundColor: c.primaryMuted,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
               >
-                <Ionicons name="notifications" size={21} color={c.primary} />
+                <View
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: radius.md,
+                    backgroundColor: alpha(c.primary, 0.15),
+                    borderWidth: 1,
+                    borderColor: alpha(c.primary, 0.3),
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Ionicons name="notifications" size={21} color={c.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text variant="headline">{t('notify.permissionTitle')}</Text>
+                  <Text variant="caption" tone="secondary">
+                    {permission === 'denied'
+                      ? t('notify.permissionDenied')
+                      : t('notify.permissionBody')}
+                  </Text>
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text variant="headline">{t('notify.permissionTitle')}</Text>
-                <Text variant="caption" tone="secondary">
-                  {permission === 'denied'
-                    ? t('notify.permissionDenied')
-                    : t('notify.permissionBody')}
-                </Text>
-              </View>
-            </View>
-            <Button
-              label={
-                permission === 'denied'
-                  ? t('notify.openSystemSettings')
-                  : t('notify.permissionCta')
-              }
-              onPress={async () => {
-                if (permission === 'denied') {
-                  await Linking.openSettings().catch(() => {});
-                  return;
+              <Button
+                label={
+                  permission === 'denied'
+                    ? t('notify.openSystemSettings')
+                    : t('notify.permissionCta')
                 }
-                const granted = await requestPermission();
-                setPermission(granted ? 'granted' : 'denied');
-                if (granted) feedback.success();
-              }}
-              fullWidth
-              style={{ marginTop: spacing.md }}
-            />
-          </Card>
+                onPress={async () => {
+                  if (permission === 'denied') {
+                    await Linking.openSettings().catch(() => {});
+                    return;
+                  }
+                  const granted = await requestPermission();
+                  setPermission(granted ? 'granted' : 'denied');
+                  if (granted) feedback.success();
+                }}
+                fullWidth
+                style={{ marginTop: spacing.md }}
+              />
+            </Card>
+          </Animated.View>
         ) : null}
 
         {items.length === 0 ? (
-          <EmptyState
-            icon="notifications-off-outline"
-            title={t('notify.empty')}
-            body={t('notify.emptyBody')}
-          />
+          <Card>
+            <EmptyState
+              icon="notifications-off-outline"
+              title={t('notify.empty')}
+              body={t('notify.emptyBody')}
+            />
+          </Card>
         ) : (
           <>
             <View
               style={{
                 flexDirection: 'row',
-                justifyContent: 'flex-end',
+                alignItems: 'center',
                 gap: spacing.lg,
+                paddingHorizontal: spacing.xs,
               }}
             >
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                {unreadCount > 0 ? <PulseDot color={c.primary} size={6} /> : null}
+                <Text variant="overline" tone="tertiary" uppercase>
+                  {unreadCount > 0 ? t('notify.unread', { n: unreadCount }) : t('notify.title')}
+                </Text>
+              </View>
               {unreadCount > 0 ? (
                 <Pressable
                   accessibilityRole="button"
@@ -160,8 +184,9 @@ export default function NotificationsScreen() {
                     feedback.select();
                     markAllRead();
                   }}
+                  style={{ minHeight: 32, justifyContent: 'center' }}
                 >
-                  <Text variant="footnote" tone="brand" weight="600">
+                  <Text variant="footnote" tone="brand" weight="700">
                     {t('notify.markAllRead')}
                   </Text>
                 </Pressable>
@@ -173,17 +198,18 @@ export default function NotificationsScreen() {
                   feedback.select();
                   clear();
                 }}
+                style={{ minHeight: 32, justifyContent: 'center' }}
               >
-                <Text variant="footnote" tone="danger" weight="600">
+                <Text variant="footnote" tone="danger" weight="700">
                   {t('notify.clearAll')}
                 </Text>
               </Pressable>
             </View>
 
-            {items.map((item) => (
+            {items.map((item, i) => (
               <Animated.View
                 key={item.id}
-                entering={FadeIn.duration(200)}
+                entering={FadeInDown.delay(Math.min(i, 10) * 40).duration(260)}
                 exiting={FadeOut.duration(160)}
                 layout={LinearTransition.springify()}
               >
@@ -216,12 +242,13 @@ function NotificationRow({
   onDismiss: () => void;
   relative: string;
 }) {
-  const { c, spacing, radius } = useTheme();
+  const { c, spacing, radius, alpha } = useTheme();
+  const t = useT();
 
   const tint = {
     info: c.primary,
     success: c.success,
-    warning: c.warning,
+    warning: c.gold,
     danger: c.danger,
   }[item.tone];
 
@@ -229,11 +256,8 @@ function NotificationRow({
     <Card
       onPress={onPress}
       accessibilityLabel={item.title}
-      style={
-        item.read
-          ? undefined
-          : { borderColor: tint, borderWidth: 1.5 }
-      }
+      glow={!item.read}
+      accent={item.read ? undefined : alpha(tint, c.dark ? 0.45 : 0.6)}
     >
       <View style={{ flexDirection: 'row', gap: spacing.md }}>
         <View
@@ -241,7 +265,9 @@ function NotificationRow({
             width: 38,
             height: 38,
             borderRadius: radius.md,
-            backgroundColor: `${tint}1F`,
+            backgroundColor: alpha(tint, 0.15),
+            borderWidth: 1,
+            borderColor: alpha(tint, 0.3),
             alignItems: 'center',
             justifyContent: 'center',
           }}
@@ -251,34 +277,39 @@ function NotificationRow({
 
         <View style={{ flex: 1, gap: 2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text variant="headline" style={{ flex: 1 }} numberOfLines={1}>
+            <Text
+              variant="headline"
+              weight={item.read ? '600' : '800'}
+              style={{ flex: 1 }}
+              numberOfLines={1}
+            >
               {item.title}
             </Text>
-            {!item.read ? (
-              <View
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: tint,
-                }}
-              />
-            ) : null}
+            {!item.read ? <PulseDot color={tint} size={8} /> : null}
           </View>
           <Text variant="footnote" tone="secondary">
             {item.body}
           </Text>
-          <Text variant="caption" tone="tertiary" style={{ marginTop: 2 }}>
+          <Text variant="caption" tone="tertiary" mono style={{ marginTop: 2, fontSize: 10 }}>
             {relative}
           </Text>
         </View>
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Dismiss"
-          hitSlop={10}
+          accessibilityLabel={t('app.dismiss')}
           onPress={onDismiss}
-          style={({ pressed }) => ({ opacity: pressed ? 0.4 : 1, padding: 2 })}
+          // A full 44pt target, pulled into the card's padding so the glyph
+          // still sits in the corner.
+          style={({ pressed }) => ({
+            opacity: pressed ? 0.4 : 1,
+            width: 44,
+            height: 44,
+            marginTop: -spacing.md,
+            marginRight: -spacing.md,
+            alignItems: 'center',
+            justifyContent: 'center',
+          })}
         >
           <Ionicons name="close" size={16} color={c.textTertiary} />
         </Pressable>

@@ -4,6 +4,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import type { QuietHours } from '../store/settings';
 import { isQuietAt } from '../store/settings';
+import type { Translate } from '../i18n';
 
 /**
  * The OS notification layer: permissions, Android channels, and scheduling.
@@ -29,24 +30,31 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export async function configureChannels(): Promise<void> {
+/**
+ * Android notification channels.
+ *
+ * Idempotent, and takes the translator rather than fixed copy: the names show
+ * up in the system settings app, so they have to follow the language the user
+ * chose — call again whenever the locale changes.
+ */
+export async function configureChannels(t: Translate): Promise<void> {
   if (Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync(CHANNELS.mining, {
-    name: 'Mining reminders',
-    description: 'Told when your 24-hour mining window ends.',
+    name: t('notify.channelMining'),
+    description: t('notify.channelMiningBody'),
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 120, 80, 120],
     lightColor: '#2563EB',
   });
   await Notifications.setNotificationChannelAsync(CHANNELS.rewards, {
-    name: 'Bounties and boosters',
-    description: 'Bounty cooldowns and booster expiry.',
+    name: t('notify.channelBounties'),
+    description: t('notify.channelBountiesBody'),
     importance: Notifications.AndroidImportance.DEFAULT,
     lightColor: '#F59E0B',
   });
   await Notifications.setNotificationChannelAsync(CHANNELS.account, {
-    name: 'Account',
-    description: 'Withdrawals, verification and support replies.',
+    name: t('notify.channelAccount'),
+    description: t('notify.channelAccountBody'),
     importance: Notifications.AndroidImportance.HIGH,
     lightColor: '#10B981',
   });
@@ -140,8 +148,7 @@ export async function scheduleAt({
   try {
     await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
     const when = quiet ? respectQuietHours(at, quiet) : at;
-    const seconds = Math.round((when.getTime() - Date.now()) / 1000);
-    if (seconds <= 5) return false;
+    if (when.getTime() - Date.now() <= 5_000) return false;
     await Notifications.scheduleNotificationAsync({
       identifier: id,
       content: {
@@ -149,11 +156,12 @@ export async function scheduleAt({
         body,
         data: data ?? {},
         sound: true,
-        ...(Platform.OS === 'android' ? { channelId: channel } : {}),
       },
+      // A date trigger, not an interval: an interval counts from *now*, so a
+      // reschedule a minute later would drift the delivery by that minute.
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds,
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: when,
         channelId: channel,
       },
     });
@@ -176,9 +184,11 @@ export async function presentNow(
         body,
         data: data ?? {},
         sound: true,
-        ...(Platform.OS === 'android' ? { channelId: CHANNELS.account } : {}),
       },
-      trigger: null,
+      // The channel rides on the trigger, not the content: Android ignores
+      // it in `content` and would post to the default channel.
+      trigger:
+        Platform.OS === 'android' ? { channelId: CHANNELS.account } : null,
     });
   } catch {
     /* permission revoked between the tap and the call */

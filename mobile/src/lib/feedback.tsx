@@ -75,7 +75,8 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
           // Play through the media channel, and never interrupt music the
           // user is already listening to.
           void setAudioModeAsync({
-            playsInSilentMode: false,
+            // The site plays its cues regardless of the ringer switch; match it.
+            playsInSilentMode: true,
             shouldPlayInBackground: false,
             interruptionMode: 'mixWithOthers',
             interruptionModeAndroid: 'duckOthers',

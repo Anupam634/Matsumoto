@@ -4,18 +4,23 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
 import { Text } from '../src/components/ui/Text';
-import { Card, SectionLabel } from '../src/components/ui/Card';
-import { Badge, StatRow } from '../src/components/ui/Badge';
+import { Card } from '../src/components/ui/Card';
+import { Badge } from '../src/components/ui/Badge';
 import { Button } from '../src/components/ui/Button';
 import { NavBar, Screen } from '../src/components/ui/Chrome';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { useI18n, useT } from '../src/i18n';
 import { useSession } from '../src/store/session';
 import { useFeedback } from '../src/lib/feedback';
-import { POINTS_PER_TOKEN } from '../src/api/endpoints';
+import { POINTS_PER_TOKEN, type MiningStatus } from '../src/api/endpoints';
 import { formatPoints, formatUsd } from '../src/lib/format';
 
 /** Booster options, mirroring the plans the server sells (SPEC §2). */
@@ -38,6 +43,26 @@ function tierFor(invites: number): { level: number; multiplier: number } {
 }
 
 /**
+ * The web calculator's starting point when nothing is known about the
+ * visitor: the $10 plan and a dozen invites. Used here only when the session
+ * has not loaded, so both surfaces open on the same worked example.
+ */
+const DEFAULT_BOOSTER_INDEX = 3;
+const DEFAULT_INVITES = 12;
+
+/** The plan whose rate is nearest the miner's own base rate. */
+function boosterIndexFor(status: MiningStatus | null): number {
+  if (!status) return DEFAULT_BOOSTER_INDEX;
+  if (status.activeBoosters <= 0) return 0;
+  const base = status.ratePerHour / Math.max(1, status.referralTier.multiplier);
+  let best = 0;
+  BOOSTERS.forEach((option, i) => {
+    if (Math.abs(option.rate - base) < Math.abs(BOOSTERS[best].rate - base)) best = i;
+  });
+  return best;
+}
+
+/**
  * Earnings calculator.
  *
  * Projects a rate from a booster tier and an invite count, using the same
@@ -46,7 +71,7 @@ function tierFor(invites: number): { level: number; multiplier: number } {
  * Starts from the miner's real numbers rather than a generic example.
  */
 export default function CalculatorScreen() {
-  const { c, spacing, radius } = useTheme();
+  const { c, spacing, radius, alpha } = useTheme();
   const insets = useSafeAreaInsets();
   const t = useT();
   const { locale } = useI18n();
@@ -54,8 +79,10 @@ export default function CalculatorScreen() {
   const feedback = useFeedback();
   const { profile, mining } = useSession();
 
-  const [boosterIndex, setBoosterIndex] = useState(1);
-  const [invites, setInvites] = useState(profile?.referralCount ?? 5);
+  const [boosterIndex, setBoosterIndex] = useState(() => boosterIndexFor(mining));
+  const [invites, setInvites] = useState(
+    () => profile?.referralCount ?? DEFAULT_INVITES,
+  );
 
   const booster = BOOSTERS[boosterIndex];
   const tier = tierFor(invites);
@@ -73,6 +100,7 @@ export default function CalculatorScreen() {
   }, [booster.rate, tier.multiplier]);
 
   const currentRate = mining?.ratePerHour ?? 0;
+  const delta = projection.hourly - currentRate;
 
   return (
     <Screen sunken>
@@ -91,177 +119,203 @@ export default function CalculatorScreen() {
         }}
       >
         {/* Result, first — the answer is the point of the screen. */}
-        <Card padded={false} style={{ overflow: 'hidden' }}>
-          <LinearGradient
-            colors={[c.primaryMuted, c.surface]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{ padding: spacing.lg }}
-          >
-            <Text variant="overline" tone="tertiary" uppercase>
-              {t('landing.calculator.hourlyRate')}
-            </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5 }}>
-              <Text variant="display" mono>
-                {formatPoints(projection.hourly, 2, locale)}
+        <Animated.View entering={FadeInDown.duration(260)}>
+          <Card glow>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: spacing.sm,
+              }}
+            >
+              <Text variant="overline" tone="brand" uppercase>
+                {t('landing.calculator.estimatedYield')}
               </Text>
-              <Text variant="callout" tone="secondary" weight="700">
-                /h
-              </Text>
+              {currentRate > 0 ? (
+                <Badge
+                  label={`${delta >= 0 ? '+' : ''}${formatPoints(delta, 2, locale)} /h`}
+                  tone={delta >= 0 ? 'success' : 'warning'}
+                  icon={delta >= 0 ? 'trending-up' : 'trending-down'}
+                />
+              ) : null}
             </View>
 
-            {currentRate > 0 ? (
-              <Badge
-                label={
-                  projection.hourly >= currentRate
-                    ? `+${formatPoints(projection.hourly - currentRate, 2, locale)} /h`
-                    : `${formatPoints(projection.hourly - currentRate, 2, locale)} /h`
-                }
-                tone={projection.hourly >= currentRate ? 'success' : 'warning'}
-                icon={projection.hourly >= currentRate ? 'trending-up' : 'trending-down'}
-                style={{ marginTop: spacing.sm }}
-              />
-            ) : null}
+            <ResultRow label={t('landing.calculator.hourlyRate')}>
+              <Text variant="title3" mono tone="info">
+                {formatPoints(projection.hourly, 2, locale)}
+                <Text variant="caption" tone="tertiary" weight="700">
+                  {'  '}BONDKOIN/h
+                </Text>
+              </Text>
+            </ResultRow>
+            <ResultRow label={t('landing.calculator.dailyYield')}>
+              <Text variant="title3" mono>
+                {formatPoints(projection.daily, 1, locale)}
+                <Text variant="caption" tone="tertiary" weight="700">
+                  {'  '}{t('dashboard.pointsShort').toUpperCase()}
+                </Text>
+              </Text>
+            </ResultRow>
+            <ResultRow label={t('landing.calculator.monthlyYield')}>
+              <Text variant="title2" mono tone="info">
+                {formatPoints(projection.monthly, 0, locale)}
+                <Text variant="caption" tone="tertiary" weight="700">
+                  {'  '}{t('dashboard.pointsShort').toUpperCase()}
+                </Text>
+              </Text>
+            </ResultRow>
 
+            {/* On-chain payout — the blue-tinted tile at the bottom of the web card */}
             <View
               style={{
                 marginTop: spacing.md,
-                paddingTop: spacing.md,
-                borderTopWidth: 1,
-                borderTopColor: c.border,
+                padding: spacing.lg,
+                borderRadius: radius.lg,
+                backgroundColor: alpha(c.primary, 0.1),
+                borderWidth: 1,
+                borderColor: alpha(c.primary, 0.3),
+                alignItems: 'center',
+                gap: 2,
               }}
             >
-              <StatRow
-                label={t('landing.calculator.dailyYield')}
-                value={`${formatPoints(projection.daily, 1, locale)} pts`}
-                mono
-              />
-              <StatRow
-                label={t('landing.calculator.monthlyYield')}
-                value={`${formatPoints(projection.monthly, 0, locale)} pts`}
-                mono
-              />
-              <StatRow
-                label={t('landing.calculator.onChainPayout')}
-                value={`${formatPoints(projection.tokens, 2, locale)} $BONDKOIN`}
-                mono
-                tone="brand"
-                strong
-              />
+              <Text variant="overline" tone="brand" uppercase center>
+                {t('landing.calculator.onChainPayout')}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+                <Text variant="title1" mono tone="info">
+                  ~{formatPoints(projection.tokens, 0, locale)}
+                </Text>
+                <Text variant="callout" tone="info" weight="800">
+                  $BONDKOIN
+                </Text>
+              </View>
+              <Text variant="caption" tone="tertiary" center>
+                {t('withdraw.paidOnChain')} · BEP-20
+              </Text>
             </View>
-          </LinearGradient>
-        </Card>
+          </Card>
+        </Animated.View>
 
         {/* Booster */}
-        <SectionLabel>{t('landing.calculator.selectBooster')}</SectionLabel>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-          {BOOSTERS.map((option, i) => {
-            const active = i === boosterIndex;
-            return (
-              <Pressable
-                key={option.id}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                onPress={() => {
-                  feedback.select();
-                  setBoosterIndex(i);
-                }}
-                style={{
-                  flexGrow: 1,
-                  minWidth: 96,
-                  paddingVertical: spacing.md,
-                  paddingHorizontal: spacing.md,
-                  borderRadius: radius.lg,
-                  alignItems: 'center',
-                  backgroundColor: active ? c.primaryMuted : c.surface,
-                  borderWidth: 1.5,
-                  borderColor: active ? c.primary : c.border,
-                }}
-              >
-                <Text
-                  variant="callout"
-                  weight="700"
-                  tone={active ? 'brand' : 'primary'}
-                >
-                  {option.price === 0
-                    ? t('landing.figures.baseRate')
-                    : formatUsd(option.price, locale)}
-                </Text>
-                <Text variant="caption" tone="tertiary" mono>
-                  {option.rate} /h
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <Animated.View entering={FadeInDown.delay(60).duration(260)}>
+          <Card>
+            <Text variant="overline" tone="gold" uppercase>
+              {t('landing.calculator.selectBooster')}
+            </Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                gap: spacing.sm,
+                marginTop: spacing.md,
+              }}
+            >
+              {BOOSTERS.map((option, i) => (
+                <BoosterTile
+                  key={option.id}
+                  label={
+                    option.price === 0
+                      ? t('landing.figures.baseRate')
+                      : formatUsd(option.price, locale)
+                  }
+                  rate={`${option.rate} /h`}
+                  active={i === boosterIndex}
+                  onPress={() => {
+                    feedback.select();
+                    setBoosterIndex(i);
+                  }}
+                />
+              ))}
+            </View>
+          </Card>
+        </Animated.View>
 
         {/* Invites */}
-        <SectionLabel>{t('landing.calculator.selectInvites')}</SectionLabel>
-        <Card>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <Text variant="headline" mono>
-              {invites}
-            </Text>
-            <Badge
-              label={`L${tier.level} · ×${tier.multiplier}`}
-              tone="gold"
-              icon="ribbon"
-            />
-          </View>
-
-          <Slider
-            value={invites}
-            onValueChange={(next) => setInvites(Math.round(next))}
-            onSlidingComplete={() => feedback.select()}
-            minimumValue={0}
-            maximumValue={40}
-            step={1}
-            minimumTrackTintColor={c.primary}
-            maximumTrackTintColor={c.surfaceAlt}
-            thumbTintColor={c.primary}
-            style={{ marginTop: spacing.sm, height: 40 }}
-          />
-
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              marginTop: 2,
-            }}
-          >
-            {['0 ×1', '5 ×3', '10 ×4', '20 ×5', '30 ×6', '31+ ×8'].map((label) => (
-              <Text key={label} variant="caption" tone="tertiary" mono style={{ fontSize: 10 }}>
-                {label}
+        <Animated.View entering={FadeInDown.delay(120).duration(260)}>
+          <Card>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: spacing.sm,
+              }}
+            >
+              <Text variant="overline" tone="gold" uppercase style={{ flex: 1 }}>
+                {t('landing.calculator.selectInvites')}
               </Text>
-            ))}
+              <View
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 4,
+                  borderRadius: radius.pill,
+                  backgroundColor: alpha(c.gold, 0.15),
+                  borderWidth: 1,
+                  borderColor: alpha(c.gold, 0.3),
+                }}
+              >
+                <Text variant="caption" tone="gold" mono weight="700">
+                  {invites} · L{tier.level} ×{tier.multiplier}
+                </Text>
+              </View>
+            </View>
+
+            <Slider
+              value={invites}
+              onValueChange={(next) => setInvites(Math.round(next))}
+              onSlidingComplete={() => feedback.select()}
+              minimumValue={0}
+              maximumValue={50}
+              step={1}
+              minimumTrackTintColor={c.gold}
+              maximumTrackTintColor={c.dark ? 'rgba(255,255,255,0.12)' : c.border}
+              thumbTintColor={c.gold}
+              style={{ marginTop: spacing.md, height: 40 }}
+            />
+
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                marginTop: 2,
+              }}
+            >
+              {['0 ×1', '5 ×3', '10 ×4', '20 ×5', '30 ×6', '31+ ×8'].map((label) => (
+                <Text key={label} variant="caption" tone="tertiary" mono style={{ fontSize: 10 }}>
+                  {label}
+                </Text>
+              ))}
+            </View>
+          </Card>
+        </Animated.View>
+
+        {/* The formula, spelled out — the web's "Reward Calculation Engine" note */}
+        <Animated.View entering={FadeInDown.delay(180).duration(260)}>
+          <View
+            style={{
+              flexDirection: 'row',
+              gap: spacing.sm,
+              padding: spacing.md,
+              borderRadius: radius.lg,
+              backgroundColor: c.dark ? 'rgba(2,6,23,0.6)' : c.surfaceAlt,
+              borderWidth: 1,
+              borderColor: c.border,
+            }}
+          >
+            <Ionicons name="calculator-outline" size={17} color={c.primary} />
+            <Text variant="caption" tone="secondary" style={{ flex: 1 }}>
+              {booster.rate} /h × {tier.multiplier} (L{tier.level}) ={' '}
+              <Text variant="caption" tone="info" mono weight="800">
+                {formatPoints(projection.hourly, 2, locale)} /h
+              </Text>
+              {' · '}
+              {POINTS_PER_TOKEN} {t('withdraw.pointsShort')} = 1 $BONDKOIN
+            </Text>
           </View>
-        </Card>
+        </Animated.View>
 
-        {/* The formula, spelled out */}
-        <View
-          style={{
-            flexDirection: 'row',
-            gap: spacing.sm,
-            padding: spacing.md,
-            borderRadius: radius.lg,
-            backgroundColor: c.infoMuted,
-          }}
-        >
-          <Ionicons name="calculator-outline" size={17} color={c.info} />
-          <Text variant="caption" style={{ color: c.info, flex: 1 }}>
-            {booster.rate} /h × {tier.multiplier} ={' '}
-            {formatPoints(projection.hourly, 2, locale)} /h ·{' '}
-            {POINTS_PER_TOKEN} {t('withdraw.pointsShort')} = 1 $BONDKOIN
-          </Text>
-        </View>
-
-        <View style={{ gap: spacing.sm }}>
+        <Animated.View entering={FadeInDown.delay(240).duration(260)} style={{ gap: spacing.sm }}>
           <Button
             label={t('landing.calculator.cta')}
             icon="rocket-outline"
@@ -276,12 +330,113 @@ export default function CalculatorScreen() {
             onPress={() => router.push('/referrals')}
             fullWidth
           />
-        </View>
+        </Animated.View>
 
         <Text variant="caption" tone="tertiary" center>
           {t('landing.footer.disclaimer')}
         </Text>
       </ScrollView>
     </Screen>
+  );
+}
+
+/** One line of the results card: label left, mono figure right, hairline below. */
+function ResultRow({ label, children }: { label: string; children: React.ReactNode }) {
+  const { c, spacing } = useTheme();
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: spacing.md,
+        paddingVertical: spacing.md,
+        borderBottomWidth: 1,
+        borderBottomColor: c.border,
+      }}
+    >
+      <Text variant="footnote" tone="secondary" style={{ flexShrink: 1 }}>
+        {label}
+      </Text>
+      {children}
+    </View>
+  );
+}
+
+/**
+ * A booster option. The selected tile takes the amber ring and lifts to
+ * 1.05×, as the web's does; the others sit flat on the recessed ground.
+ */
+function BoosterTile({
+  label,
+  rate,
+  active,
+  onPress,
+}: {
+  label: string;
+  rate: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const { c, spacing, radius, alpha, glow } = useTheme();
+  const scale = useSharedValue(1);
+  const lift = useSharedValue(active ? 1.04 : 1);
+
+  React.useEffect(() => {
+    lift.value = withSpring(active ? 1.04 : 1, { damping: 18, stiffness: 260 });
+  }, [active, lift]);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value * lift.value }],
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        { flexGrow: 1, minWidth: 96, borderRadius: radius.lg },
+        active ? glow(c.gold, c.dark ? 2 : 1) : null,
+        style,
+      ]}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ selected: active }}
+        onPressIn={() => {
+          scale.value = withSpring(0.96, { damping: 20, stiffness: 320 });
+        }}
+        onPressOut={() => {
+          scale.value = withSpring(1, { damping: 16, stiffness: 260 });
+        }}
+        onPress={onPress}
+        style={{
+          minHeight: 60,
+          paddingVertical: spacing.md,
+          paddingHorizontal: spacing.md,
+          borderRadius: radius.lg,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: active
+            ? alpha(c.gold, c.dark ? 0.2 : 0.1)
+            : c.dark
+              ? 'rgba(2,6,23,0.6)'
+              : c.surfaceAlt,
+          borderWidth: 1,
+          borderColor: active ? c.gold : c.border,
+        }}
+      >
+        <Text variant="caption" weight="700" tone={active ? 'primary' : 'secondary'} center>
+          {label}
+        </Text>
+        <Text
+          variant="callout"
+          mono
+          weight="800"
+          tone={active ? 'gold' : 'tertiary'}
+          style={{ marginTop: 2 }}
+        >
+          {rate}
+        </Text>
+      </Pressable>
+    </Animated.View>
   );
 }

@@ -18,7 +18,7 @@ import type {
   WithdrawalDto,
 } from '../api/endpoints';
 import { useSettings } from './settings';
-import { setBadge } from '../lib/push';
+import { cancelAll, setBadge } from '../lib/push';
 import type { Translate } from '../i18n';
 
 /**
@@ -406,6 +406,9 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         snapshot.current = EMPTY_SNAPSHOT;
         await AsyncStorage.multiRemove([ITEMS_KEY, SNAPSHOT_KEY]);
         setItems([]);
+        // Anything still armed in the OS belongs to the account that is
+        // leaving — a "your node is ready" for someone else's node is a leak.
+        await cancelAll();
         await setBadge(0);
       },
     }),

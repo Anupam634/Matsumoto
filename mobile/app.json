@@ -10,9 +10,6 @@
     "primaryColor": "#2563EB",
     "backgroundColor": "#FFFFFF",
     "description": "Node mining rewards on BNB Chain. Mine daily, stack boosters, invite miners and withdraw $BONDKOIN to your own wallet.",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bondkoinlabs.app",
@@ -24,7 +21,11 @@
         "NSCameraUsageDescription": "BONDKOIN uses the camera so you can photograph your ID document and take a selfie for identity verification.",
         "NSPhotoLibraryUsageDescription": "BONDKOIN needs access to your photos so you can attach your ID document and selfie for identity verification.",
         "NSFaceIDUsageDescription": "BONDKOIN uses Face ID to unlock the app when App Lock is enabled."
-      }
+      },
+      "associatedDomains": [
+        "applinks:bondkoinlabs.com",
+        "applinks:www.bondkoinlabs.com"
+      ]
     },
     "android": {
       "package": "com.bondkoinlabs.app",
@@ -32,7 +33,7 @@
       "predictiveBackGestureEnabled": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0B1220"
+        "backgroundColor": "#FFFFFF"
       },
       "permissions": [
         "android.permission.CAMERA",
@@ -46,6 +47,28 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "bondkoinlabs.com",
+              "pathPrefix": "/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.bondkoinlabs.com",
+              "pathPrefix": "/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
       ]
     },
     "web": {
@@ -85,6 +108,7 @@
           "resizeMode": "contain",
           "backgroundColor": "#F7F8FA",
           "dark": {
+            "image": "./assets/splash-icon-dark.png",
             "backgroundColor": "#0B1220"
           }
         }

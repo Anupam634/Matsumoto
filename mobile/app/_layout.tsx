@@ -5,6 +5,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider as NavigationThemeProvider,
+} from '@react-navigation/native';
 
 import { SettingsProvider, useSettings } from '../src/store/settings';
 import { ThemeProvider, useTheme } from '../src/theme/ThemeProvider';
@@ -81,8 +86,24 @@ function RootNavigator() {
     return <View style={{ flex: 1, backgroundColor: c.bg }} />;
   }
 
+  // Hand the navigator the same palette, so the card behind a transition or
+  // a modal presentation matches the theme instead of flashing white.
+  const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
+  const navTheme = {
+    ...base,
+    colors: {
+      ...base.colors,
+      primary: c.primary,
+      background: c.bg,
+      card: c.surface,
+      text: c.textPrimary,
+      border: c.border,
+      notification: c.danger,
+    },
+  };
+
   return (
-    <>
+    <NavigationThemeProvider value={navTheme}>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
@@ -103,6 +124,6 @@ function RootNavigator() {
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
       </Stack>
-    </>
+    </NavigationThemeProvider>
   );
 }

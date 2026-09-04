@@ -1,15 +1,18 @@
 import { useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { useSession } from '../../store/session';
 import { useSettings } from '../../store/settings';
 import { useNotifications } from '../../store/notifications';
-import { useT } from '../../i18n';
+import { useI18n } from '../../i18n';
 import {
   cancel,
+  cancelAll,
   configureChannels,
   getPermissionState,
   scheduleAt,
+  setBadge,
 } from '../../lib/push';
 import {
   getBoosters,
@@ -43,7 +46,7 @@ const IDS = {
 const SLOW_POLL_MS = 90_000;
 
 export function NotificationScheduler() {
-  const t = useT();
+  const { t, locale } = useI18n();
   const router = useRouter();
   const { state, mining, profile } = useSession();
   const { settings } = useSettings();
@@ -56,10 +59,18 @@ export function NotificationScheduler() {
   const latest = useRef({ profile, mining });
   latest.current = { profile, mining };
 
-  /* Android notification channels, once. */
+  /* Android notification channels — re-run on a language change, since the
+   * channel names are what the system settings app shows. */
   useEffect(() => {
-    void configureChannels();
-  }, []);
+    void configureChannels(t);
+  }, [t]);
+
+  /* Signed out by any route (menu, app lock, a 401): nothing armed in the OS
+   * may outlive the account it was scheduled for. */
+  useEffect(() => {
+    if (state !== 'signedOut') return;
+    void cancelAll().then(() => setBadge(0));
+  }, [state]);
 
   /* Tapping a notification should land on the screen it is about. */
   useEffect(() => {
@@ -93,9 +104,11 @@ export function NotificationScheduler() {
         lastScheduledClaim.current = null;
         return;
       }
-      // Rescheduling the same instant on every poll would be wasted work.
-      if (lastScheduledClaim.current === nextClaimAt) return;
-      lastScheduledClaim.current = nextClaimAt;
+      // Rescheduling the same instant on every poll would be wasted work —
+      // but a language change must re-arm it with translated copy.
+      const scheduleKey = `${nextClaimAt}|${locale}`;
+      if (lastScheduledClaim.current === scheduleKey) return;
+      lastScheduledClaim.current = scheduleKey;
 
       await scheduleAt({
         id: IDS.miningReady,
@@ -107,7 +120,7 @@ export function NotificationScheduler() {
         quiet: settings.quietHours,
       });
     })();
-  }, [state, mining?.nextClaimAt, mining?.canClaim, settings.notifications, settings.quietHours, t]);
+  }, [state, mining?.nextClaimAt, mining?.canClaim, settings.notifications, settings.quietHours, t, locale]);
 
   /* Slow poll: the routes the dashboard does not fetch. */
   useEffect(() => {
@@ -207,7 +220,12 @@ export function NotificationScheduler() {
     };
 
     void run();
-    const id = setInterval(() => void run(), SLOW_POLL_MS);
+    // Backgrounded, the poll would only spend battery and radio on results
+    // nobody is looking at; the next foreground tick catches up.
+    const id = setInterval(() => {
+      if (AppState.currentState !== 'active') return;
+      void run();
+    }, SLOW_POLL_MS);
     return () => {
       alive = false;
       clearInterval(id);

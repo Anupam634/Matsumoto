@@ -143,7 +143,11 @@ export interface MiningHistory {
   entries: LedgerEntryDto[];
 }
 
-export const getMiningHistory = () => apiFetch<MiningHistory>('/mining/history');
+/** `take` caps the ledger rows returned (server default 12, max 200). */
+export const getMiningHistory = (take?: number) =>
+  apiFetch<MiningHistory>(
+    take ? `/mining/history?take=${Math.round(take)}` : '/mining/history',
+  );
 
 /* ─────────────────────────────── Tasks ────────────────────────────── */
 
@@ -342,7 +346,10 @@ export interface BoosterPurchaseDto {
   id: string;
   status: PurchaseStatus;
   tokenSymbol: string;
+  /** Human amount, e.g. "10.0". */
   amount: string;
+  /** The same amount in the token's smallest unit — for wallet URIs. */
+  expectedUnits: string;
   payToAddress: string;
   fromAddress: string;
   txHash: string | null;
@@ -357,6 +364,8 @@ export interface BoosterOverview {
     disabledReason?: string;
     tokenSymbol: string;
     payToAddress: string | null;
+    /** BEP-20 contract to pay in; null when payments are off or native BNB. */
+    tokenAddress: string | null;
     minConfirmations: number;
   };
   plans: BoosterPlanDto[];

@@ -18,10 +18,26 @@ const REASON_ICON: Record<LedgerReason, keyof typeof Ionicons.glyphMap> = {
 };
 
 /**
+ * The dashboard's `REASON_CHIP` colours, one hue per ledger reason. These are
+ * brand hues rather than palette tokens on the site too, so they read the
+ * same in every theme.
+ */
+const REASON_CHIP: Record<LedgerReason, string> = {
+  MINING: '#818CF8',
+  TASK_REWARD: '#22C55E',
+  REFERRAL_BONUS: '#38BDF8',
+  BOOSTER_PURCHASE: '#A78BFA',
+  WITHDRAWAL: '#F59E0B',
+  AIRDROP: '#EC4899',
+  ADMIN_ADJUST: '#94A3B8',
+};
+
+/**
  * One ledger entry.
  *
  * Shared by the dashboard's preview and the full history screen, so a credit
- * reads identically in both places.
+ * reads identically in both places: a tinted chip per reason, the reason and
+ * time, and a tabular `+x` in emerald or `−x` in amber.
  */
 export function ActivityRow({
   reason,
@@ -34,12 +50,12 @@ export function ActivityRow({
   createdAt: string;
   last?: boolean;
 }) {
-  const { c, spacing, radius } = useTheme();
+  const { c, spacing, radius, alpha } = useTheme();
   const t = useT();
   const { locale } = useI18n();
 
   const positive = points >= 0;
-  const tint = positive ? c.success : c.warning;
+  const chip = REASON_CHIP[reason] ?? REASON_CHIP.ADMIN_ADJUST;
 
   return (
     <View
@@ -54,19 +70,21 @@ export function ActivityRow({
     >
       <View
         style={{
-          width: 34,
-          height: 34,
-          borderRadius: radius.sm,
-          backgroundColor: `${tint}1A`,
+          width: 36,
+          height: 36,
+          borderRadius: radius.md,
+          backgroundColor: alpha(chip, c.dark ? 0.15 : 0.12),
+          borderWidth: 1,
+          borderColor: alpha(chip, c.dark ? 0.35 : 0.3),
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <Ionicons name={REASON_ICON[reason]} size={16} color={tint} />
+        <Ionicons name={REASON_ICON[reason]} size={16} color={chip} />
       </View>
 
       <View style={{ flex: 1 }}>
-        <Text variant="callout" weight="600" numberOfLines={1}>
+        <Text variant="callout" weight="700" numberOfLines={1}>
           {t(`dashboard.reason.${reason}`)}
         </Text>
         <Text variant="caption" tone="tertiary">
@@ -77,11 +95,12 @@ export function ActivityRow({
       <Text
         variant="callout"
         mono
-        weight="700"
-        tone={positive ? 'success' : 'warning'}
+        weight="800"
+        tone={positive ? 'success' : 'gold'}
+        style={{ flexShrink: 0 }}
       >
-        {positive ? '+' : ''}
-        {formatPoints(points, 2, locale)}
+        {positive ? '+' : '−'}
+        {formatPoints(Math.abs(points), 2, locale)}
       </Text>
     </View>
   );

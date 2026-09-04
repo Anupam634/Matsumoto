@@ -12,30 +12,76 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import Svg, {
+  Defs,
+  Path,
+  Pattern,
+  RadialGradient,
+  Rect,
+  Stop,
+} from 'react-native-svg';
 import { Text } from './Text';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useFeedback } from '../../lib/feedback';
+import { useT } from '../../i18n';
 
 /* ─────────────────────────── Screen shell ─────────────────────────── */
+
+/**
+ * The site's `.glow-field` + `.bg-cyber-grid`: three soft radial glows
+ * (sapphire top, indigo right, cyan bottom) over a 36pt hairline grid. Drawn
+ * once as a static SVG behind the screen — it never re-renders on scroll.
+ */
+export function GlowField({ style }: { style?: StyleProp<ViewStyle> }) {
+  const { c } = useTheme();
+  const [g1, g2, g3] = c.glow;
+  return (
+    <View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }, style]}>
+      <Svg width="100%" height="100%">
+        <Defs>
+          <Pattern id="grid" width="36" height="36" patternUnits="userSpaceOnUse">
+            <Path d="M36 0H0V36" stroke={c.grid} strokeWidth="1" fill="none" />
+          </Pattern>
+          <RadialGradient id="glowTop" cx="50%" cy="-8%" rx="95%" ry="55%" gradientUnits="objectBoundingBox">
+            <Stop offset="0" stopColor={g1} />
+            <Stop offset="1" stopColor={g1} stopOpacity="0" />
+          </RadialGradient>
+          <RadialGradient id="glowRight" cx="92%" cy="32%" rx="70%" ry="40%" gradientUnits="objectBoundingBox">
+            <Stop offset="0" stopColor={g2} />
+            <Stop offset="1" stopColor={g2} stopOpacity="0" />
+          </RadialGradient>
+          <RadialGradient id="glowBottom" cx="50%" cy="98%" rx="85%" ry="45%" gradientUnits="objectBoundingBox">
+            <Stop offset="0" stopColor={g3} />
+            <Stop offset="1" stopColor={g3} stopOpacity="0" />
+          </RadialGradient>
+        </Defs>
+        <Rect width="100%" height="100%" fill="url(#grid)" />
+        <Rect width="100%" height="100%" fill="url(#glowTop)" />
+        <Rect width="100%" height="100%" fill="url(#glowRight)" />
+        <Rect width="100%" height="100%" fill="url(#glowBottom)" />
+      </Svg>
+    </View>
+  );
+}
 
 export function Screen({
   children,
   sunken,
+  plain,
   style,
 }: {
   children: React.ReactNode;
-  /** Recessed background — use whenever the content is a stack of cards. */
+  /** Kept for callers; every screen now sits on the same glow field. */
   sunken?: boolean;
+  /** Skip the glow field — for screens that paint their own hero. */
+  plain?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const { c } = useTheme();
+  void sunken;
   return (
-    <View
-      style={[
-        { flex: 1, backgroundColor: sunken ? c.bgSunken : c.bg },
-        style,
-      ]}
-    >
+    <View style={[{ flex: 1, backgroundColor: c.bg }, style]}>
+      {plain ? null : <GlowField />}
       {children}
     </View>
   );
@@ -89,6 +135,7 @@ export function NavBar({
   large?: boolean;
 }) {
   const { c, spacing } = useTheme();
+  const t = useT();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const feedback = useFeedback();
@@ -99,7 +146,7 @@ export function NavBar({
     <View
       style={{
         paddingTop: insets.top,
-        backgroundColor: transparent ? 'transparent' : c.bg,
+        backgroundColor: transparent ? 'transparent' : c.chrome,
         borderBottomWidth: transparent || large ? 0 : 1,
         borderBottomColor: c.border,
       }}
@@ -116,7 +163,7 @@ export function NavBar({
         {back ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Back"
+            accessibilityLabel={t('app.back')}
             hitSlop={10}
             onPress={() => {
               feedback.select();
@@ -263,13 +310,14 @@ export function EmptyState({
 export function ErrorNote({
   message,
   onRetry,
-  retryLabel = 'Try again',
+  retryLabel,
 }: {
   message: string;
   onRetry?: () => void;
   retryLabel?: string;
 }) {
   const { c, spacing, radius } = useTheme();
+  const t = useT();
   return (
     <View
       accessibilityRole="alert"
@@ -287,9 +335,14 @@ export function ErrorNote({
         {message}
       </Text>
       {onRetry ? (
-        <Pressable accessibilityRole="button" hitSlop={8} onPress={onRetry}>
+        <Pressable
+          accessibilityRole="button"
+          hitSlop={12}
+          onPress={onRetry}
+          style={{ minHeight: 32, justifyContent: 'center' }}
+        >
           <Text variant="footnote" tone="danger" weight="700">
-            {retryLabel}
+            {retryLabel ?? t('app.retry')}
           </Text>
         </Pressable>
       ) : null}

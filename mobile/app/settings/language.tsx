@@ -2,6 +2,7 @@ import React from 'react';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Text } from '../../src/components/ui/Text';
 import { SectionLabel } from '../../src/components/ui/Card';
@@ -33,8 +34,8 @@ export default function LanguageScreen() {
   const detected = systemLocale();
 
   return (
-    <Screen sunken>
-      <NavBar title={t('settings.language')} />
+    <Screen>
+      <NavBar title={t('settings.language')} transparent />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -45,7 +46,7 @@ export default function LanguageScreen() {
           gap: spacing.lg,
         }}
       >
-        <View>
+        <Animated.View entering={FadeInDown.duration(260)}>
           <SectionLabel>{t('settings.language')}</SectionLabel>
           <ListGroup>
             <ListRow
@@ -66,6 +67,8 @@ export default function LanguageScreen() {
             {LOCALES.map((code) => (
               <ListRow
                 key={code}
+                icon="language-outline"
+                tone={settings.locale === code ? 'brand' : 'default'}
                 title={LOCALE_LABELS[code].label}
                 subtitle={LOCALE_LABELS[code].english}
                 onPress={() => choose(code)}
@@ -80,11 +83,7 @@ export default function LanguageScreen() {
               />
             ))}
           </ListGroup>
-        </View>
-
-        <Text variant="caption" tone="tertiary">
-          {t('app.tagline')}
-        </Text>
+        </Animated.View>
       </ScrollView>
     </Screen>
   );

@@ -1,14 +1,19 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, View, type AppStateStatus } from 'react-native';
+import { AppState, Modal, View, type AppStateStatus } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { StatusBar } from 'expo-status-bar';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Text } from '../ui/Text';
+import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
+import { PulseDot } from '../ui/Pulse';
+import { GlowField } from '../ui/Chrome';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useSettings } from '../../store/settings';
 import { useSession } from '../../store/session';
+import { useNotifications } from '../../store/notifications';
 import { useT } from '../../i18n';
 
 /** Grace period before a background trip re-locks — matches banking apps. */
@@ -17,16 +22,22 @@ const RELOCK_AFTER_MS = 30_000;
 /**
  * Biometric app lock.
  *
- * Renders over the whole app while locked, blurring what is behind it so a
- * balance is not readable through the overlay. Opt-in from Settings, and it
- * unlocks itself if the device turns out to have no biometrics enrolled — a
- * lock nobody can open would just be a way to lose an account.
+ * Presented as an opaque native modal while locked, so it sits above every
+ * route — including the screens the navigator itself presents modally, which
+ * an absolutely-positioned overlay in the React tree would slide underneath.
+ * Opt-in from Settings, and it unlocks itself if the device turns out to have
+ * no biometrics enrolled — a lock nobody can open would just be a way to lose
+ * an account.
+ *
+ * Dressed as the site's hero: glow field and cyber grid behind a glass panel,
+ * the logo in a blue halo, a pulsing SECURED badge and a gradient Unlock.
  */
 export function AppLock({ children }: { children: React.ReactNode }) {
-  const { c, spacing, radius } = useTheme();
+  const { c, spacing, radius, scheme, alpha, glow } = useTheme();
   const t = useT();
   const { settings, update } = useSettings();
   const { state, signOut } = useSession();
+  const { resetForNewSession } = useNotifications();
 
   const enabled = settings.appLock && state === 'signedIn';
   const [locked, setLocked] = useState(enabled);
@@ -103,74 +114,118 @@ export function AppLock({ children }: { children: React.ReactNode }) {
     <View style={{ flex: 1 }}>
       {children}
 
-      {enabled && locked ? (
-        <BlurView
-          intensity={60}
-          tint={c.bg === '#FFFFFF' ? 'light' : 'dark'}
+      <Modal
+        visible={enabled && locked}
+        presentationStyle="overFullScreen"
+        transparent={false}
+        animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
+        // Android back button: the lock is not dismissable that way.
+        onRequestClose={() => {}}
+      >
+        {/* A native modal is its own window: restate the bar style for it. */}
+        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+        <View
           style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
+            flex: 1,
             alignItems: 'center',
             justifyContent: 'center',
             padding: spacing.xl,
-            gap: spacing.md,
-            backgroundColor: `${c.bg}E6`,
+            backgroundColor: c.bg,
           }}
         >
-          <Image
-            source={require('../../../assets/logo.png')}
-            style={{ width: 76, height: 76, borderRadius: radius.xl }}
-            contentFit="contain"
-          />
-          <Text variant="title2" center>
-            {t('lock.title')}
-          </Text>
-          <Text
-            variant="footnote"
-            tone="secondary"
-            center
-            style={{ maxWidth: 280 }}
-          >
-            {failed ? t('lock.failed') : t('lock.body')}
-          </Text>
+          <GlowField />
 
-          <View style={{ width: '100%', maxWidth: 320, gap: spacing.sm, marginTop: spacing.md }}>
-            <Button
-              label={t('lock.unlock')}
-              icon="finger-print"
-              onPress={authenticate}
-              loading={prompting}
-              fullWidth
-            />
-            <Button
-              label={t('lock.signOut')}
-              variant="ghost"
-              onPress={() => {
-                setLocked(false);
-                void signOut();
-              }}
-              fullWidth
-            />
-          </View>
+          <Animated.View entering={FadeInDown.duration(320)} style={{ width: '100%', maxWidth: 360 }}>
+            <Card glow style={{ alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.md }}>
+              {/* SECURED badge — the site's pulse-dot pill */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: radius.pill,
+                  borderWidth: 1,
+                  borderColor: alpha(c.gold, 0.4),
+                  backgroundColor: alpha(c.gold, 0.1),
+                }}
+              >
+                <PulseDot color={c.success} size={7} />
+                <Text variant="overline" tone="gold" uppercase style={{ fontSize: 10 }}>
+                  {t('lock.secured')}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  borderRadius: radius.xl,
+                  marginTop: spacing.xs,
+                  ...(c.dark ? glow(c.primaryGlow, 3) : null),
+                }}
+              >
+                <Image
+                  source={require('../../../assets/logo.png')}
+                  style={{ width: 84, height: 84, borderRadius: radius.xl }}
+                  contentFit="contain"
+                />
+              </View>
+
+              <View style={{ alignItems: 'center', gap: 4 }}>
+                <Text variant="title2" center>
+                  {t('lock.title')}
+                </Text>
+                <Text
+                  variant="footnote"
+                  tone={failed ? 'danger' : 'secondary'}
+                  center
+                  style={{ maxWidth: 280 }}
+                >
+                  {failed ? t('lock.failed') : t('lock.body')}
+                </Text>
+              </View>
+
+              <View style={{ width: '100%', gap: spacing.sm, marginTop: spacing.xs }}>
+                <Button
+                  label={t('lock.unlock')}
+                  icon="finger-print"
+                  onPress={authenticate}
+                  loading={prompting}
+                  fullWidth
+                  size="lg"
+                />
+                <Button
+                  label={t('lock.signOut')}
+                  variant="ghost"
+                  onPress={() => {
+                    setLocked(false);
+                    // Same exit as the Account menu: derived notifications and
+                    // anything scheduled in the OS go with the account.
+                    void resetForNewSession().then(() => signOut());
+                  }}
+                  fullWidth
+                />
+              </View>
+            </Card>
+          </Animated.View>
 
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
               gap: 6,
-              marginTop: spacing.sm,
+              marginTop: spacing.xl,
             }}
           >
             <Ionicons name="lock-closed" size={12} color={c.textTertiary} />
-            <Text variant="caption" tone="tertiary">
-              BONDKOIN
+            <Text variant="overline" tone="tertiary" uppercase>
+              {t('app.name')}
             </Text>
           </View>
-        </BlurView>
-      ) : null}
+        </View>
+      </Modal>
     </View>
   );
 }

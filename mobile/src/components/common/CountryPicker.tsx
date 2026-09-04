@@ -14,7 +14,7 @@ import { countryFlag, countryName } from '../../lib/format';
  *
  * Names come from `Intl.DisplayNames`, so all 255 territories render in the
  * user's own language without shipping three translated lists — the same
- * approach the web app takes.
+ * approach the web app takes. Engines without it get English names.
  */
 export function CountryPicker({
   value,
@@ -22,14 +22,17 @@ export function CountryPicker({
   label,
   placeholder,
   error,
+  labelVariant = 'default',
 }: {
   value: string;
   onChange: (code: string) => void;
   label: string;
   placeholder: string;
   error?: string | null;
+  /** `overline` matches the auth screens' uppercase tracked field labels. */
+  labelVariant?: 'default' | 'overline';
 }) {
-  const { c, spacing, radius } = useTheme();
+  const { c, spacing, radius, alpha } = useTheme();
   const { locale } = useI18n();
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -57,19 +60,25 @@ export function CountryPicker({
   return (
     <>
       <View>
-        <Text
-          variant="footnote"
-          tone="secondary"
-          weight="600"
-          style={{ marginBottom: 6 }}
-        >
-          {label}
-        </Text>
+        {labelVariant === 'overline' ? (
+          <Text variant="overline" tone="tertiary" uppercase style={{ marginBottom: 6 }}>
+            {label}
+          </Text>
+        ) : (
+          <Text
+            variant="footnote"
+            tone="secondary"
+            weight="600"
+            style={{ marginBottom: 6 }}
+          >
+            {label}
+          </Text>
+        )}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={selected ? selected.name : placeholder}
+          accessibilityLabel={`${label}: ${selected ? selected.name : placeholder}`}
           onPress={() => setOpen(true)}
-          style={{
+          style={({ pressed }) => ({
             flexDirection: 'row',
             alignItems: 'center',
             gap: spacing.sm,
@@ -78,10 +87,13 @@ export function CountryPicker({
             backgroundColor: c.surfaceAlt,
             borderRadius: radius.lg,
             borderWidth: 1.5,
-            borderColor: error ? c.danger : c.border,
-          }}
+            borderColor: error ? c.danger : open ? c.primary : c.border,
+            opacity: pressed ? 0.8 : 1,
+          })}
         >
-          <Text variant="title3">{selected?.flag ?? '🌐'}</Text>
+          <Text variant="title3" style={{ lineHeight: 26 }}>
+            {selected?.flag ?? '🌐'}
+          </Text>
           <Text
             variant="body"
             tone={selected ? 'primary' : 'tertiary'}
@@ -135,17 +147,29 @@ export function CountryPicker({
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: spacing.md,
-                  paddingVertical: 12,
+                  minHeight: 48,
+                  paddingVertical: 10,
                   paddingHorizontal: spacing.sm,
                   borderRadius: radius.md,
-                  backgroundColor: pressed ? c.surfaceAlt : 'transparent',
+                  backgroundColor: active
+                    ? alpha(c.primary, 0.12)
+                    : pressed
+                      ? c.surfaceAlt
+                      : 'transparent',
                 })}
               >
-                <Text variant="title3">{item.flag}</Text>
-                <Text variant="body" style={{ flex: 1 }}>
+                <Text variant="title3" style={{ lineHeight: 26 }}>
+                  {item.flag}
+                </Text>
+                <Text
+                  variant="body"
+                  weight={active ? '700' : '400'}
+                  style={{ flex: 1 }}
+                  numberOfLines={1}
+                >
                   {item.name}
                 </Text>
-                <Text variant="caption" tone="tertiary" mono>
+                <Text variant="caption" tone={active ? 'brand' : 'tertiary'} mono weight="700">
                   {item.code}
                 </Text>
                 {active ? (
@@ -161,7 +185,7 @@ export function CountryPicker({
               center
               style={{ paddingVertical: spacing.xl }}
             >
-              {t('app.somethingWrong')}
+              {t('auth.countryNone')}
             </Text>
           }
         />

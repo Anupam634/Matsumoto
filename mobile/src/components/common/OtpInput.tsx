@@ -7,7 +7,8 @@ import { useFeedback } from '../../lib/feedback';
 const LENGTH = 6;
 
 /**
- * Six-box verification code field.
+ * Six-box verification code field — the login page's amber mono OTP input,
+ * split into boxes.
  *
  * A single hidden input holds the value — six real inputs would fight the
  * keyboard and break SMS/email autofill — while the boxes are drawn from its
@@ -24,17 +25,30 @@ export function OtpInput({
   onComplete?: (code: string) => void;
   autoFocus?: boolean;
 }) {
-  const { c, spacing, radius, monoFont } = useTheme();
+  const { c, spacing, radius, monoFont, alpha, glow } = useTheme();
   const feedback = useFeedback();
   const input = useRef<TextInput>(null);
   const [focused, setFocused] = useState(autoFocus);
 
+  // Fire once per distinct complete code. Callers pass inline arrows, so
+  // depending on `onComplete` would re-submit on every parent render — and a
+  // wrong code (setError → render → submit → …) would loop forever.
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const firedFor = useRef('');
   useEffect(() => {
-    if (value.length === LENGTH) onComplete?.(value);
-  }, [value, onComplete]);
+    if (value.length === LENGTH && firedFor.current !== value) {
+      firedFor.current = value;
+      onCompleteRef.current?.(value);
+    }
+    if (value.length < LENGTH) firedFor.current = '';
+  }, [value]);
 
   const digits = Array.from({ length: LENGTH }, (_, i) => value[i] ?? '');
   const caretIndex = Math.min(value.length, LENGTH - 1);
+
+  // The site's OTP field sits on `bg-slate-950/80` inside the card.
+  const ground = c.dark ? alpha(c.bg, 0.8) : c.surfaceAlt;
 
   return (
     <Pressable
@@ -49,26 +63,41 @@ export function OtpInput({
           <View
             key={i}
             style={{
-              width: 48,
-              height: 58,
+              width: 46,
+              height: 56,
               borderRadius: radius.md,
-              backgroundColor: c.surfaceAlt,
+              backgroundColor: ground,
               borderWidth: 1.5,
-              borderColor: active ? c.primary : filled ? c.borderStrong : c.border,
+              borderColor: active ? c.gold : filled ? c.borderStrong : c.border,
               alignItems: 'center',
               justifyContent: 'center',
+              ...(active ? glow(c.gold, 1) : null),
             }}
           >
             <Text
+              tone="gold"
               style={{
                 fontFamily: monoFont,
                 fontSize: 24,
-                fontWeight: '700',
-                color: c.textPrimary,
+                lineHeight: 30,
+                fontWeight: '900',
+                letterSpacing: 1,
               }}
             >
               {digit}
             </Text>
+            {active && !filled ? (
+              <View
+                style={{
+                  position: 'absolute',
+                  bottom: 12,
+                  width: 14,
+                  height: 2,
+                  borderRadius: 1,
+                  backgroundColor: c.gold,
+                }}
+              />
+            ) : null}
           </View>
         );
       })}

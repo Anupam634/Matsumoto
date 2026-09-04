@@ -16,6 +16,7 @@ type Tone =
   | 'success'
   | 'warning'
   | 'danger'
+  | 'info'
   | 'inverse';
 
 export interface TextProps extends RNTextProps {
@@ -55,6 +56,7 @@ export function Text({
     success: c.success,
     warning: c.warning,
     danger: c.danger,
+    info: c.info,
     inverse: c.textInverse,
   }[tone];
 
