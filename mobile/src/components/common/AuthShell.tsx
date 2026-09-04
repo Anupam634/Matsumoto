@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '../ui/Text';
 import { Card } from '../ui/Card';
 import { Screen } from '../ui/Chrome';
@@ -179,33 +179,35 @@ export function AuthShell({
 /* ─────────────────────── Decorative corner blobs ─────────────────────── */
 
 /**
- * The site's `bg-amber-500/15 blur-3xl` and `bg-cyan-500/15 blur-3xl`
- * spheres, drawn as radial gradients so they cost nothing to render.
+ * The site's `bg-amber-500/15 blur-3xl` and `bg-cyan-500/15 blur-3xl` spheres.
+ *
+ * Gradient layers, not SVG: a percentage-sized `<Svg>` behind a form
+ * re-measures on every layout pass, which flickered the fields and stopped
+ * the keyboard from opening. See the note on `GlowField`.
  */
-function CornerBlobs() {
-  const { c } = useTheme();
-  const peak = c.dark ? 0.22 : 0.1;
+const CornerBlobs = React.memo(function CornerBlobs() {
+  const { c, alpha } = useTheme();
+  const peak = c.dark ? 0.2 : 0.09;
   return (
-    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-      <Svg width="100%" height="100%">
-        <Defs>
-          <RadialGradient id="authBlobAmber" cx="50%" cy="50%" r="50%">
-            <Stop offset="0" stopColor={c.gold} stopOpacity={peak} />
-            <Stop offset="0.6" stopColor={c.gold} stopOpacity={peak * 0.35} />
-            <Stop offset="1" stopColor={c.gold} stopOpacity="0" />
-          </RadialGradient>
-          <RadialGradient id="authBlobCyan" cx="50%" cy="50%" r="50%">
-            <Stop offset="0" stopColor={c.info} stopOpacity={peak} />
-            <Stop offset="0.6" stopColor={c.info} stopOpacity={peak * 0.35} />
-            <Stop offset="1" stopColor={c.info} stopOpacity="0" />
-          </RadialGradient>
-        </Defs>
-        <Circle cx="0%" cy="0%" r="42%" fill="url(#authBlobAmber)" />
-        <Circle cx="100%" cy="100%" r="42%" fill="url(#authBlobCyan)" />
-      </Svg>
+    <View
+      pointerEvents="none"
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+    >
+      <LinearGradient
+        colors={[alpha(c.gold, peak), alpha(c.gold, 0)]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.85, y: 0.6 }}
+        style={{ position: 'absolute', top: 0, left: 0, width: '85%', height: '45%' }}
+      />
+      <LinearGradient
+        colors={[alpha(c.info, 0), alpha(c.info, peak)]}
+        start={{ x: 0.15, y: 0.4 }}
+        end={{ x: 1, y: 1 }}
+        style={{ position: 'absolute', bottom: 0, right: 0, width: '85%', height: '45%' }}
+      />
     </View>
   );
-}
+});
 
 /* ───────────────────────────── Live pill ─────────────────────────────── */
 

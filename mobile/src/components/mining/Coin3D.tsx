@@ -24,6 +24,8 @@ import { useTheme } from '../../theme/ThemeProvider';
  */
 export function Coin3D({ size = 176 }: { size?: number }) {
   const { c, monoFont, alpha } = useTheme();
+  // Unique per instance: two live copies must not share one <Defs> id.
+  const auraId = React.useId();
   const spin = useSharedValue(0);
   const orbit = useSharedValue(0);
   const float = useSharedValue(0);
@@ -107,13 +109,13 @@ export function Coin3D({ size = 176 }: { size?: number }) {
       {/* Amber aura */}
       <Svg width={stage} height={stage} style={{ position: 'absolute' }}>
         <Defs>
-          <RadialGradient id="aura" cx="50%" cy="50%" r="50%">
+          <RadialGradient id={auraId} cx="50%" cy="50%" r="50%">
             <Stop offset="0" stopColor={c.gold} stopOpacity={c.dark ? 0.32 : 0.16} />
             <Stop offset="0.55" stopColor={c.gold} stopOpacity={c.dark ? 0.12 : 0.05} />
             <Stop offset="1" stopColor={c.gold} stopOpacity="0" />
           </RadialGradient>
         </Defs>
-        <Circle cx={stage / 2} cy={stage / 2} r={stage / 2} fill="url(#aura)" />
+        <Circle cx={stage / 2} cy={stage / 2} r={stage / 2} fill={`url(#${auraId})`} />
       </Svg>
 
       {/* Orbit rings */}

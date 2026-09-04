@@ -12,14 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import Svg, {
-  Defs,
-  Path,
-  Pattern,
-  RadialGradient,
-  Rect,
-  Stop,
-} from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from './Text';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useFeedback } from '../../lib/feedback';
@@ -28,41 +21,55 @@ import { useT } from '../../i18n';
 /* ─────────────────────────── Screen shell ─────────────────────────── */
 
 /**
- * The site's `.glow-field` + `.bg-cyber-grid`: three soft radial glows
- * (sapphire top, indigo right, cyan bottom) over a 36pt hairline grid. Drawn
- * once as a static SVG behind the screen — it never re-renders on scroll.
+ * The site's `.glow-field`: soft sapphire, indigo and cyan washes bleeding in
+ * from the top, right and bottom of the screen.
+ *
+ * Deliberately built from three `LinearGradient` layers rather than SVG. A
+ * percentage-sized `<Svg>` with a repeating `<Pattern>` re-measures on every
+ * layout pass, and because this sits behind *every* screen, several live
+ * copies also shared one set of `<Defs>` ids — together that repainted the
+ * tree continuously, which stole focus from text fields (the keyboard would
+ * not open), flickered the inputs and eventually brought the app down.
+ * Gradient layers are composited on the GPU and never re-measure.
  */
-export function GlowField({ style }: { style?: StyleProp<ViewStyle> }) {
-  const { c } = useTheme();
+export const GlowField = React.memo(function GlowField({
+  style,
+}: {
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { c, alpha } = useTheme();
   const [g1, g2, g3] = c.glow;
+  const fill: ViewStyle = { position: 'absolute', left: 0, right: 0 };
+
   return (
-    <View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }, style]}>
-      <Svg width="100%" height="100%">
-        <Defs>
-          <Pattern id="grid" width="36" height="36" patternUnits="userSpaceOnUse">
-            <Path d="M36 0H0V36" stroke={c.grid} strokeWidth="1" fill="none" />
-          </Pattern>
-          <RadialGradient id="glowTop" cx="50%" cy="-8%" rx="95%" ry="55%" gradientUnits="objectBoundingBox">
-            <Stop offset="0" stopColor={g1} />
-            <Stop offset="1" stopColor={g1} stopOpacity="0" />
-          </RadialGradient>
-          <RadialGradient id="glowRight" cx="92%" cy="32%" rx="70%" ry="40%" gradientUnits="objectBoundingBox">
-            <Stop offset="0" stopColor={g2} />
-            <Stop offset="1" stopColor={g2} stopOpacity="0" />
-          </RadialGradient>
-          <RadialGradient id="glowBottom" cx="50%" cy="98%" rx="85%" ry="45%" gradientUnits="objectBoundingBox">
-            <Stop offset="0" stopColor={g3} />
-            <Stop offset="1" stopColor={g3} stopOpacity="0" />
-          </RadialGradient>
-        </Defs>
-        <Rect width="100%" height="100%" fill="url(#grid)" />
-        <Rect width="100%" height="100%" fill="url(#glowTop)" />
-        <Rect width="100%" height="100%" fill="url(#glowRight)" />
-        <Rect width="100%" height="100%" fill="url(#glowBottom)" />
-      </Svg>
+    <View
+      pointerEvents="none"
+      style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }, style]}
+    >
+      {/* Sapphire wash falling from the top. */}
+      <LinearGradient
+        colors={[g1, alpha(g1, 0)]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={[fill, { top: 0, height: '55%' }]}
+      />
+      {/* Indigo wash from the right shoulder. */}
+      <LinearGradient
+        colors={[alpha(g2, 0), g2]}
+        start={{ x: 0, y: 0.1 }}
+        end={{ x: 1, y: 0.55 }}
+        style={[fill, { top: '10%', height: '45%' }]}
+      />
+      {/* Cyan wash rising from the bottom. */}
+      <LinearGradient
+        colors={[alpha(g3, 0), g3]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={[fill, { bottom: 0, height: '42%' }]}
+      />
     </View>
   );
-}
+});
 
 export function Screen({
   children,

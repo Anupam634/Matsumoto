@@ -51,6 +51,8 @@ export function ProgressRing({
   progress: number;
   children?: React.ReactNode;
 }) {
+  // Unique per instance: two live copies must not share one <Defs> id.
+  const ringId = React.useId();
   const { c, alpha } = useTheme();
   const r = size / 2 - 13;
   const circumference = 2 * Math.PI * r;
@@ -72,7 +74,7 @@ export function ProgressRing({
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={size} height={size} style={{ position: 'absolute' }}>
         <Defs>
-          <SvgGradient id="mineRing" x1="0" y1="0" x2="1" y2="1">
+          <SvgGradient id={ringId} x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0" stopColor={s0} />
             <Stop offset="0.55" stopColor={s1} />
             <Stop offset="1" stopColor={s2} />
@@ -92,7 +94,7 @@ export function ProgressRing({
           r={r}
           fill="none"
           strokeWidth={stroke}
-          stroke="url(#mineRing)"
+          stroke={`url(#${ringId})`}
           strokeLinecap="round"
           strokeDasharray={circumference}
           animatedProps={ringProps}
