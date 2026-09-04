@@ -202,6 +202,11 @@ run migrations — Prisma never migrates on its own, something has to call
   to ship in the repo. If the running deployment relied on the fallback,
   setting a real secret invalidates every existing session — miners and
   admins both sign in again once. Generate with `openssl rand -hex 32`.
+
+  A secret shorter than 32 characters boots, but logs an error on every
+  start. That is not a passing grade: the same key signs admin sessions, and
+  the deploy pipeline replaces the process before the new one is known to be
+  healthy, so a key worth fixing is worth fixing before the next deploy.
 - **Run the new migration.** `20260904140000_task_config_columns` moves the
   admin-editable quiz questions, wheel segments and bounty URLs onto the
   `Task` row. They previously lived in memory, so whatever is configured in
