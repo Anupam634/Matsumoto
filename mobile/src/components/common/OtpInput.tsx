@@ -25,7 +25,7 @@ export function OtpInput({
   onComplete?: (code: string) => void;
   autoFocus?: boolean;
 }) {
-  const { c, spacing, radius, monoFont, alpha, glow } = useTheme();
+  const { c, spacing, radius, monoFont, alpha } = useTheme();
   const feedback = useFeedback();
   const input = useRef<TextInput>(null);
   const [focused, setFocused] = useState(autoFocus);
@@ -71,7 +71,9 @@ export function OtpInput({
               borderColor: active ? c.gold : filled ? c.borderStrong : c.border,
               alignItems: 'center',
               justifyContent: 'center',
-              ...(active ? glow(c.gold, 1) : null),
+              // No shadow/elevation here: toggling elevation makes Android rebuild the
+              // view, and this box changes on every digit typed.
+              ...(active ? { backgroundColor: alpha(c.gold, c.dark ? 0.12 : 0.08) } : null),
             }}
           >
             <Text

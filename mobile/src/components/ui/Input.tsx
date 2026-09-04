@@ -45,13 +45,18 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   },
   ref,
 ) {
-  const { c, radius, spacing, type, monoFont, glow } = useTheme();
+  const { c, radius, spacing, type, monoFont, alpha } = useTheme();
   const t = useT();
   const [focused, setFocused] = useState(false);
 
+
   const borderColor = error ? c.danger : focused ? c.primary : c.borderStrong;
-  // The site's focus ring: `box-shadow: 0 0 0 3px rgba(37,99,235,.3)`.
-  const focusRing = focused && !error ? glow(c.primaryGlow, 1) : null;
+  // The site's focus ring is a box-shadow, but a shadow on Android means
+  // `elevation`, and toggling elevation makes Android rebuild the native view.
+  // That drops focus the instant the field gains it, focus then jumps to the
+  // next field, and the two ping-pong forever so no keystroke ever lands.
+  // Focus is therefore drawn with colour only — no shadow, no elevation.
+  const focusTint = focused && !error ? alpha(c.primary, c.dark ? 0.1 : 0.05) : null;
 
   return (
     <View style={containerStyle}>
@@ -83,11 +88,10 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
           minHeight: multiline ? 108 : 50,
           paddingHorizontal: spacing.md,
           paddingVertical: multiline ? spacing.md : 0,
-          backgroundColor: c.surfaceAlt,
+          backgroundColor: focusTint ?? c.surfaceAlt,
           borderRadius: radius.lg,
           borderWidth: 1.5,
           borderColor,
-          ...focusRing,
         }}
       >
         {icon ? (
