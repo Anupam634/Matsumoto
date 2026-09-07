@@ -15,7 +15,7 @@ import Animated, {
   ZoomIn,
   cancelAnimation,
   runOnJS,
-  useAnimatedProps,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -33,8 +33,6 @@ import { wheelPalette } from '../../theme/tokens';
 import { useT } from '../../i18n';
 import { useFeedback } from '../../lib/feedback';
 
-const AnimatedG = Animated.createAnimatedComponent(G);
-
 const SIZE = 280;
 const R = 120;
 const HUB = 78;
@@ -50,6 +48,12 @@ const PALETTE = wheelPalette;
  * The server decides the outcome — `onSpin` claims the task and returns the
  * winning segment — and the animation is then aimed at that segment. The wheel
  * is a presentation of a result, never the thing that decides it.
+ *
+ * The segments live in their own SVG inside a rotating `Animated.View`. They
+ * used to be an SVG `<G rotation>` driven by `useAnimatedProps`, which never
+ * moved on device: react-native-svg turns `rotation` into a transform matrix
+ * during a React render, so a value written straight to the native view by
+ * Reanimated is ignored. A view transform has no such indirection.
  */
 export function SpinWheelSheet({
   segments,
@@ -80,16 +84,23 @@ export function SpinWheelSheet({
 
   const tick = () => feedback.tick();
 
-  const animatedProps = useAnimatedProps(() => {
-    // The comparison runs on the UI thread and only crosses to JS when a
-    // segment boundary actually passes the pointer — a handful of calls per
-    // spin instead of one every frame.
-    if (Math.abs(rotation.value - lastTickAngle.value) >= slice) {
-      lastTickAngle.value = rotation.value;
-      runOnJS(tick)();
-    }
-    return { rotation: rotation.value } as { rotation: number };
-  });
+  // The comparison runs on the UI thread and only crosses to JS when a
+  // segment boundary actually passes the pointer — a handful of calls per
+  // spin instead of one every frame.
+  useAnimatedReaction(
+    () => rotation.value,
+    (angle) => {
+      if (Math.abs(angle - lastTickAngle.value) >= slice) {
+        lastTickAngle.value = angle;
+        runOnJS(tick)();
+      }
+    },
+    [slice],
+  );
+
+  const wheelStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
 
   const hubStyle = useAnimatedStyle(() => ({
     transform: [{ scale: hubScale.value }],
@@ -156,15 +167,6 @@ export function SpinWheelSheet({
           }}
         >
           <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-            <Defs>
-              {PALETTE.map((fill, i) => (
-                <SvgLinearGradient key={i} id={`seg${i}`} x1="0" y1="0" x2="1" y2="1">
-                  <Stop offset="0" stopColor={fill} />
-                  <Stop offset="1" stopColor={fill} stopOpacity={0.78} />
-                </SvgLinearGradient>
-              ))}
-            </Defs>
-
             {/* Rim */}
             <Circle
               cx={SIZE / 2}
@@ -183,12 +185,21 @@ export function SpinWheelSheet({
               strokeWidth={1.5}
               strokeDasharray="3 9"
             />
+          </Svg>
 
-            <AnimatedG
-              animatedProps={animatedProps}
-              originX={SIZE / 2}
-              originY={SIZE / 2}
-            >
+          <Animated.View
+            pointerEvents="none"
+            style={[wheelStyle, { position: 'absolute', width: SIZE, height: SIZE }]}
+          >
+            <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+              <Defs>
+                {PALETTE.map((fill, i) => (
+                  <SvgLinearGradient key={i} id={`seg${i}`} x1="0" y1="0" x2="1" y2="1">
+                    <Stop offset="0" stopColor={fill} />
+                    <Stop offset="1" stopColor={fill} stopOpacity={0.78} />
+                  </SvgLinearGradient>
+                ))}
+              </Defs>
               {segments.map((value, i) => {
                 const start = i * slice - 90;
                 const end = start + slice;
@@ -234,8 +245,8 @@ export function SpinWheelSheet({
                 r={HUB / 2 + 4}
                 fill={c.dark ? '#020617' : c.surface}
               />
-            </AnimatedG>
-          </Svg>
+            </Svg>
+          </Animated.View>
 
           {/* Pointer — amber wedge over a red pin, as on the site */}
           <View
