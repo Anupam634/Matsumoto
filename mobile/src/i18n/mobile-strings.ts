@@ -509,7 +509,6 @@ export const mobileStrings = {
       rule2: 'One request every {days} days',
       rule3: 'Identity verification required',
       rule4: 'Reviewed by an operator before payout',
-      viewOnBscScan: 'View on BscScan',
     },
     kycScreen: {
       submittedOn: 'Submitted {date}',
@@ -1045,7 +1044,6 @@ export const mobileStrings = {
       rule2: '每 {days} 天可申请一次',
       rule3: '需完成身份验证',
       rule4: '付款前由管理员审核',
-      viewOnBscScan: '在 BscScan 查看',
     },
     kycScreen: {
       submittedOn: '提交于 {date}',
@@ -1579,7 +1577,6 @@ export const mobileStrings = {
       rule2: '{days}일마다 1회 요청',
       rule3: '신원 인증 필요',
       rule4: '지급 전 운영자 검토',
-      viewOnBscScan: 'BscScan에서 보기',
     },
     kycScreen: {
       submittedOn: '{date} 제출',

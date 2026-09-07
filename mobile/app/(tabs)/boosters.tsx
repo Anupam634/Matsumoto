@@ -4,7 +4,6 @@ import { useTabContentInset } from '../../src/lib/layout';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
-import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
@@ -642,32 +641,6 @@ function PurchaseRow({
       <Text variant="caption" tone="tertiary" mono>
         {formatDate(purchase.createdAt, locale)}
       </Text>
-      {purchase.txHash ? (
-        <Pressable
-          accessibilityRole="link"
-          accessibilityLabel={`${t('withdrawScreen.viewOnBscScan')} ${shortAddress(purchase.txHash)}`}
-          hitSlop={12}
-          onPress={() =>
-            void WebBrowser.openBrowserAsync(
-              `https://bscscan.com/tx/${purchase.txHash}`,
-            ).catch(() => {})
-          }
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 4,
-            minHeight: 44,
-          }}
-        >
-          <Ionicons name="open-outline" size={13} color={c.primary} />
-          <Text variant="caption" tone="brand" weight="600">
-            {t('withdrawScreen.viewOnBscScan')}
-          </Text>
-          <Text variant="caption" tone="tertiary" mono>
-            {shortAddress(purchase.txHash)}
-          </Text>
-        </Pressable>
-      ) : null}
       {purchase.failureReason ? (
         <Text variant="caption" tone="danger">
           {purchase.failureReason}

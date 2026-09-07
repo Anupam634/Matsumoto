@@ -3,7 +3,6 @@ import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -585,30 +584,6 @@ function WithdrawalRow({ row, last }: { row: WithdrawalDto; last?: boolean }) {
       <Text variant="caption" tone="tertiary">
         {formatDateTime(row.requestedAt, locale)}
       </Text>
-
-      {row.txHash ? (
-        <Pressable
-          accessibilityRole="link"
-          accessibilityLabel={t('withdrawScreen.viewOnBscScan')}
-          hitSlop={12}
-          onPress={() =>
-            void WebBrowser.openBrowserAsync(
-              `https://bscscan.com/tx/${row.txHash}`,
-            ).catch(() => {})
-          }
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 4,
-            minHeight: 44,
-          }}
-        >
-          <Ionicons name="open-outline" size={13} color={c.primary} />
-          <Text variant="caption" tone="brand" weight="700" mono>
-            {t('withdrawScreen.viewOnBscScan')}
-          </Text>
-        </Pressable>
-      ) : null}
 
       {row.status === 'REJECTED' && row.adminNote ? (
         <Text variant="caption" tone="danger" style={{ marginTop: 4 }}>

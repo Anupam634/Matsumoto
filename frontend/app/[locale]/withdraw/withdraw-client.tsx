@@ -329,17 +329,6 @@ function History({ rows }: { rows: WithdrawalDto[] }) {
             <div className="mt-1 text-xs text-slate-500">
               {new Date(w.requestedAt).toLocaleString()}
             </div>
-            {w.txHash && (
-              <a
-                href={`https://bscscan.com/tx/${w.txHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-1 inline-flex items-center gap-1 break-all font-mono text-xs text-indigo-300 transition hover:text-indigo-200"
-              >
-                <BnbLogo className="h-3 w-3 shrink-0" />
-                {w.txHash}
-              </a>
-            )}
             {w.status === 'REJECTED' && w.adminNote && (
               <div className="mt-1.5 text-xs text-red-300">
                 {t('rejectedReason')}: {w.adminNote}
