@@ -62,8 +62,8 @@ so a native client needs no CORS changes.
 | Boosters | Boost tab | Plans, active boosters, 2-step USDT checkout, history |
 | Marketplace | Market tab | Catalogue, product detail, simulated checkout, merchant sign-up |
 | Rankings | Ranks tab | Three boards × three periods, your standing pinned |
-| Referrals | `/referrals` | Code, native share, tier ladder, roster with filters |
-| Withdrawals | `/withdraw` | 3:1 conversion, gates, address confirmation, BscScan links |
+| Referrals | `/referrals` | Code, native share, tier ladder, roster with filters, email reminders for idle miners |
+| Withdrawals | `/withdraw` | 3:1 conversion, gates, address confirmation |
 | Identity | `/kyc` | Camera capture, on-device downscale, status tracking |
 | Support | `/support` | Ticket inbox and a real conversation thread |
 | **Settings** | `/settings` | Theme, language, haptics, sound, app lock, private balance, data, about |

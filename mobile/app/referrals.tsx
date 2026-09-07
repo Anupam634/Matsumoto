@@ -27,9 +27,14 @@ import { useI18n, useT } from '../src/i18n';
 import { useToast } from '../src/components/ui/Toast';
 import { useFeedback } from '../src/lib/feedback';
 import { useAsyncData } from '../src/lib/hooks';
-import { getReferralStats, type ReferralStatsResponse } from '../src/api/endpoints';
+import {
+  getReferralStats,
+  remindReferral,
+  type ReferralMember,
+  type ReferralStatsResponse,
+} from '../src/api/endpoints';
 import { errorMessage, WEB_URL } from '../src/api/client';
-import { countryFlag, formatDate, relativeTime } from '../src/lib/format';
+import { coarseCountdown, countryFlag, formatDate, relativeTime } from '../src/lib/format';
 
 type RosterFilter = 'ALL' | 'ACTIVE' | 'IDLE';
 
@@ -67,12 +72,52 @@ export default function ReferralsScreen() {
     (err: unknown) => errorMessage(err, t('app.offline')),
     [t],
   );
-  const { data: stats, error, loading, refreshing, reload } =
+  const { data: stats, error, loading, refreshing, reload, setData } =
     useAsyncData<ReferralStatsResponse>(load, toMessage);
 
   const [filter, setFilter] = useState<RosterFilter>('ALL');
   const [query, setQuery] = useState('');
   const [qrOpen, setQrOpen] = useState(false);
+  const [remindingId, setRemindingId] = useState<string | null>(null);
+
+  const remind = useCallback(
+    async (member: ReferralMember) => {
+      if (remindingId) return;
+      feedback.press();
+      setRemindingId(member.id);
+      try {
+        const result = await remindReferral(member.id);
+        setData((prev) =>
+          prev
+            ? {
+                ...prev,
+                referralsList: prev.referralsList.map((m) =>
+                  m.id === member.id
+                    ? {
+                        ...m,
+                        reminder: {
+                          canSend: false,
+                          reason: 'COOLDOWN',
+                          sentAt: result.sentAt,
+                          availableAt: result.availableAt,
+                        },
+                      }
+                    : m,
+                ),
+              }
+            : prev,
+        );
+        feedback.success();
+        toast.success(t('referralsScreen.remindSent'));
+      } catch (err) {
+        feedback.error();
+        toast.error(errorMessage(err, t('app.offline')));
+      } finally {
+        setRemindingId(null);
+      }
+    },
+    [remindingId, feedback, setData, toast, t],
+  );
 
   const code = stats?.referralCode ?? '';
   const link = `${WEB_URL}/${locale}/login?ref=${code}&mode=register`;
@@ -552,59 +597,116 @@ export default function ReferralsScreen() {
                       time: relativeTime(member.lastMineAt, t, locale),
                     })
                   : formatDate(member.joinedAt, locale);
+                const cooldown =
+                  member.reminder.reason === 'COOLDOWN' && member.reminder.availableAt
+                    ? coarseCountdown(member.reminder.availableAt)
+                    : null;
                 return (
                   <Animated.View
                     key={member.id}
                     entering={FadeInDown.delay(Math.min(i, 10) * 30).duration(240)}
-                    accessible
-                    accessibilityLabel={`${member.maskedEmail}, ${status}, ${detail}`}
                     style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: spacing.md,
                       paddingVertical: spacing.md,
                       borderBottomWidth: i === roster.length - 1 ? 0 : 1,
                       borderBottomColor: c.border,
                     }}
                   >
                     <View
+                      accessible
+                      accessibilityLabel={`${member.maskedEmail}, ${status}, ${detail}`}
                       style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: radius.md,
-                        backgroundColor: member.isMiningActive
-                          ? alpha(c.success, 0.15)
-                          : alpha(c.primary, 0.15),
-                        borderWidth: 1,
-                        borderColor: member.isMiningActive
-                          ? alpha(c.success, 0.3)
-                          : alpha(c.primary, 0.3),
+                        flexDirection: 'row',
                         alignItems: 'center',
-                        justifyContent: 'center',
+                        gap: spacing.md,
                       }}
                     >
-                      <Ionicons
-                        name={member.isMiningActive ? 'flash' : 'moon-outline'}
-                        size={15}
-                        color={member.isMiningActive ? c.success : c.primary}
+                      <View
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: radius.md,
+                          backgroundColor: member.isMiningActive
+                            ? alpha(c.success, 0.15)
+                            : alpha(c.primary, 0.15),
+                          borderWidth: 1,
+                          borderColor: member.isMiningActive
+                            ? alpha(c.success, 0.3)
+                            : alpha(c.primary, 0.3),
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Ionicons
+                          name={member.isMiningActive ? 'flash' : 'moon-outline'}
+                          size={15}
+                          color={member.isMiningActive ? c.success : c.primary}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text variant="callout" mono weight="700" numberOfLines={1}>
+                          {member.maskedEmail}
+                        </Text>
+                        <Text variant="caption" tone="tertiary" numberOfLines={1}>
+                          {member.countryCode === 'GLOBAL'
+                            ? '🌐'
+                            : countryFlag(member.countryCode)}{' '}
+                          {detail}
+                        </Text>
+                      </View>
+                      <Badge
+                        label={status}
+                        tone={member.isMiningActive ? 'success' : 'neutral'}
+                        dot
                       />
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text variant="callout" mono weight="700" numberOfLines={1}>
-                        {member.maskedEmail}
+
+                    {member.isMiningActive ? null : member.reminder.canSend ||
+                      remindingId === member.id ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`${t('referralsScreen.remind')} ${member.maskedEmail}`}
+                        accessibilityHint={t('referralsScreen.remindHint')}
+                        accessibilityState={{ busy: remindingId === member.id }}
+                        disabled={remindingId === member.id}
+                        onPress={() => void remind(member)}
+                        hitSlop={8}
+                        style={({ pressed }) => ({
+                          alignSelf: 'flex-end',
+                          marginTop: spacing.sm,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
+                          minHeight: 34,
+                          paddingHorizontal: spacing.md,
+                          borderRadius: radius.md,
+                          backgroundColor: alpha(c.gold, pressed ? 0.28 : 0.15),
+                          borderWidth: 1,
+                          borderColor: alpha(c.gold, 0.4),
+                          opacity: remindingId === member.id ? 0.6 : 1,
+                        })}
+                      >
+                        <Ionicons name="megaphone-outline" size={14} color={c.gold} />
+                        <Text variant="caption" weight="700" style={{ color: c.gold }}>
+                          {t('referralsScreen.remind')}
+                        </Text>
+                      </Pressable>
+                    ) : cooldown ? (
+                      <Text
+                        variant="caption"
+                        tone="tertiary"
+                        style={{ alignSelf: 'flex-end', marginTop: spacing.xs }}
+                      >
+                        {t('referralsScreen.remindAgainIn', { time: cooldown })}
                       </Text>
-                      <Text variant="caption" tone="tertiary" numberOfLines={1}>
-                        {member.countryCode === 'GLOBAL'
-                          ? '🌐'
-                          : countryFlag(member.countryCode)}{' '}
-                        {detail}
+                    ) : member.reminder.reason === 'NO_EMAIL' ? (
+                      <Text
+                        variant="caption"
+                        tone="tertiary"
+                        style={{ alignSelf: 'flex-end', marginTop: spacing.xs }}
+                      >
+                        {t('referralsScreen.remindNoEmail')}
                       </Text>
-                    </View>
-                    <Badge
-                      label={status}
-                      tone={member.isMiningActive ? 'success' : 'neutral'}
-                      dot
-                    />
+                    ) : null}
                   </Animated.View>
                 );
               })}

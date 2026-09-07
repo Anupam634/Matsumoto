@@ -9,6 +9,7 @@ import {
   ReferralStatsResponse,
   ReferralMember,
   getToken,
+  remindReferral,
   ApiError,
 } from '../../../lib/api';
 import { AppHeader } from '../../../components/AppHeader';
@@ -29,6 +30,12 @@ export default function ReferralsClient({ locale }: { locale: string }) {
   // Search & Filter for Team Roster
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'ACTIVE' | 'IDLE'>('ALL');
+
+  // Referral reminder: which row is mid-flight, and the last outcome per row.
+  const [remindingId, setRemindingId] = useState<string | null>(null);
+  const [remindNotice, setRemindNotice] = useState<
+    { id: string; tone: 'ok' | 'error'; text: string } | null
+  >(null);
 
   // Interactive Calculator Slider
   const [calcInvites, setCalcInvites] = useState(5);
@@ -55,6 +62,44 @@ export default function ReferralsClient({ locale }: { locale: string }) {
       setError(err instanceof ApiError ? err.message : 'Failed to load referral network.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleRemind(member: ReferralMember) {
+    if (remindingId) return;
+    setRemindingId(member.id);
+    setRemindNotice(null);
+    try {
+      const result = await remindReferral(member.id);
+      setStats((prev) =>
+        prev
+          ? {
+              ...prev,
+              referralsList: prev.referralsList.map((m) =>
+                m.id === member.id
+                  ? {
+                      ...m,
+                      reminder: {
+                        canSend: false,
+                        reason: 'COOLDOWN',
+                        sentAt: result.sentAt,
+                        availableAt: result.availableAt,
+                      },
+                    }
+                  : m,
+              ),
+            }
+          : prev,
+      );
+      setRemindNotice({ id: member.id, tone: 'ok', text: t('remindSent') });
+    } catch (err: any) {
+      setRemindNotice({
+        id: member.id,
+        tone: 'error',
+        text: err instanceof ApiError ? err.message : t('remindFailed'),
+      });
+    } finally {
+      setRemindingId(null);
     }
   }
 
@@ -642,6 +687,9 @@ export default function ReferralsClient({ locale }: { locale: string }) {
                     <th className="p-3.5">Country</th>
                     <th className="p-3.5">Mining Status</th>
                     <th className="p-3.5">Joined Date</th>
+                    <th className="p-3.5" title={t('remindHint')}>
+                      {t('remindColumn')}
+                    </th>
                     <th className="p-3.5 text-right">Contributed Boost</th>
                   </tr>
                 </thead>
@@ -673,6 +721,14 @@ export default function ReferralsClient({ locale }: { locale: string }) {
                       <td className="p-3.5 font-mono text-[11px] text-slate-400">
                         {new Date(m.joinedAt).toLocaleDateString()}
                       </td>
+                      <td className="p-3.5 text-[11px]">
+                        <RemindCell
+                          member={m}
+                          busy={remindingId === m.id}
+                          notice={remindNotice?.id === m.id ? remindNotice : null}
+                          onRemind={() => handleRemind(m)}
+                        />
+                      </td>
                       <td className="p-3.5 text-right font-mono font-bold text-amber-300">
                         +Tier Bonus Multiplier
                       </td>
@@ -697,6 +753,72 @@ export default function ReferralsClient({ locale }: { locale: string }) {
       </main>
 
       <MobileTabBar locale={locale} />
+    </div>
+  );
+}
+
+/* ───────────────────────────── Remind ───────────────────────────── */
+
+/**
+ * One roster row's "nudge this miner" control. An idle miner with an inbox
+ * gets a button; everyone else gets a one-line reason in place of it, so the
+ * column never looks broken — just answered.
+ */
+function RemindCell({
+  member,
+  busy,
+  notice,
+  onRemind,
+}: {
+  member: ReferralMember;
+  busy: boolean;
+  notice: { tone: 'ok' | 'error'; text: string } | null;
+  onRemind: () => void;
+}) {
+  const t = useTranslations('referrals');
+  const { reminder } = member;
+
+  let body: React.ReactNode;
+  if (reminder.canSend || busy) {
+    body = (
+      <button
+        type="button"
+        onClick={onRemind}
+        disabled={busy}
+        title={t('remindHint')}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/40 bg-amber-500/10 px-2.5 py-1 font-bold text-amber-300 transition hover:bg-amber-500/20 hover:scale-105 disabled:cursor-wait disabled:opacity-60"
+      >
+        <span aria-hidden>📣</span>
+        {busy ? t('remindSending') : t('remind')}
+      </button>
+    );
+  } else if (reminder.reason === 'COOLDOWN' && reminder.availableAt) {
+    body = (
+      <span className="text-slate-400">
+        {t('remindAgainOn', {
+          date: new Date(reminder.availableAt).toLocaleDateString(),
+        })}
+      </span>
+    );
+  } else if (reminder.reason === 'NO_EMAIL') {
+    body = <span className="text-slate-500">{t('remindNoEmail')}</span>;
+  } else {
+    body = <span className="text-slate-600">—</span>;
+  }
+
+  return (
+    <div className="space-y-1">
+      {body}
+      {notice && (
+        <div
+          role="status"
+          className={`text-[10px] font-semibold ${
+            notice.tone === 'ok' ? 'text-emerald-300' : 'text-red-300'
+          }`}
+        >
+          {notice.text}
+        </div>
+      )}
     </div>
   );
 }

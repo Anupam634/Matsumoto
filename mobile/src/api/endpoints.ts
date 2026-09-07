@@ -236,6 +236,22 @@ export interface ReferralMember {
   joinedAt: string;
   lastMineAt: string | null;
   isMiningActive: boolean;
+  reminder: ReferralReminderState;
+}
+
+/** Whether the inviter may email this referral a "come back and mine" nudge. */
+export interface ReferralReminderState {
+  canSend: boolean;
+  /** Why not, when `canSend` is false. */
+  reason: 'ACTIVE' | 'NO_EMAIL' | 'COOLDOWN' | 'BLOCKED' | null;
+  sentAt: string | null;
+  /** When the per-referral cooldown lifts. */
+  availableAt: string | null;
+}
+
+export interface ReferralRemindResponse {
+  sentAt: string;
+  availableAt: string;
 }
 
 export interface ReferralTierInfo {
@@ -259,6 +275,13 @@ export interface ReferralStatsResponse {
 
 export const getReferralStats = () =>
   apiFetch<ReferralStatsResponse>('/referrals/stats');
+
+/** Email one idle referral a reminder to mine. Once per referral per cooldown. */
+export const remindReferral = (referralId: string) =>
+  apiFetch<ReferralRemindResponse>(
+    `/referrals/${encodeURIComponent(referralId)}/remind`,
+    { method: 'POST' },
+  );
 
 /* ──────────────────────────── Leaderboard ─────────────────────────── */
 

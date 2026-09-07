@@ -22,6 +22,16 @@ export const OTP_MAX_ATTEMPTS = 5;
 /** Upper bound on how long a caller waits for SMTP before giving up. */
 const SMTP_DEADLINE_MS = 12_000;
 
+/** Minimal HTML escaping for values interpolated into email templates. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
@@ -258,7 +268,6 @@ export class EmailService {
     }
 
     const code = await this.generateOtp(cleanEmail, purpose);
-    const senderEmail = (process.env.SMTP_USER || 'hello@bondkoinlabs.com').trim().toLowerCase();
 
     let subject = 'BONDKOIN Verification Code';
     let purposeTitle = 'Account Verification';
@@ -324,48 +333,17 @@ export class EmailService {
       </html>
     `;
 
-    // 1. Spacemail / Primary SMTP Transporter
-    if (this.transporter) {
-      try {
-        const info = await this.withDeadline(this.transporter.sendMail({
-          from: `"BONDKOIN Labs" <${senderEmail}>`,
-          to: cleanEmail,
-          subject,
-          html,
-          text: `Your BONDKOIN verification code is: ${code}. It expires in 10 minutes. Do not share this code with anyone.`,
-        }), 'Primary SMTP');
-        this.logger.log(`[EmailService] ✓ Spacemail verification email delivered to ${cleanEmail} (ID: ${info.messageId}, Response: ${info.response})`);
-        return {
-          success: true,
-          message: `Verification code sent to ${cleanEmail}. Please check your inbox and spam folder.`,
-        };
-      } catch (primaryErr: any) {
-        this.logger.warn(
-          `[EmailService] Primary SMTP delivery attempt failed: ${primaryErr?.message || primaryErr}. Trying fallback transporter...`,
-        );
-
-        // Try Fallback Transporter (Port 587 STARTTLS)
-        if (this.fallbackTransporter) {
-          try {
-            const info = await this.withDeadline(this.fallbackTransporter.sendMail({
-              from: `"BONDKOIN Labs" <${senderEmail}>`,
-              to: cleanEmail,
-              subject,
-              html,
-              text: `Your BONDKOIN verification code is: ${code}. It expires in 10 minutes. Do not share this code with anyone.`,
-            }), 'Fallback SMTP');
-            this.logger.log(`[EmailService] ✓ Spacemail Fallback (Port 587) email delivered to ${cleanEmail} (ID: ${info.messageId}, Response: ${info.response})`);
-            return {
-              success: true,
-              message: `Verification code sent to ${cleanEmail}. Please check your inbox and spam folder.`,
-            };
-          } catch (fallbackErr: any) {
-            this.logger.error(`[EmailService] Fallback SMTP delivery also failed: ${fallbackErr?.message || fallbackErr}`);
-          }
-        }
-      }
-    } else {
-      this.logger.error(`[EmailService] Cannot send email: No SMTP transporter initialized. Check SMTP_USER & SMTP_PASS in .env.`);
+    const delivered = await this.deliver({
+      to: cleanEmail,
+      subject,
+      html,
+      text: `Your BONDKOIN verification code is: ${code}. It expires in 10 minutes. Do not share this code with anyone.`,
+    });
+    if (delivered) {
+      return {
+        success: true,
+        message: `Verification code sent to ${cleanEmail}. Please check your inbox and spam folder.`,
+      };
     }
 
     // Reaching here means every transport failed, or none was configured.
@@ -377,6 +355,126 @@ export class EmailService {
       'We could not send your verification code right now. Please try again in a moment.',
       HttpStatus.BAD_GATEWAY,
     );
+  }
+
+  /**
+   * Push one message through the primary transport, then the fallback.
+   * Resolves `true` on delivery and `false` when every transport failed or
+   * none is configured; the caller decides what that means for its flow.
+   */
+  private async deliver(mail: {
+    to: string;
+    subject: string;
+    html: string;
+    text: string;
+  }): Promise<boolean> {
+    if (!this.transporter) {
+      this.initTransporter();
+    }
+    if (!this.transporter) {
+      this.logger.error(`[EmailService] Cannot send email: No SMTP transporter initialized. Check SMTP_USER & SMTP_PASS in .env.`);
+      return false;
+    }
+
+    const senderEmail = (process.env.SMTP_USER || 'hello@bondkoinlabs.com').trim().toLowerCase();
+    const message = { from: `"BONDKOIN Labs" <${senderEmail}>`, ...mail };
+
+    try {
+      const info = await this.withDeadline(this.transporter.sendMail(message), 'Primary SMTP');
+      this.logger.log(`[EmailService] ✓ "${mail.subject}" delivered to ${mail.to} (ID: ${info.messageId}, Response: ${info.response})`);
+      return true;
+    } catch (primaryErr: any) {
+      this.logger.warn(
+        `[EmailService] Primary SMTP delivery attempt failed: ${primaryErr?.message || primaryErr}. Trying fallback transporter...`,
+      );
+    }
+
+    if (!this.fallbackTransporter) return false;
+    try {
+      const info = await this.withDeadline(this.fallbackTransporter.sendMail(message), 'Fallback SMTP');
+      this.logger.log(`[EmailService] ✓ Fallback (Port 587) "${mail.subject}" delivered to ${mail.to} (ID: ${info.messageId}, Response: ${info.response})`);
+      return true;
+    } catch (fallbackErr: any) {
+      this.logger.error(`[EmailService] Fallback SMTP delivery also failed: ${fallbackErr?.message || fallbackErr}`);
+      return false;
+    }
+  }
+
+  /**
+   * "Your inviter wants you back at the controls" — sent when a miner taps
+   * Remind next to an idle referral. The inviter is named only by their
+   * masked handle: the referral chose to sign up under them, but that is
+   * not a licence to hand out the inviter's full address.
+   */
+  async sendReferralReminderEmail(
+    rawEmail: string,
+    params: { inviterLabel: string; idleDays: number | null; dashboardUrl: string },
+  ): Promise<boolean> {
+    const cleanEmail = this.sanitizeEmail(rawEmail);
+    const { inviterLabel, idleDays, dashboardUrl } = params;
+
+    const idleLine =
+      idleDays === null
+        ? 'Your node has not mined yet.'
+        : idleDays === 0
+          ? 'Your node went quiet today.'
+          : `Your node has been idle for ${idleDays} day${idleDays === 1 ? '' : 's'}.`;
+
+    const subject = `${inviterLabel} is asking you to mine on BONDKOIN`;
+    const text = [
+      `${inviterLabel}, the miner who invited you to BONDKOIN, sent you a reminder.`,
+      idleLine,
+      'Tap Mine once every 24 hours to keep your $BONDKOIN accruing. It costs nothing and needs no hardware.',
+      '',
+      `Mine now: ${dashboardUrl}`,
+      '',
+      'You receive this because a miner in your referral network asked us to nudge you. Each referral can be reminded at most once every three days.',
+    ].join('\n');
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { margin: 0; padding: 0; background-color: #05070f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f1f5f9; }
+          .wrapper { width: 100%; max-width: 540px; margin: 30px auto; background-color: #0b0f19; border: 1px solid #1e293b; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.6); }
+          .header { padding: 28px 24px; text-align: center; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); border-bottom: 1px solid #334155; }
+          .logo { font-size: 22px; font-weight: 900; letter-spacing: 1px; color: #f8fafc; text-transform: uppercase; }
+          .logo-accent { color: #38bdf8; }
+          .badge { display: inline-block; margin-top: 8px; padding: 4px 12px; font-size: 11px; font-weight: 700; color: #f59e0b; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 9999px; text-transform: uppercase; }
+          .content { padding: 32px 28px; text-align: center; }
+          .title { font-size: 18px; font-weight: 800; color: #ffffff; margin-bottom: 8px; }
+          .desc { font-size: 13px; line-height: 1.6; color: #94a3b8; margin-bottom: 24px; }
+          .idle { background: #020617; border: 2px dashed #f59e0b; border-radius: 14px; padding: 18px; margin: 20px 0; font-size: 15px; font-weight: 800; color: #fbbf24; }
+          .cta { display: inline-block; margin-top: 8px; padding: 14px 32px; font-size: 14px; font-weight: 900; color: #0b0f19 !important; background: linear-gradient(90deg, #f59e0b, #fbbf24); border-radius: 12px; text-decoration: none; letter-spacing: 0.5px; }
+          .note { font-size: 11px; color: #64748b; margin-top: 24px; line-height: 1.6; }
+          .footer { padding: 20px 24px; text-align: center; font-size: 11px; color: #475569; border-top: 1px solid #1e293b; background: #070a14; }
+          .footer a { color: #38bdf8; text-decoration: none; }
+        </style>
+      </head>
+      <body>
+        <div class="wrapper">
+          <div class="header">
+            <div class="logo">BONDKOIN <span class="logo-accent">LABS</span></div>
+            <div class="badge">BNB Smart Chain Protocol</div>
+          </div>
+          <div class="content">
+            <div class="title">⛏️ ${escapeHtml(inviterLabel)} wants you back at the controls</div>
+            <div class="desc">The miner who invited you to BONDKOIN sent you a reminder. Tap <strong>Mine</strong> once every 24 hours to keep your $BONDKOIN accruing. It costs nothing and needs no hardware.</div>
+            <div class="idle">${escapeHtml(idleLine)}</div>
+            <a class="cta" href="${escapeHtml(dashboardUrl)}">MINE NOW →</a>
+            <div class="note">You receive this because a miner in your referral network asked us to nudge you. Each referral can be reminded at most once every three days.</div>
+          </div>
+          <div class="footer">
+            © ${new Date().getFullYear()} BONDKOIN Labs (<a href="https://bondkoinlabs.com">bondkoinlabs.com</a>). Built for the BNB Chain Ecosystem.
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return this.deliver({ to: cleanEmail, subject, html, text });
   }
 
   /**

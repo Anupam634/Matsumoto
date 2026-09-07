@@ -1,4 +1,5 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ReferralsService } from './referrals.service';
@@ -12,5 +13,18 @@ export class ReferralsController {
   @Get('stats')
   stats(@CurrentUser('id') userId: string) {
     return this.referrals.getReferralStats(userId);
+  }
+
+  /**
+   * POST /api/referrals/:id/remind — email one idle referral a nudge to mine.
+   *
+   * Each referral is already limited to one reminder per cooldown; the
+   * throttle on top stops a single inviter from blasting a large roster
+   * through the mail server in one burst.
+   */
+  @Post(':id/remind')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  remind(@CurrentUser('id') userId: string, @Param('id') referralId: string) {
+    return this.referrals.remindReferral(userId, referralId);
   }
 }

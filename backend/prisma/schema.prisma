@@ -33,6 +33,10 @@ model User {
   // last successful "Mine" tap — gates the 24h cooldown & accrual window
   lastMineAt DateTime?
 
+  // When the miner who invited this account last emailed it a "come back
+  // and mine" nudge. Bounds how often one referral can be reminded.
+  lastReferralNudgeAt DateTime?
+
   // Manual hash-rate adjustment from the admin panel (SPEC §6), in
   // milli-points/hour. Signed: negative throttles a suspected abuser.
   rateAdjustMilli Int @default(0)
