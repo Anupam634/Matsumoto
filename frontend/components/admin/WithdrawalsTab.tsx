@@ -8,6 +8,28 @@ import {
   type AdminWithdrawal,
 } from '../../lib/admin-api';
 
+/**
+ * The queue's filters, in the order a payout moves through them.
+ *
+ * APPROVED is not a resting state: `approve()` sets it purely to reserve the
+ * row, then the on-chain payout either carries it to PAID or drops it back to
+ * PENDING. So a row sitting in APPROVED means a payout is in flight — or died
+ * mid-flight and needs looking at. PAID is where a completed withdrawal ends
+ * up, and it had no filter at all, so every settled payout was invisible
+ * unless an operator switched to ALL.
+ */
+const STATUS_FILTERS: { key: string; label: string; hint: string }[] = [
+  { key: 'PENDING', label: 'Pending', hint: 'Waiting on an operator decision.' },
+  {
+    key: 'APPROVED',
+    label: 'Processing',
+    hint: 'Payout in flight. Anything resting here means it never completed.',
+  },
+  { key: 'PAID', label: 'Paid', hint: 'Settled on chain.' },
+  { key: 'REJECTED', label: 'Rejected', hint: 'Declined; points refunded.' },
+  { key: 'ALL', label: 'All', hint: 'Every request, any status.' },
+];
+
 export function WithdrawalsTab({
   onChanged,
   onUnauthorized,
@@ -91,17 +113,18 @@ export function WithdrawalsTab({
           </p>
         </div>
         <div className="flex items-center gap-1.5 text-xs">
-          {['PENDING', 'APPROVED', 'REJECTED', 'ALL'].map((st) => (
+          {STATUS_FILTERS.map((f) => (
             <button
-              key={st}
-              onClick={() => setStatusFilter(st)}
+              key={f.key}
+              onClick={() => setStatusFilter(f.key)}
+              title={f.hint}
               className={`rounded-lg px-3 py-1.5 font-bold uppercase transition ${
-                statusFilter === st
+                statusFilter === f.key
                   ? 'bg-amber-500 text-slate-950 shadow-sm'
                   : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
               }`}
             >
-              {st}
+              {f.label}
             </button>
           ))}
         </div>
@@ -150,8 +173,10 @@ export function WithdrawalsTab({
                     <td className="p-3.5 font-sans">
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                          w.status === 'APPROVED'
+                          w.status === 'PAID'
                             ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                            : w.status === 'APPROVED'
+                            ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
                             : w.status === 'PENDING'
                             ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                             : 'bg-red-500/15 text-red-400 border border-red-500/30'
