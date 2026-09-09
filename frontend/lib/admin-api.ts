@@ -510,11 +510,16 @@ export interface RevenueByUser {
 export interface AdminRevenueAnalytics {
   generatedAt: string;
   windowDays: number;
+  /** The window held more purchases than one read returns; series under-report. */
+  seriesTruncated: boolean;
   totals: {
     revenueUsd: number;
     confirmedPurchases: number;
+    /** Quotes a miner can still pay right now. */
     awaitingPayment: number;
     awaitingPaymentUsd: number;
+    /** Unpaid quotes past their hour that nothing ever swept up. */
+    abandonedIntents: number;
     failed: number;
     expired: number;
     payingUsers: number;

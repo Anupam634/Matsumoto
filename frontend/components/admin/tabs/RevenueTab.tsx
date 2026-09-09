@@ -163,6 +163,15 @@ export function RevenueTab() {
         </div>
       )}
 
+      {data?.seriesTruncated && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 text-xs text-amber-300">
+          ⚠️ More confirmed payments fall inside this window than one read
+          returns, so the chart and the period cards below cover only the most
+          recent of them. The headline totals are complete — export the CSV for
+          the full history.
+        </div>
+      )}
+
       {loading && !data ? (
         <div className="p-10 text-center text-xs text-slate-400">
           Querying the payments ledger…
@@ -211,14 +220,19 @@ export function RevenueTab() {
 
             <div className="card border-slate-800 bg-slate-900/70 p-5 backdrop-blur-md">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Awaiting Payment
+                Payable Right Now
               </div>
               <div className="mt-2 text-3xl font-black tabular-nums text-amber-300">
                 {usd(totals!.awaitingPaymentUsd)}
               </div>
               <div className="mt-1 text-xs text-slate-400">
-                {totals!.awaitingPayment} open · {totals!.failed} failed ·{' '}
+                {totals!.awaitingPayment} live quote
+                {totals!.awaitingPayment === 1 ? '' : 's'} · {totals!.failed} failed ·{' '}
                 {totals!.expired} expired
+              </div>
+              <div className="mt-1 text-[11px] text-slate-500">
+                {totals!.abandonedIntents.toLocaleString()} abandoned checkout
+                {totals!.abandonedIntents === 1 ? '' : 's'} not counted
               </div>
             </div>
           </div>
@@ -414,8 +428,11 @@ export function RevenueTab() {
 
             {data.byToken.length > 0 && (
               <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-4">
-                <span className="text-[10px] font-bold uppercase text-slate-500">
-                  Paid with
+                <span
+                  className="text-[10px] font-bold uppercase text-slate-500"
+                  title={`Counted over the last ${data.windowDays} days, unlike the all-time table above.`}
+                >
+                  Paid with (last {data.windowDays} days)
                 </span>
                 {data.byToken.map((t) => (
                   <span
@@ -472,7 +489,7 @@ export function RevenueTab() {
                       <td colSpan={8} className="py-8 text-center text-slate-500">
                         {data.topPayers.length === 0
                           ? 'No confirmed booster payments yet.'
-                          : 'No paying miner matches that filter.'}
+                          : `No match among the top ${data.topPayers.length} payers shown here — a miner who paid less than these will only appear in the CSV export.`}
                       </td>
                     </tr>
                   ) : (

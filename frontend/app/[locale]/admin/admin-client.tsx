@@ -5,7 +5,9 @@ import {
   getAdminToken,
   adminLogout,
   getStats,
+  getRevenueAnalytics,
   ApiError,
+  type AdminRevenueAnalytics,
   type AdminStats,
 } from '../../../lib/admin-api';
 import type { AdminTab } from '../../../components/admin/types';
@@ -54,11 +56,20 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
   const [tab, setTab] = useState<AdminTab>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [revenue, setRevenue] = useState<AdminRevenueAnalytics | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Both dashboard reads refresh together, so the revenue strip cannot sit
+  // frozen at mount under a "Live Feed" badge while the tiles beside it
+  // poll — and an expired admin token signs the operator out from either.
   const loadStats = useCallback(async () => {
     try {
-      setStats(await getStats());
+      const [nextStats, nextRevenue] = await Promise.all([
+        getStats(),
+        getRevenueAnalytics(),
+      ]);
+      setStats(nextStats);
+      setRevenue(nextRevenue);
       setError(null);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) return onSignOut();
@@ -108,6 +119,7 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
             {tab === 'dashboard' && (
               <AnalyticsTab
                 stats={stats}
+                revenue={revenue}
                 onRefresh={loadStats}
                 onOpenRevenue={() => setTab('revenue')}
               />

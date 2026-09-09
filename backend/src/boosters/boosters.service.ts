@@ -145,6 +145,7 @@ export class BoostersService {
         tokenSymbol: this.chain.config.tokenSymbol,
         expectedUnits: units.toString(),
         expectedAmount: this.chain.humanAmount(units),
+        priceUsd: plan.priceUsd,
         payToAddress: this.chain.config.payToAddress,
         fromAddress: ethers.getAddress(fromAddress),
         expiresAt: new Date(Date.now() + INTENT_TTL_MS),

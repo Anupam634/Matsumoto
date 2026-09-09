@@ -1,15 +1,13 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
-import {
-  getRevenueAnalytics,
-  type AdminRevenueAnalytics,
-  type AdminStats,
-} from '../../lib/admin-api';
+import React, { useState, useMemo } from 'react';
+import type { AdminRevenueAnalytics, AdminStats } from '../../lib/admin-api';
 import { countryFlag, countryName } from '../../lib/countries';
 
 interface AnalyticsTabProps {
   stats: AdminStats | null;
+  /** Loaded and refreshed alongside `stats` by the panel. */
+  revenue: AdminRevenueAnalytics | null;
   onRefresh: () => void;
   /** Jumps to the full revenue tab. */
   onOpenRevenue?: () => void;
@@ -26,25 +24,13 @@ function usd(n: number): string {
   });
 }
 
-export function AnalyticsTab({ stats, onRefresh, onOpenRevenue }: AnalyticsTabProps) {
+export function AnalyticsTab({
+  stats,
+  revenue,
+  onRefresh,
+  onOpenRevenue,
+}: AnalyticsTabProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>('7d');
-  const [revenue, setRevenue] = useState<AdminRevenueAnalytics | null>(null);
-
-  // Booster money is its own aggregate, and the server caches it, so the
-  // dashboard reads it directly instead of widening the stats payload.
-  useEffect(() => {
-    let alive = true;
-    getRevenueAnalytics()
-      .then((r) => {
-        if (alive) setRevenue(r);
-      })
-      .catch(() => {
-        // The strip simply stays hidden; the revenue tab reports the error.
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   const revenuePeriod = useMemo(() => {
     const key = timeframe === '24h' ? 'today' : timeframe === '7d' ? 'week' : 'month';

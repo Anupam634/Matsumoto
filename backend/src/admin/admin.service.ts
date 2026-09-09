@@ -29,6 +29,12 @@ const REVENUE_WINDOW_DAYS = 400;
  * miner who ever paid — is the CSV export, so the JSON stays a fixed size.
  */
 const TOP_PAYERS_LIMIT = 100;
+/**
+ * Ceiling on confirmed purchases pulled in for the time-series. Rows come
+ * back newest first, so hitting it drops the oldest buckets rather than an
+ * arbitrary slice — and the response says when it happened.
+ */
+const SERIES_ROW_CAP = 200_000;
 
 /** Money and percentages are display values — two decimals, never a float tail. */
 function round2(n: number): number {
@@ -142,6 +148,14 @@ export class AdminService {
    * withdrawal land within a few seconds of it arriving.
    */
   private readonly cache = new TtlCache(15_000, 100);
+
+  /**
+   * Revenue aggregates get their own, slower cache. They are heavier than
+   * `stats()` and money does not need 15-second freshness — and at 15s the
+   * dashboard's own 20s poll missed every single time, so each open tab ran
+   * the whole aggregate set on a loop.
+   */
+  private readonly revenueCache = new TtlCache(60_000, 4);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -694,7 +708,7 @@ export class AdminService {
    * aggregates move second to second.
    */
   revenueAnalytics() {
-    return this.cache.wrap('revenue-analytics', () =>
+    return this.revenueCache.wrap('revenue-analytics', () =>
       this.computeRevenueAnalytics(),
     );
   }
@@ -711,90 +725,120 @@ export class AdminService {
     const priceOf = new Map(plans.map((p) => [p.id, p.priceUsd]));
     const labelOf = (planId: string) => `$${priceOf.get(planId) ?? 0} Booster`;
 
-    const [byStatusPlan, payers, windowRows, activeByPlan, totalUsers, recentRows] =
-      await Promise.all([
-        // All-time money, counted as (purchases per plan × that plan's price)
-        // so no per-row scan is needed.
-        this.prisma.boosterPurchase.groupBy({
-          by: ['status', 'planId'],
-          _count: { _all: true },
-        }),
-        this.payerAggregates(priceOf),
-        // Only CONFIRMED rows inside the window, and only the four columns the
-        // buckets need. `confirmedAt` is what a payment is dated by; the
-        // `createdAt` arm keeps a row whose confirmation was backfilled.
-        this.prisma.boosterPurchase.findMany({
-          where: {
-            status: 'CONFIRMED',
-            OR: [
-              { confirmedAt: { gte: windowStart } },
-              { confirmedAt: null, createdAt: { gte: windowStart } },
-            ],
-          },
-          select: {
-            userId: true,
-            planId: true,
-            tokenSymbol: true,
-            confirmedAt: true,
-            createdAt: true,
-          },
-          take: 200_000,
-        }),
-        this.prisma.booster.groupBy({
-          by: ['planId'],
-          where: { expiresAt: { gt: now } },
-          _count: { _all: true },
-        }),
-        this.prisma.user.count(),
-        this.prisma.boosterPurchase.findMany({
-          where: { status: 'CONFIRMED' },
-          // Postgres sorts NULLs first on DESC. Both confirmation paths do
-          // stamp `confirmedAt`, but a row that somehow missed one must not
-          // therefore lead the "latest payments" list.
-          orderBy: { confirmedAt: { sort: 'desc', nulls: 'last' } },
-          take: 12,
-          select: {
-            id: true,
-            userId: true,
-            planId: true,
-            tokenSymbol: true,
-            expectedAmount: true,
-            txHash: true,
-            confirmedAt: true,
-            createdAt: true,
-            user: { select: { email: true, countryCode: true } },
-          },
-        }),
-      ]);
+    const [
+      byStatusPlan,
+      payers,
+      windowRows,
+      activeByPlan,
+      totalUsers,
+      recentRows,
+      liveIntents,
+    ] = await Promise.all([
+      // All-time money, summed from the price pinned on each purchase so no
+      // per-row scan is needed and repricing a plan cannot rewrite history.
+      this.prisma.boosterPurchase.groupBy({
+        by: ['status', 'planId'],
+        _count: { _all: true },
+        _sum: { priceUsd: true },
+      }),
+      this.payerAggregates(),
+      // Only CONFIRMED rows inside the window, and only the columns the
+      // buckets need. `confirmedAt` is what a payment is dated by; the
+      // `createdAt` arm keeps a row whose confirmation was backfilled.
+      // Ordered so that hitting the cap drops the oldest, not an arbitrary
+      // slice the caller cannot reason about.
+      this.prisma.boosterPurchase.findMany({
+        where: {
+          status: 'CONFIRMED',
+          OR: [
+            { confirmedAt: { gte: windowStart } },
+            { confirmedAt: null, createdAt: { gte: windowStart } },
+          ],
+        },
+        select: {
+          userId: true,
+          planId: true,
+          priceUsd: true,
+          tokenSymbol: true,
+          confirmedAt: true,
+          createdAt: true,
+        },
+        orderBy: { confirmedAt: { sort: 'desc', nulls: 'last' } },
+        take: SERIES_ROW_CAP,
+      }),
+      this.prisma.booster.groupBy({
+        by: ['planId'],
+        where: { expiresAt: { gt: now } },
+        _count: { _all: true },
+      }),
+      this.prisma.user.count(),
+      this.prisma.boosterPurchase.findMany({
+        where: { status: 'CONFIRMED' },
+        // Postgres sorts NULLs first on DESC. Both confirmation paths do
+        // stamp `confirmedAt`, but a row that somehow missed one must not
+        // therefore lead the "latest payments" list.
+        orderBy: { confirmedAt: { sort: 'desc', nulls: 'last' } },
+        take: 12,
+        select: {
+          id: true,
+          userId: true,
+          planId: true,
+          priceUsd: true,
+          tokenSymbol: true,
+          expectedAmount: true,
+          txHash: true,
+          confirmedAt: true,
+          createdAt: true,
+          user: { select: { email: true, countryCode: true } },
+        },
+      }),
+      // Intents a miner could still pay right now.
+      //
+      // An unpaid quote is only ever flipped to EXPIRED when that same miner
+      // re-submits against it, and nothing sweeps the rest, so every
+      // abandoned checkout sits in AWAITING_PAYMENT forever. Summing the
+      // status alone would report years of dead quotes as money in flight.
+      this.prisma.boosterPurchase.aggregate({
+        where: { status: 'AWAITING_PAYMENT', expiresAt: { gt: now } },
+        _count: { _all: true },
+        _sum: { priceUsd: true },
+      }),
+    ]);
 
     // ── All-time totals, and the per-plan status split ──
+    // Per-plan status counts, and per-plan confirmed money, in one pass.
     const statusOf = new Map<string, Record<string, number>>();
+    const revenueOf = new Map<string, number>();
     let revenueUsd = 0;
     let confirmedPurchases = 0;
-    let awaitingPayment = 0;
-    let awaitingPaymentUsd = 0;
+    let abandonedIntents = 0;
     let failed = 0;
     let expired = 0;
 
     for (const g of byStatusPlan) {
       const count = g._count._all;
-      const value = count * (priceOf.get(g.planId) ?? 0);
+      const value = g._sum.priceUsd ?? 0;
       const split = statusOf.get(g.planId) ?? {};
       split[g.status] = (split[g.status] ?? 0) + count;
       statusOf.set(g.planId, split);
 
       if (g.status === 'CONFIRMED') {
+        revenueOf.set(g.planId, (revenueOf.get(g.planId) ?? 0) + value);
         revenueUsd += value;
         confirmedPurchases += count;
       } else if (g.status === 'AWAITING_PAYMENT') {
-        awaitingPayment += count;
-        awaitingPaymentUsd += value;
+        abandonedIntents += count;
       } else if (g.status === 'FAILED') {
         failed += count;
       } else {
         expired += count;
       }
     }
+
+    // Quotes still inside their hour; the rest of AWAITING_PAYMENT is dead.
+    const awaitingPayment = liveIntents._count._all;
+    const awaitingPaymentUsd = liveIntents._sum.priceUsd ?? 0;
+    abandonedIntents -= awaitingPayment;
 
     // ── Per-plan ("category") breakdown ──
     const activeOf = new Map(activeByPlan.map((a) => [a.planId, a._count._all]));
@@ -809,7 +853,7 @@ export class AdminService {
       .map((p) => {
         const split = statusOf.get(p.id) ?? {};
         const confirmed = split.CONFIRMED ?? 0;
-        const planRevenue = confirmed * p.priceUsd;
+        const planRevenue = revenueOf.get(p.id) ?? 0;
         return {
           planId: p.id,
           label: `$${p.priceUsd} Booster`,
@@ -835,7 +879,7 @@ export class AdminService {
       at: r.confirmedAt ?? r.createdAt,
       userId: r.userId,
       tokenSymbol: r.tokenSymbol,
-      usd: priceOf.get(r.planId) ?? 0,
+      usd: r.priceUsd,
     }));
 
     const series = {
@@ -858,19 +902,34 @@ export class AdminService {
           users.add(e.userId);
         }
       }
-      return { revenueUsd: usd, purchases, payingUsers: users.size };
+      return { revenueUsd: round2(usd), purchases, payingUsers: users.size };
     };
 
     const startOfToday = startOfUtcDay(now).getTime();
     const nowMs = now.getTime() + 1;
-    const periodWindow = (label: RevenuePeriod['label'], key: RevenuePeriod['key'], fromMs: number, toMs: number): RevenuePeriod => {
+
+    /**
+     * One period, against the equivalent window before it.
+     *
+     * The comparison window is the same *length* ending where this one
+     * begins — which for a day still in progress means the same elapsed
+     * slice of yesterday, not all of yesterday. Comparing nine hours of
+     * today against a full twenty-four would paint the card red every
+     * morning on flat revenue.
+     */
+    const periodWindow = (
+      label: string,
+      key: RevenuePeriod['key'],
+      fromMs: number,
+      toMs: number,
+    ): RevenuePeriod => {
       const current = spanTotals(fromMs, toMs);
       const previous = spanTotals(fromMs - (toMs - fromMs), fromMs);
       return {
         key,
         label,
         ...current,
-        previousRevenueUsd: previous.revenueUsd,
+        previousRevenueUsd: round2(previous.revenueUsd),
         changePct:
           previous.revenueUsd > 0
             ? round2(
@@ -881,13 +940,14 @@ export class AdminService {
     };
 
     const periods: RevenuePeriod[] = [
-      periodWindow('Today', 'today', startOfToday, startOfToday + day),
+      periodWindow('Today', 'today', startOfToday, nowMs),
       periodWindow('Last 7 days', 'week', nowMs - 7 * day, nowMs),
       periodWindow('Last 30 days', 'month', nowMs - 30 * day, nowMs),
       {
         key: 'year',
         label: 'Last 12 months',
         ...spanTotals(nowMs - 365 * day, nowMs),
+        // A 400-day window cannot hold the year before this one.
         previousRevenueUsd: 0,
         changePct: null,
       },
@@ -930,11 +990,21 @@ export class AdminService {
     return {
       generatedAt: now.toISOString(),
       windowDays: REVENUE_WINDOW_DAYS,
+      /**
+       * True when the window held more confirmed purchases than one read
+       * returns, so the series and the period cards under-report while the
+       * all-time totals (separate grouped queries) stay complete. Surfaced
+       * rather than hidden: the two would otherwise silently disagree.
+       */
+      seriesTruncated: windowRows.length >= SERIES_ROW_CAP,
       totals: {
         revenueUsd: round2(revenueUsd),
         confirmedPurchases,
+        /** Quotes a miner can still pay — see the `liveIntents` query. */
         awaitingPayment,
         awaitingPaymentUsd: round2(awaitingPaymentUsd),
+        /** Unpaid quotes past their hour that nothing ever swept up. */
+        abandonedIntents,
         failed,
         expired,
         payingUsers: payers.length,
@@ -959,7 +1029,7 @@ export class AdminService {
         userEmail: r.user?.email ?? null,
         countryCode: r.user?.countryCode ?? null,
         label: labelOf(r.planId),
-        priceUsd: priceOf.get(r.planId) ?? 0,
+        priceUsd: r.priceUsd,
         tokenSymbol: r.tokenSymbol,
         expectedAmount: r.expectedAmount,
         txHash: r.txHash,
@@ -972,14 +1042,16 @@ export class AdminService {
    * Every miner who has ever completed a booster payment, richest first.
    *
    * Grouped in the database by (user, plan) rather than read row by row: the
-   * money for a group is `count × plan price`, so the whole spend table costs
-   * one grouped scan no matter how many purchases there are.
+   * money for a group is the sum of the prices pinned on its purchases, so
+   * the whole spend table costs one grouped scan no matter how many
+   * purchases there are.
    */
-  private async payerAggregates(priceOf: Map<string, number>) {
+  private async payerAggregates() {
     const groups = await this.prisma.boosterPurchase.groupBy({
       by: ['userId', 'planId'],
       where: { status: 'CONFIRMED' },
       _count: { _all: true },
+      _sum: { priceUsd: true },
       _min: { confirmedAt: true },
       _max: { confirmedAt: true },
     });
@@ -1009,7 +1081,7 @@ export class AdminService {
         };
 
       const count = g._count._all;
-      agg.revenueUsd += count * (priceOf.get(g.planId) ?? 0);
+      agg.revenueUsd += g._sum.priceUsd ?? 0;
       agg.purchases += count;
       agg.byPlan.set(g.planId, (agg.byPlan.get(g.planId) ?? 0) + count);
 
@@ -1143,11 +1215,14 @@ export class AdminService {
       this.prisma.kycRecord.count(),
       this.prisma.boosterPurchase.count(),
       this.prisma.user.count({ where: { referredById: { not: null } } }),
-      // One group per paying miner — the row count of the per-user export.
-      this.prisma.boosterPurchase.groupBy({
-        by: ['userId'],
-        where: { status: 'CONFIRMED' },
-      }),
+      // Row count of the per-user export. `groupBy` would return one row per
+      // paying account just to have its length read; this is the same number
+      // in constant memory.
+      this.prisma.$queryRaw<{ count: bigint }[]>`
+        SELECT COUNT(DISTINCT "userId")::bigint AS count
+        FROM "BoosterPurchase"
+        WHERE "status" = 'CONFIRMED'
+      `,
     ]);
 
     return {
@@ -1157,7 +1232,7 @@ export class AdminService {
       referralsCount,
       kycCount,
       revenueCount: boostersCount,
-      payingUsersCount: payers.length,
+      payingUsersCount: Number(payers[0]?.count ?? 0n),
     };
   }
 
@@ -1353,7 +1428,7 @@ export class AdminService {
       p.userId,
       p.user?.email ?? 'Wallet',
       p.plan?.priceUsd ? '$' + p.plan.priceUsd : 'Custom',
-      p.plan?.priceUsd ?? 0,
+      p.priceUsd,
       p.status,
       p.txHash ?? 'N/A',
       p.createdAt.toISOString(),
@@ -1372,8 +1447,7 @@ export class AdminService {
     const plans = await this.prisma.boosterPlan.findMany({
       orderBy: { priceUsd: 'asc' },
     });
-    const priceOf = new Map(plans.map((p) => [p.id, p.priceUsd]));
-    const payers = (await this.payerAggregates(priceOf)).slice(0, CSV_MAX_ROWS);
+    const payers = (await this.payerAggregates()).slice(0, CSV_MAX_ROWS);
 
     const profiles = payers.length
       ? await this.prisma.user.findMany({
@@ -1537,7 +1611,8 @@ export class AdminService {
       userId: p.userId,
       userEmail: p.user?.email ?? 'Wallet Payer',
       planId: p.planId,
-      planPriceUsd: p.plan?.priceUsd ?? 0,
+      // What this buyer was quoted, not what the plan costs today.
+      planPriceUsd: p.priceUsd,
       rateBonusPoints: (p.plan?.rateBonusMilli ?? 0) / 1000,
       tokenSymbol: p.tokenSymbol,
       expectedAmount: p.expectedAmount,

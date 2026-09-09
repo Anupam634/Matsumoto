@@ -144,6 +144,10 @@ model BoosterPurchase {
   // Human-readable amount for the payment instructions, e.g. "5.0".
   expectedAmount  String
   payToAddress    String
+  // USD price of the plan at quote time. Pinned like every other term of the
+  // quote: an admin repricing a plan must not rewrite what past buyers paid,
+  // so revenue reporting sums this and never the plan's live price.
+  priceUsd        Int
   // Wallet the user declared they will pay from. Verification requires the
   // transaction's sender to match, so a stranger's tx hash cannot be claimed.
   fromAddress     String
@@ -162,6 +166,7 @@ model BoosterPurchase {
 
   @@index([userId])
   @@index([status])
+  @@index([status, confirmedAt])
 }
 
 model Booster {
@@ -266,6 +271,7 @@ model LedgerEntry {
   createdAt  DateTime     @default(now())
 
   @@index([userId, createdAt])
+  @@index([createdAt])
 }
 
 // ─────────────────── Anti-abuse signals ──────────────────────
