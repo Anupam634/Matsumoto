@@ -412,14 +412,27 @@ export function AnalyticsTab({
 
               {/* Withdrawals Breakdown */}
               <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
-                <div className="text-xs font-bold uppercase text-slate-400">Withdrawals Settled vs Pending</div>
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold uppercase text-slate-400">Withdrawals Settled vs Pending</div>
+                  {!!stats?.withdrawalsByStatus?.APPROVED && (
+                    <span
+                      className="rounded-md bg-cyan-500/15 px-1.5 py-0.5 text-[10px] font-bold text-cyan-300"
+                      title="Payouts reserved but never settled — each one needs checking against the chain."
+                    >
+                      {stats.withdrawalsByStatus.APPROVED} stuck
+                    </span>
+                  )}
+                </div>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs font-mono">
                   <div className="rounded-lg bg-amber-500/10 border border-amber-500/25 p-2">
                     <div className="text-lg font-black text-amber-400">{stats?.withdrawalsByStatus?.PENDING ?? 0}</div>
                     <div className="text-[10px] font-sans font-bold text-slate-400 uppercase">In Queue</div>
                   </div>
                   <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/25 p-2">
-                    <div className="text-lg font-black text-emerald-400">{stats?.withdrawalsByStatus?.APPROVED ?? 0}</div>
+                    {/* PAID, not APPROVED. APPROVED is the lock held while a
+                        payout is in flight, so it reads ~0 almost always —
+                        this tile showed no payouts however many had settled. */}
+                    <div className="text-lg font-black text-emerald-400">{stats?.withdrawalsByStatus?.PAID ?? 0}</div>
                     <div className="text-[10px] font-sans font-bold text-slate-400 uppercase">Paid Out</div>
                   </div>
                   <div className="rounded-lg bg-red-500/10 border border-red-500/25 p-2">
