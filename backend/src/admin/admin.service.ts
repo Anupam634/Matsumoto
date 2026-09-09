@@ -15,6 +15,11 @@ const ACTIVE_WINDOW_MS = 24 * 3_600_000;
 /** Referral tree depth — matches the 6 referral levels in SPEC §2. */
 const TREE_DEPTH = 6;
 
+/** Money and percentages are display values — two decimals, never a float tail. */
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 export interface AdminUserRow {
   id: string;
   email: string | null;
@@ -113,6 +118,7 @@ export class AdminService {
       activeBoostersCount,
       recentLedger,
       usersPast30Days,
+      pointsMintedPerDay,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.user.count({ where: { lastMineAt: { gte: activeSince } } }),
@@ -149,6 +155,22 @@ export class AdminService {
         orderBy: { createdAt: 'desc' },
         take: 100_000,
       }),
+      // Points actually minted per day. Summed in the database because the
+      // ledger is the one table that grows with every tap, and the dashboard
+      // only ever needs 30 numbers out of it.
+      //
+      // `createdAt` is `timestamp(3)` without a zone and Prisma writes UTC
+      // into it, so truncating the column directly gives UTC days — the same
+      // keys the signup buckets above use. Casting it with `AT TIME ZONE`
+      // would hand `date_trunc` a `timestamptz` and split days on whatever
+      // the database server's local zone happens to be.
+      this.prisma.$queryRaw<{ day: string; milli: bigint }[]>`
+        SELECT to_char(date_trunc('day', "createdAt"), 'YYYY-MM-DD') AS day,
+               COALESCE(SUM("deltaMilli"), 0)::bigint AS milli
+        FROM "LedgerEntry"
+        WHERE "createdAt" >= ${monthAgo} AND "deltaMilli" > 0
+        GROUP BY 1
+      `,
     ]);
 
     // Build 7-day and 30-day time-series daily buckets
@@ -165,10 +187,14 @@ export class AdminService {
       }
     }
 
+    const mintedByDay = new Map(
+      pointsMintedPerDay.map((r) => [r.day, Number(r.milli) / 1000]),
+    );
+
     const growthHistory = Array.from(daysMap.entries()).map(([date, newUsers]) => ({
       date,
       newUsers,
-      pointsMined: Number((newUsers * 48.5 + (activeMiners * 21.6) / 30).toFixed(2)),
+      pointsMined: round2(mintedByDay.get(date) ?? 0),
     }));
 
     return {
