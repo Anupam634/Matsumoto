@@ -727,12 +727,14 @@ export class AdminService {
 
     const [
       byStatusPlan,
+      unpricedByStatusPlan,
       payers,
       windowRows,
       activeByPlan,
       totalUsers,
       recentRows,
       liveIntents,
+      unpricedLiveIntents,
     ] = await Promise.all([
       // All-time money, summed from the price pinned on each purchase so no
       // per-row scan is needed and repricing a plan cannot rewrite history.
@@ -741,7 +743,15 @@ export class AdminService {
         _count: { _all: true },
         _sum: { priceUsd: true },
       }),
-      this.payerAggregates(),
+      // Rows written before purchases pinned their price. `_sum` skips their
+      // NULL, so they are counted here and valued at their plan's price —
+      // exactly the behaviour they had before this column existed.
+      this.prisma.boosterPurchase.groupBy({
+        by: ['status', 'planId'],
+        where: { priceUsd: null },
+        _count: { _all: true },
+      }),
+      this.payerAggregates(priceOf),
       // Only CONFIRMED rows inside the window, and only the columns the
       // buckets need. `confirmedAt` is what a payment is dated by; the
       // `createdAt` arm keeps a row whose confirmation was backfilled.
@@ -803,6 +813,16 @@ export class AdminService {
         _count: { _all: true },
         _sum: { priceUsd: true },
       }),
+      // A live quote older than this deploy carries no pinned price.
+      this.prisma.boosterPurchase.groupBy({
+        by: ['planId'],
+        where: {
+          status: 'AWAITING_PAYMENT',
+          expiresAt: { gt: now },
+          priceUsd: null,
+        },
+        _count: { _all: true },
+      }),
     ]);
 
     // ── All-time totals, and the per-plan status split ──
@@ -815,9 +835,15 @@ export class AdminService {
     let failed = 0;
     let expired = 0;
 
+    const unpricedOf = new Map(
+      unpricedByStatusPlan.map((g) => [`${g.status}:${g.planId}`, g._count._all]),
+    );
+
     for (const g of byStatusPlan) {
       const count = g._count._all;
-      const value = g._sum.priceUsd ?? 0;
+      const unpriced = unpricedOf.get(`${g.status}:${g.planId}`) ?? 0;
+      const value =
+        (g._sum.priceUsd ?? 0) + unpriced * (priceOf.get(g.planId) ?? 0);
       const split = statusOf.get(g.planId) ?? {};
       split[g.status] = (split[g.status] ?? 0) + count;
       statusOf.set(g.planId, split);
@@ -837,7 +863,10 @@ export class AdminService {
 
     // Quotes still inside their hour; the rest of AWAITING_PAYMENT is dead.
     const awaitingPayment = liveIntents._count._all;
-    const awaitingPaymentUsd = liveIntents._sum.priceUsd ?? 0;
+    const awaitingPaymentUsd = unpricedLiveIntents.reduce(
+      (sum, g) => sum + g._count._all * (priceOf.get(g.planId) ?? 0),
+      liveIntents._sum.priceUsd ?? 0,
+    );
     abandonedIntents -= awaitingPayment;
 
     // ── Per-plan ("category") breakdown ──
@@ -879,7 +908,7 @@ export class AdminService {
       at: r.confirmedAt ?? r.createdAt,
       userId: r.userId,
       tokenSymbol: r.tokenSymbol,
-      usd: r.priceUsd,
+      usd: r.priceUsd ?? priceOf.get(r.planId) ?? 0,
     }));
 
     const series = {
@@ -1029,7 +1058,7 @@ export class AdminService {
         userEmail: r.user?.email ?? null,
         countryCode: r.user?.countryCode ?? null,
         label: labelOf(r.planId),
-        priceUsd: r.priceUsd,
+        priceUsd: r.priceUsd ?? priceOf.get(r.planId) ?? 0,
         tokenSymbol: r.tokenSymbol,
         expectedAmount: r.expectedAmount,
         txHash: r.txHash,
@@ -1046,15 +1075,27 @@ export class AdminService {
    * the whole spend table costs one grouped scan no matter how many
    * purchases there are.
    */
-  private async payerAggregates() {
-    const groups = await this.prisma.boosterPurchase.groupBy({
-      by: ['userId', 'planId'],
-      where: { status: 'CONFIRMED' },
-      _count: { _all: true },
-      _sum: { priceUsd: true },
-      _min: { confirmedAt: true },
-      _max: { confirmedAt: true },
-    });
+  private async payerAggregates(priceOf: Map<string, number>) {
+    const [groups, unpriced] = await Promise.all([
+      this.prisma.boosterPurchase.groupBy({
+        by: ['userId', 'planId'],
+        where: { status: 'CONFIRMED' },
+        _count: { _all: true },
+        _sum: { priceUsd: true },
+        _min: { confirmedAt: true },
+        _max: { confirmedAt: true },
+      }),
+      // Purchases predating the pinned price, valued at their plan's price.
+      this.prisma.boosterPurchase.groupBy({
+        by: ['userId', 'planId'],
+        where: { status: 'CONFIRMED', priceUsd: null },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const unpricedOf = new Map(
+      unpriced.map((g) => [`${g.userId}:${g.planId}`, g._count._all]),
+    );
 
     const payers = new Map<
       string,
@@ -1081,7 +1122,9 @@ export class AdminService {
         };
 
       const count = g._count._all;
-      agg.revenueUsd += g._sum.priceUsd ?? 0;
+      const missing = unpricedOf.get(`${g.userId}:${g.planId}`) ?? 0;
+      agg.revenueUsd +=
+        (g._sum.priceUsd ?? 0) + missing * (priceOf.get(g.planId) ?? 0);
       agg.purchases += count;
       agg.byPlan.set(g.planId, (agg.byPlan.get(g.planId) ?? 0) + count);
 
@@ -1428,7 +1471,7 @@ export class AdminService {
       p.userId,
       p.user?.email ?? 'Wallet',
       p.plan?.priceUsd ? '$' + p.plan.priceUsd : 'Custom',
-      p.priceUsd,
+      p.priceUsd ?? p.plan?.priceUsd ?? 0,
       p.status,
       p.txHash ?? 'N/A',
       p.createdAt.toISOString(),
@@ -1447,7 +1490,8 @@ export class AdminService {
     const plans = await this.prisma.boosterPlan.findMany({
       orderBy: { priceUsd: 'asc' },
     });
-    const payers = (await this.payerAggregates()).slice(0, CSV_MAX_ROWS);
+    const priceOf = new Map(plans.map((p) => [p.id, p.priceUsd]));
+    const payers = (await this.payerAggregates(priceOf)).slice(0, CSV_MAX_ROWS);
 
     const profiles = payers.length
       ? await this.prisma.user.findMany({
@@ -1612,7 +1656,7 @@ export class AdminService {
       userEmail: p.user?.email ?? 'Wallet Payer',
       planId: p.planId,
       // What this buyer was quoted, not what the plan costs today.
-      planPriceUsd: p.priceUsd,
+      planPriceUsd: p.priceUsd ?? p.plan?.priceUsd ?? 0,
       rateBonusPoints: (p.plan?.rateBonusMilli ?? 0) / 1000,
       tokenSymbol: p.tokenSymbol,
       expectedAmount: p.expectedAmount,

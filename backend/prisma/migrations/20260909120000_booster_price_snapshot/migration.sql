@@ -5,14 +5,16 @@
 -- takings. Backfill from the plan, then make the column required: from here
 -- the quote carries its own price, like it already carries its own token
 -- amount and payee.
+-- The column stays nullable: deployment syncs with `prisma db push`, which
+-- would refuse a required column on a table that already has rows. Reporting
+-- falls back to the plan price wherever this is null, so a database that
+-- never runs this backfill still reads correctly.
 ALTER TABLE "BoosterPurchase" ADD COLUMN "priceUsd" INTEGER;
 
 UPDATE "BoosterPurchase" bp
 SET "priceUsd" = p."priceUsd"
 FROM "BoosterPlan" p
 WHERE p."id" = bp."planId";
-
-ALTER TABLE "BoosterPurchase" ALTER COLUMN "priceUsd" SET NOT NULL;
 
 -- Revenue reads walk confirmed purchases by confirmation date.
 CREATE INDEX "BoosterPurchase_status_confirmedAt_idx"
