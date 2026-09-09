@@ -15,6 +15,16 @@ interface AnalyticsTabProps {
 
 type Timeframe = '24h' | '7d' | '30d';
 
+/**
+ * Bar height as a percentage of the tallest bar in view. Anything above zero
+ * keeps a visible minimum so a small day is still hoverable; a zero day
+ * genuinely draws nothing.
+ */
+function barHeight(value: number, max: number): number {
+  if (value <= 0) return 0;
+  return Math.max(6, Math.round((value / max) * 100));
+}
+
 /** Whole dollars — the dashboard strip is a glance, not an invoice. */
 function usd(n: number): string {
   return n.toLocaleString('en-US', {
@@ -284,8 +294,11 @@ export function AnalyticsTab({
             <div className="space-y-2">
               <div className="flex h-44 items-end gap-1.5 sm:gap-2 pt-4">
                 {history.map((h, i) => {
-                  const signupHeight = Math.max(12, Math.round((h.newUsers / maxUsersInPeriod) * 100));
-                  const pointsHeight = Math.max(12, Math.round((h.pointsMined / maxPointsInPeriod) * 100));
+                  // A day with nothing on it draws nothing. The old floor of
+                  // 12% gave every empty day a visible stub, which read as
+                  // activity that never happened.
+                  const signupHeight = barHeight(h.newUsers, maxUsersInPeriod);
+                  const pointsHeight = barHeight(h.pointsMined, maxPointsInPeriod);
 
                   return (
                     <div key={i} className="group relative flex flex-1 flex-col items-center h-full justify-end">
@@ -296,8 +309,12 @@ export function AnalyticsTab({
                         <div className="text-cyan-400 font-bold">+{h.pointsMined} PTS</div>
                       </div>
 
-                      {/* Stacked / Twin Bars */}
-                      <div className="flex w-full items-end justify-center gap-0.5">
+                      {/* Stacked / Twin Bars.
+                          `h-32` is load-bearing: the bars are sized in
+                          percentages, and a percentage height resolves to
+                          `auto` — so, on an empty div, to nothing at all —
+                          unless its container's own height is definite. */}
+                      <div className="flex h-32 w-full items-end justify-center gap-0.5">
                         <div
                           className="w-1/2 rounded-t-sm bg-gradient-to-t from-amber-600 to-amber-400 transition-all duration-300 group-hover:brightness-125"
                           style={{ height: `${signupHeight}%` }}

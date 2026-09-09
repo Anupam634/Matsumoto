@@ -331,10 +331,16 @@ export function RevenueTab() {
                       </div>
                     </div>
 
-                    <div
-                      className="w-full rounded-t-sm bg-gradient-to-t from-emerald-700 to-emerald-400 transition-all duration-300 group-hover:brightness-125"
-                      style={{ height: `${height}%` }}
-                    />
+                    {/* Fixed-height track. The bar is sized in percent, so
+                        its container needs a definite height for that to
+                        resolve — and it keeps a full bar from overflowing
+                        the chart once the label is added below it. */}
+                    <div className="flex h-40 w-full items-end">
+                      <div
+                        className="w-full rounded-t-sm bg-gradient-to-t from-emerald-700 to-emerald-400 transition-all duration-300 group-hover:brightness-125"
+                        style={{ height: `${height}%` }}
+                      />
+                    </div>
                     <div className="mt-2 h-3 truncate font-mono text-[9px] text-slate-500">
                       {grain === 'daily' && i % 3 !== 0 ? '' : b.label}
                     </div>
