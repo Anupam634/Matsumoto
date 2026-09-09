@@ -49,6 +49,7 @@ export function AdminSidebar({
       items: [
         { key: 'withdrawals' as AdminTab, label: 'Withdrawals Queue', icon: '💸', badge: stats?.pendingWithdrawals ? `${stats.pendingWithdrawals}` : null },
         { key: 'payments' as AdminTab, label: 'Booster Payments', icon: '💳', badge: null },
+        { key: 'revenue' as AdminTab, label: 'Revenue Analytics', icon: '💰', badge: 'USD' },
         { key: 'blockchain' as AdminTab, label: 'Blockchain & BSC', icon: '⛓️', badge: 'BEP-20' },
       ],
     },

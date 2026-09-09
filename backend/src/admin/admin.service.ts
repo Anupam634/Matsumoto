@@ -2,6 +2,13 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import { toCsv, CSV_MAX_ROWS } from '../common/csv';
+import {
+  bucketKey,
+  bucketLabel,
+  bucketStart,
+  startOfUtcDay,
+  type Grain,
+} from '../common/revenue-buckets';
 import { TtlCache } from '../common/ttl-cache';
 import { verifyPassword } from '../auth/password';
 import {
@@ -15,9 +22,22 @@ const ACTIVE_WINDOW_MS = 24 * 3_600_000;
 /** Referral tree depth — matches the 6 referral levels in SPEC §2. */
 const TREE_DEPTH = 6;
 
+/** How far back the revenue time-series and period comparisons reach. */
+const REVENUE_WINDOW_DAYS = 400;
+/**
+ * Payers returned inline on the analytics endpoint. The full table — every
+ * miner who ever paid — is the CSV export, so the JSON stays a fixed size.
+ */
+const TOP_PAYERS_LIMIT = 100;
+
 /** Money and percentages are display values — two decimals, never a float tail. */
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/** `part` as a percentage of `whole`; 0 rather than NaN when there is no whole. */
+function pct(part: number, whole: number): number {
+  return whole > 0 ? round2((part / whole) * 100) : 0;
 }
 
 export interface AdminUserRow {
@@ -47,6 +67,72 @@ export interface TreeNode {
   isBlocked: boolean;
   createdAt: Date;
   children: TreeNode[];
+}
+
+// ─────────────────── Booster revenue analytics ──────────────────
+
+/** One bucket of the revenue time-series (a day, an ISO week, or a month). */
+export interface RevenueBucket {
+  /** Stable bucket id — 'YYYY-MM-DD' for day/week starts, 'YYYY-MM' for months. */
+  key: string;
+  /** Short axis label. */
+  label: string;
+  /** UTC instant the bucket opens, for charts that need a real date. */
+  start: string;
+  revenueUsd: number;
+  purchases: number;
+  payingUsers: number;
+}
+
+/** Revenue over one named window, with the window before it for comparison. */
+export interface RevenuePeriod {
+  key: 'today' | 'week' | 'month' | 'year';
+  label: string;
+  revenueUsd: number;
+  purchases: number;
+  payingUsers: number;
+  /** Same-length window immediately before this one. */
+  previousRevenueUsd: number;
+  /** Percent change vs. the previous window; null when it had no revenue. */
+  changePct: number | null;
+}
+
+/** What one plan (the "category" a booster is sold under) has earned. */
+export interface RevenueByCategory {
+  planId: string;
+  label: string;
+  priceUsd: number;
+  rateBonusPoints: number;
+  durationDays: number;
+  active: boolean;
+  confirmedPurchases: number;
+  awaitingPayment: number;
+  failed: number;
+  expired: number;
+  /** Distinct miners who have ever bought this plan. */
+  uniqueBuyers: number;
+  /** Boosters from this plan that have not expired yet. */
+  activeBoosters: number;
+  revenueUsd: number;
+  shareOfRevenuePct: number;
+}
+
+/** One paying miner: how much they have spent, and on what. */
+export interface RevenueByUser {
+  rank: number;
+  userId: string;
+  email: string | null;
+  walletAddress: string | null;
+  countryCode: string | null;
+  isBlocked: boolean;
+  joinedAt: string | null;
+  revenueUsd: number;
+  purchases: number;
+  firstPurchaseAt: string | null;
+  lastPurchaseAt: string | null;
+  /** Per-plan split, cheapest first. */
+  plans: { planId: string; label: string; priceUsd: number; count: number }[];
+  shareOfRevenuePct: number;
 }
 
 @Injectable()
@@ -597,21 +683,472 @@ export class AdminService {
     }));
   }
 
+  // ─────────────────── Booster revenue analytics ──────────────────
+
+  /**
+   * Everything the panel needs to answer "who paid us, how much, for which
+   * plan, and when" — totals, day/week/month series, per-plan split and the
+   * per-miner spend table.
+   *
+   * Cached alongside `stats()`: the revenue tab polls, and none of these
+   * aggregates move second to second.
+   */
+  revenueAnalytics() {
+    return this.cache.wrap('revenue-analytics', () =>
+      this.computeRevenueAnalytics(),
+    );
+  }
+
+  private async computeRevenueAnalytics() {
+    const now = new Date();
+    const windowStart = new Date(now.getTime() - REVENUE_WINDOW_DAYS * 86_400_000);
+
+    // The plan catalogue is tiny and every other aggregate needs its prices
+    // to turn a purchase count into money, so it is fetched up front.
+    const plans = await this.prisma.boosterPlan.findMany({
+      orderBy: { priceUsd: 'asc' },
+    });
+    const priceOf = new Map(plans.map((p) => [p.id, p.priceUsd]));
+    const labelOf = (planId: string) => `$${priceOf.get(planId) ?? 0} Booster`;
+
+    const [byStatusPlan, payers, windowRows, activeByPlan, totalUsers, recentRows] =
+      await Promise.all([
+        // All-time money, counted as (purchases per plan × that plan's price)
+        // so no per-row scan is needed.
+        this.prisma.boosterPurchase.groupBy({
+          by: ['status', 'planId'],
+          _count: { _all: true },
+        }),
+        this.payerAggregates(priceOf),
+        // Only CONFIRMED rows inside the window, and only the four columns the
+        // buckets need. `confirmedAt` is what a payment is dated by; the
+        // `createdAt` arm keeps a row whose confirmation was backfilled.
+        this.prisma.boosterPurchase.findMany({
+          where: {
+            status: 'CONFIRMED',
+            OR: [
+              { confirmedAt: { gte: windowStart } },
+              { confirmedAt: null, createdAt: { gte: windowStart } },
+            ],
+          },
+          select: {
+            userId: true,
+            planId: true,
+            tokenSymbol: true,
+            confirmedAt: true,
+            createdAt: true,
+          },
+          take: 200_000,
+        }),
+        this.prisma.booster.groupBy({
+          by: ['planId'],
+          where: { expiresAt: { gt: now } },
+          _count: { _all: true },
+        }),
+        this.prisma.user.count(),
+        this.prisma.boosterPurchase.findMany({
+          where: { status: 'CONFIRMED' },
+          // Postgres sorts NULLs first on DESC. Both confirmation paths do
+          // stamp `confirmedAt`, but a row that somehow missed one must not
+          // therefore lead the "latest payments" list.
+          orderBy: { confirmedAt: { sort: 'desc', nulls: 'last' } },
+          take: 12,
+          select: {
+            id: true,
+            userId: true,
+            planId: true,
+            tokenSymbol: true,
+            expectedAmount: true,
+            txHash: true,
+            confirmedAt: true,
+            createdAt: true,
+            user: { select: { email: true, countryCode: true } },
+          },
+        }),
+      ]);
+
+    // ── All-time totals, and the per-plan status split ──
+    const statusOf = new Map<string, Record<string, number>>();
+    let revenueUsd = 0;
+    let confirmedPurchases = 0;
+    let awaitingPayment = 0;
+    let awaitingPaymentUsd = 0;
+    let failed = 0;
+    let expired = 0;
+
+    for (const g of byStatusPlan) {
+      const count = g._count._all;
+      const value = count * (priceOf.get(g.planId) ?? 0);
+      const split = statusOf.get(g.planId) ?? {};
+      split[g.status] = (split[g.status] ?? 0) + count;
+      statusOf.set(g.planId, split);
+
+      if (g.status === 'CONFIRMED') {
+        revenueUsd += value;
+        confirmedPurchases += count;
+      } else if (g.status === 'AWAITING_PAYMENT') {
+        awaitingPayment += count;
+        awaitingPaymentUsd += value;
+      } else if (g.status === 'FAILED') {
+        failed += count;
+      } else {
+        expired += count;
+      }
+    }
+
+    // ── Per-plan ("category") breakdown ──
+    const activeOf = new Map(activeByPlan.map((a) => [a.planId, a._count._all]));
+    const buyersOf = new Map<string, number>();
+    for (const p of payers) {
+      for (const planId of p.byPlan.keys()) {
+        buyersOf.set(planId, (buyersOf.get(planId) ?? 0) + 1);
+      }
+    }
+
+    const byCategory: RevenueByCategory[] = plans
+      .map((p) => {
+        const split = statusOf.get(p.id) ?? {};
+        const confirmed = split.CONFIRMED ?? 0;
+        const planRevenue = confirmed * p.priceUsd;
+        return {
+          planId: p.id,
+          label: `$${p.priceUsd} Booster`,
+          priceUsd: p.priceUsd,
+          rateBonusPoints: p.rateBonusMilli / 1000,
+          durationDays: p.durationDays,
+          active: p.active,
+          confirmedPurchases: confirmed,
+          awaitingPayment: split.AWAITING_PAYMENT ?? 0,
+          failed: split.FAILED ?? 0,
+          expired: split.EXPIRED ?? 0,
+          uniqueBuyers: buyersOf.get(p.id) ?? 0,
+          activeBoosters: activeOf.get(p.id) ?? 0,
+          revenueUsd: planRevenue,
+          shareOfRevenuePct: pct(planRevenue, revenueUsd),
+        };
+      })
+      .sort((a, b) => b.revenueUsd - a.revenueUsd || b.priceUsd - a.priceUsd);
+
+    // ── Time-series ──
+    // One flat list of dated, priced payments drives every bucket below.
+    const events = windowRows.map((r) => ({
+      at: r.confirmedAt ?? r.createdAt,
+      userId: r.userId,
+      tokenSymbol: r.tokenSymbol,
+      usd: priceOf.get(r.planId) ?? 0,
+    }));
+
+    const series = {
+      daily: this.bucketRevenue(events, 'daily', 30, now),
+      weekly: this.bucketRevenue(events, 'weekly', 12, now),
+      monthly: this.bucketRevenue(events, 'monthly', 12, now),
+    };
+
+    // ── Named periods, each against the window immediately before it ──
+    const day = 86_400_000;
+    const spanTotals = (fromMs: number, toMs: number) => {
+      let usd = 0;
+      let purchases = 0;
+      const users = new Set<string>();
+      for (const e of events) {
+        const t = e.at.getTime();
+        if (t >= fromMs && t < toMs) {
+          usd += e.usd;
+          purchases += 1;
+          users.add(e.userId);
+        }
+      }
+      return { revenueUsd: usd, purchases, payingUsers: users.size };
+    };
+
+    const startOfToday = startOfUtcDay(now).getTime();
+    const nowMs = now.getTime() + 1;
+    const periodWindow = (label: RevenuePeriod['label'], key: RevenuePeriod['key'], fromMs: number, toMs: number): RevenuePeriod => {
+      const current = spanTotals(fromMs, toMs);
+      const previous = spanTotals(fromMs - (toMs - fromMs), fromMs);
+      return {
+        key,
+        label,
+        ...current,
+        previousRevenueUsd: previous.revenueUsd,
+        changePct:
+          previous.revenueUsd > 0
+            ? round2(
+                ((current.revenueUsd - previous.revenueUsd) / previous.revenueUsd) * 100,
+              )
+            : null,
+      };
+    };
+
+    const periods: RevenuePeriod[] = [
+      periodWindow('Today', 'today', startOfToday, startOfToday + day),
+      periodWindow('Last 7 days', 'week', nowMs - 7 * day, nowMs),
+      periodWindow('Last 30 days', 'month', nowMs - 30 * day, nowMs),
+      {
+        key: 'year',
+        label: 'Last 12 months',
+        ...spanTotals(nowMs - 365 * day, nowMs),
+        previousRevenueUsd: 0,
+        changePct: null,
+      },
+    ];
+
+    // ── Which token miners actually paid with (inside the window) ──
+    const tokens = new Map<string, { purchases: number; revenueUsd: number }>();
+    for (const e of events) {
+      const symbol = e.tokenSymbol || 'UNKNOWN';
+      const row = tokens.get(symbol) ?? { purchases: 0, revenueUsd: 0 };
+      row.purchases += 1;
+      row.revenueUsd += e.usd;
+      tokens.set(symbol, row);
+    }
+    const byToken = Array.from(tokens.entries())
+      .map(([tokenSymbol, row]) => ({ tokenSymbol, ...row }))
+      .sort((a, b) => b.revenueUsd - a.revenueUsd);
+
+    // ── Per-miner spend table (top payers inline; all of them via CSV) ──
+    const top = payers.slice(0, TOP_PAYERS_LIMIT);
+    const profiles = top.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: top.map((p) => p.userId) } },
+          select: {
+            id: true,
+            email: true,
+            walletAddress: true,
+            countryCode: true,
+            isBlocked: true,
+            createdAt: true,
+          },
+        })
+      : [];
+    const profileOf = new Map(profiles.map((u) => [u.id, u]));
+
+    const topPayers: RevenueByUser[] = top.map((p, i) =>
+      this.toPayerRow(p, i + 1, revenueUsd, labelOf, priceOf, profileOf.get(p.userId)),
+    );
+
+    return {
+      generatedAt: now.toISOString(),
+      windowDays: REVENUE_WINDOW_DAYS,
+      totals: {
+        revenueUsd: round2(revenueUsd),
+        confirmedPurchases,
+        awaitingPayment,
+        awaitingPaymentUsd: round2(awaitingPaymentUsd),
+        failed,
+        expired,
+        payingUsers: payers.length,
+        totalUsers,
+        /** Average revenue per *paying* user. */
+        arppuUsd: payers.length ? round2(revenueUsd / payers.length) : 0,
+        averageOrderUsd: confirmedPurchases
+          ? round2(revenueUsd / confirmedPurchases)
+          : 0,
+        /** Share of all registered miners who have ever paid. */
+        payerConversionPct: pct(payers.length, totalUsers),
+        activeBoosters: Array.from(activeOf.values()).reduce((a, b) => a + b, 0),
+      },
+      periods,
+      series,
+      byCategory,
+      byToken,
+      topPayers,
+      recentPayments: recentRows.map((r) => ({
+        id: r.id,
+        userId: r.userId,
+        userEmail: r.user?.email ?? null,
+        countryCode: r.user?.countryCode ?? null,
+        label: labelOf(r.planId),
+        priceUsd: priceOf.get(r.planId) ?? 0,
+        tokenSymbol: r.tokenSymbol,
+        expectedAmount: r.expectedAmount,
+        txHash: r.txHash,
+        paidAt: (r.confirmedAt ?? r.createdAt).toISOString(),
+      })),
+    };
+  }
+
+  /**
+   * Every miner who has ever completed a booster payment, richest first.
+   *
+   * Grouped in the database by (user, plan) rather than read row by row: the
+   * money for a group is `count × plan price`, so the whole spend table costs
+   * one grouped scan no matter how many purchases there are.
+   */
+  private async payerAggregates(priceOf: Map<string, number>) {
+    const groups = await this.prisma.boosterPurchase.groupBy({
+      by: ['userId', 'planId'],
+      where: { status: 'CONFIRMED' },
+      _count: { _all: true },
+      _min: { confirmedAt: true },
+      _max: { confirmedAt: true },
+    });
+
+    const payers = new Map<
+      string,
+      {
+        userId: string;
+        revenueUsd: number;
+        purchases: number;
+        firstPurchaseAt: Date | null;
+        lastPurchaseAt: Date | null;
+        byPlan: Map<string, number>;
+      }
+    >();
+
+    for (const g of groups) {
+      const agg =
+        payers.get(g.userId) ??
+        {
+          userId: g.userId,
+          revenueUsd: 0,
+          purchases: 0,
+          firstPurchaseAt: null as Date | null,
+          lastPurchaseAt: null as Date | null,
+          byPlan: new Map<string, number>(),
+        };
+
+      const count = g._count._all;
+      agg.revenueUsd += count * (priceOf.get(g.planId) ?? 0);
+      agg.purchases += count;
+      agg.byPlan.set(g.planId, (agg.byPlan.get(g.planId) ?? 0) + count);
+
+      const first = g._min.confirmedAt;
+      if (first && (!agg.firstPurchaseAt || first < agg.firstPurchaseAt)) {
+        agg.firstPurchaseAt = first;
+      }
+      const last = g._max.confirmedAt;
+      if (last && (!agg.lastPurchaseAt || last > agg.lastPurchaseAt)) {
+        agg.lastPurchaseAt = last;
+      }
+
+      payers.set(g.userId, agg);
+    }
+
+    return Array.from(payers.values()).sort(
+      (a, b) => b.revenueUsd - a.revenueUsd || b.purchases - a.purchases,
+    );
+  }
+
+  private toPayerRow(
+    p: {
+      userId: string;
+      revenueUsd: number;
+      purchases: number;
+      firstPurchaseAt: Date | null;
+      lastPurchaseAt: Date | null;
+      byPlan: Map<string, number>;
+    },
+    rank: number,
+    totalRevenueUsd: number,
+    labelOf: (planId: string) => string,
+    priceOf: Map<string, number>,
+    profile?: {
+      email: string | null;
+      walletAddress: string | null;
+      countryCode: string | null;
+      isBlocked: boolean;
+      createdAt: Date;
+    },
+  ): RevenueByUser {
+    return {
+      rank,
+      userId: p.userId,
+      email: profile?.email ?? null,
+      walletAddress: profile?.walletAddress ?? null,
+      countryCode: profile?.countryCode ?? null,
+      isBlocked: profile?.isBlocked ?? false,
+      joinedAt: profile?.createdAt.toISOString() ?? null,
+      revenueUsd: round2(p.revenueUsd),
+      purchases: p.purchases,
+      firstPurchaseAt: p.firstPurchaseAt?.toISOString() ?? null,
+      lastPurchaseAt: p.lastPurchaseAt?.toISOString() ?? null,
+      plans: Array.from(p.byPlan.entries())
+        .map(([planId, count]) => ({
+          planId,
+          label: labelOf(planId),
+          priceUsd: priceOf.get(planId) ?? 0,
+          count,
+        }))
+        .sort((a, b) => a.priceUsd - b.priceUsd),
+      shareOfRevenuePct: pct(p.revenueUsd, totalRevenueUsd),
+    };
+  }
+
+  /**
+   * Fold dated payments into a fixed run of buckets ending with the current
+   * one. The empty buckets are laid out first so a quiet day still shows up
+   * as a zero on the chart instead of vanishing from the axis.
+   */
+  private bucketRevenue(
+    events: { at: Date; userId: string; usd: number }[],
+    grain: Grain,
+    count: number,
+    now: Date,
+  ): RevenueBucket[] {
+    const starts: Date[] = [];
+    for (let i = count - 1; i >= 0; i--) {
+      starts.push(bucketStart(now, grain, -i));
+    }
+
+    const slots = new Map<
+      string,
+      { bucket: RevenueBucket; users: Set<string> }
+    >();
+    for (const start of starts) {
+      const key = bucketKey(start, grain);
+      slots.set(key, {
+        bucket: {
+          key,
+          label: bucketLabel(start, grain),
+          start: start.toISOString(),
+          revenueUsd: 0,
+          purchases: 0,
+          payingUsers: 0,
+        },
+        users: new Set<string>(),
+      });
+    }
+
+    for (const e of events) {
+      const slot = slots.get(bucketKey(bucketStart(e.at, grain, 0), grain));
+      if (!slot) continue; // older than the window this grain covers
+      slot.bucket.revenueUsd += e.usd;
+      slot.bucket.purchases += 1;
+      slot.users.add(e.userId);
+    }
+
+    return Array.from(slots.values()).map(({ bucket, users }) => ({
+      ...bucket,
+      revenueUsd: round2(bucket.revenueUsd),
+      payingUsers: users.size,
+    }));
+  }
+
   // ──────────────────────── Real Reports & CSV ───────────────────────
 
   async getReportsSummary() {
-    const [usersCount, ledgerCount, withdrawalsCount, kycCount, boostersCount] =
-      await Promise.all([
-        this.prisma.user.count(),
-        this.prisma.ledgerEntry.count(),
-        this.prisma.withdrawal.count(),
-        this.prisma.kycRecord.count(),
-        this.prisma.boosterPurchase.count(),
-      ]);
-
-    const referralsCount = await this.prisma.user.count({
-      where: { referredById: { not: null } },
-    });
+    const [
+      usersCount,
+      ledgerCount,
+      withdrawalsCount,
+      kycCount,
+      boostersCount,
+      referralsCount,
+      payers,
+    ] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.ledgerEntry.count(),
+      this.prisma.withdrawal.count(),
+      this.prisma.kycRecord.count(),
+      this.prisma.boosterPurchase.count(),
+      this.prisma.user.count({ where: { referredById: { not: null } } }),
+      // One group per paying miner — the row count of the per-user export.
+      this.prisma.boosterPurchase.groupBy({
+        by: ['userId'],
+        where: { status: 'CONFIRMED' },
+      }),
+    ]);
 
     return {
       usersCount,
@@ -620,6 +1157,7 @@ export class AdminService {
       referralsCount,
       kycCount,
       revenueCount: boostersCount,
+      payingUsersCount: payers.length,
     };
   }
 
@@ -821,6 +1359,70 @@ export class AdminService {
       p.createdAt.toISOString(),
       p.confirmedAt ? p.confirmedAt.toISOString() : 'N/A',
     ]);
+
+    return toCsv(headers, rows);
+  }
+
+
+  /**
+   * Per-miner booster spend — one row per paying account rather than one per
+   * purchase, so the sheet answers "which user paid how much" directly.
+   */
+  async exportRevenueByUserCsv(): Promise<string> {
+    const plans = await this.prisma.boosterPlan.findMany({
+      orderBy: { priceUsd: 'asc' },
+    });
+    const priceOf = new Map(plans.map((p) => [p.id, p.priceUsd]));
+    const payers = (await this.payerAggregates(priceOf)).slice(0, CSV_MAX_ROWS);
+
+    const profiles = payers.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: payers.map((p) => p.userId) } },
+          select: {
+            id: true,
+            email: true,
+            walletAddress: true,
+            countryCode: true,
+            isBlocked: true,
+            createdAt: true,
+          },
+        })
+      : [];
+    const profileOf = new Map(profiles.map((u) => [u.id, u]));
+
+    // A column per plan, so the split by category reads across the row.
+    const headers = [
+      'Rank',
+      'User ID',
+      'Email',
+      'Wallet Address',
+      'Country',
+      'Is Suspended',
+      'Registered At',
+      'Total Paid (USD)',
+      'Purchases',
+      'First Purchase',
+      'Last Purchase',
+      ...plans.map((p) => `$${p.priceUsd} Booster (qty)`),
+    ];
+
+    const rows = payers.map((p, i) => {
+      const u = profileOf.get(p.userId);
+      return [
+        i + 1,
+        p.userId,
+        u?.email ?? 'Wallet',
+        u?.walletAddress ?? '',
+        u?.countryCode ?? 'Global',
+        u?.isBlocked ? 'YES' : 'NO',
+        u?.createdAt.toISOString() ?? '',
+        round2(p.revenueUsd).toFixed(2),
+        p.purchases,
+        p.firstPurchaseAt?.toISOString() ?? '',
+        p.lastPurchaseAt?.toISOString() ?? '',
+        ...plans.map((plan) => p.byPlan.get(plan.id) ?? 0),
+      ];
+    });
 
     return toCsv(headers, rows);
   }

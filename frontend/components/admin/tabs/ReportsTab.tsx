@@ -6,6 +6,7 @@ import {
   downloadReportCsv,
   ApiError,
   type AdminReportsSummary,
+  type AdminReportType,
 } from '../../../lib/admin-api';
 
 export function ReportsTab() {
@@ -28,10 +29,7 @@ export function ReportsTab() {
     loadSummary();
   }, [loadSummary]);
 
-  async function handleExport(
-    id: 'users' | 'mining' | 'withdrawals' | 'referrals' | 'kyc' | 'revenue',
-    name: string,
-  ) {
+  async function handleExport(id: AdminReportType, name: string) {
     setDownloading(id);
     setError(null);
     try {
@@ -46,7 +44,7 @@ export function ReportsTab() {
   }
 
   const reports: {
-    id: 'users' | 'mining' | 'withdrawals' | 'referrals' | 'kyc' | 'revenue';
+    id: AdminReportType;
     title: string;
     desc: string;
     count: number;
@@ -93,6 +91,13 @@ export function ReportsTab() {
       desc: 'On-chain hashrate booster package payments, transaction hashes, and confirmed revenues.',
       count: summary?.revenueCount ?? 0,
       badge: 'Purchases',
+    },
+    {
+      id: 'revenue-by-user',
+      title: '🧾 Spend Per Paying Miner',
+      desc: 'One row per paying miner: total USD paid, purchase count, first and last payment, and the quantity bought of every booster category.',
+      count: summary?.payingUsersCount ?? 0,
+      badge: 'Payers',
     },
   ];
 

@@ -10,6 +10,7 @@ export type AdminTab =
   | 'marketplace'
   | 'tasks'
   | 'payments'
+  | 'revenue'
   | 'support'
   | 'cms'
   | 'reports'

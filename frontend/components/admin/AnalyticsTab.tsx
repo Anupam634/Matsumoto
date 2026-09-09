@@ -1,18 +1,55 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import type { AdminStats } from '../../lib/admin-api';
+import React, { useState, useMemo, useEffect } from 'react';
+import {
+  getRevenueAnalytics,
+  type AdminRevenueAnalytics,
+  type AdminStats,
+} from '../../lib/admin-api';
 import { countryFlag, countryName } from '../../lib/countries';
 
 interface AnalyticsTabProps {
   stats: AdminStats | null;
   onRefresh: () => void;
+  /** Jumps to the full revenue tab. */
+  onOpenRevenue?: () => void;
 }
 
 type Timeframe = '24h' | '7d' | '30d';
 
-export function AnalyticsTab({ stats, onRefresh }: AnalyticsTabProps) {
+/** Whole dollars — the dashboard strip is a glance, not an invoice. */
+function usd(n: number): string {
+  return n.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  });
+}
+
+export function AnalyticsTab({ stats, onRefresh, onOpenRevenue }: AnalyticsTabProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>('7d');
+  const [revenue, setRevenue] = useState<AdminRevenueAnalytics | null>(null);
+
+  // Booster money is its own aggregate, and the server caches it, so the
+  // dashboard reads it directly instead of widening the stats payload.
+  useEffect(() => {
+    let alive = true;
+    getRevenueAnalytics()
+      .then((r) => {
+        if (alive) setRevenue(r);
+      })
+      .catch(() => {
+        // The strip simply stays hidden; the revenue tab reports the error.
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const revenuePeriod = useMemo(() => {
+    const key = timeframe === '24h' ? 'today' : timeframe === '7d' ? 'week' : 'month';
+    return revenue?.periods.find((p) => p.key === key) ?? null;
+  }, [revenue, timeframe]);
   const totalBalance = stats?.totalBalancePoints ?? 0;
   const tokenEquivalent = totalBalance / 3;
   const estUsdValue = tokenEquivalent * 0.15; // Benchmark market estimate
@@ -154,6 +191,83 @@ export function AnalyticsTab({ stats, onRefresh }: AnalyticsTabProps) {
           </div>
         </div>
       </div>
+
+      {/* ───────────────── Booster Revenue Snapshot ───────────────── */}
+      {revenue && (
+        <div className="card border-emerald-500/20 bg-slate-900/80 p-6 backdrop-blur-md">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-3">
+            <div>
+              <h3 className="text-sm font-black uppercase tracking-wider text-white">
+                💰 Booster Revenue ({timeframe === '24h' ? 'Today' : timeframe === '7d' ? 'Last 7 Days' : 'Last 30 Days'})
+              </h3>
+              <p className="text-xs text-slate-400">
+                Confirmed on-chain booster payments — who paid, for which plan, and how much
+              </p>
+            </div>
+            {onOpenRevenue && (
+              <button
+                onClick={onOpenRevenue}
+                className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-2 text-xs font-bold text-emerald-300 transition hover:bg-emerald-500/20"
+              >
+                Full revenue breakdown →
+              </button>
+            )}
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+              <div className="text-[11px] font-bold uppercase text-slate-400">
+                Collected In Period
+              </div>
+              <div className="mt-1.5 text-2xl font-black tabular-nums text-emerald-400">
+                {usd(revenuePeriod?.revenueUsd ?? 0)}
+              </div>
+              <div className="mt-1 text-[11px] text-slate-400">
+                {revenuePeriod?.purchases ?? 0} payments from{' '}
+                {revenuePeriod?.payingUsers ?? 0} miners
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+              <div className="text-[11px] font-bold uppercase text-slate-400">
+                All-Time Revenue
+              </div>
+              <div className="mt-1.5 text-2xl font-black tabular-nums text-white">
+                {usd(revenue.totals.revenueUsd)}
+              </div>
+              <div className="mt-1 text-[11px] text-slate-400">
+                {revenue.totals.confirmedPurchases} boosters sold
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+              <div className="text-[11px] font-bold uppercase text-slate-400">
+                Paying Miners
+              </div>
+              <div className="mt-1.5 text-2xl font-black tabular-nums text-amber-400">
+                {revenue.totals.payingUsers}
+              </div>
+              <div className="mt-1 text-[11px] text-slate-400">
+                {revenue.totals.payerConversionPct}% conversion ·{' '}
+                {usd(revenue.totals.arppuUsd)} each
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+              <div className="text-[11px] font-bold uppercase text-slate-400">
+                Top Category
+              </div>
+              <div className="mt-1.5 text-2xl font-black tabular-nums text-cyan-400">
+                {revenue.byCategory[0]?.label ?? '—'}
+              </div>
+              <div className="mt-1 text-[11px] text-slate-400">
+                {usd(revenue.byCategory[0]?.revenueUsd ?? 0)} ·{' '}
+                {revenue.byCategory[0]?.shareOfRevenuePct ?? 0}% of revenue
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ───────────────── Interactive Growth Time-Series Chart ───────────────── */}
       <div className="card border-slate-800 bg-slate-900/80 p-6 shadow-2xl backdrop-blur-md">

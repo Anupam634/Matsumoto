@@ -166,6 +166,15 @@ export class AdminSecureController {
       : this.withdrawals.reject(id, dto.note ?? 'Rejected by admin.');
   }
 
+  /**
+   * GET /api/admin/analytics/revenue — booster money: totals, day/week/month
+   * series, the per-plan split, and which miner paid how much.
+   */
+  @Get('analytics/revenue')
+  revenueAnalytics() {
+    return this.admin.revenueAnalytics();
+  }
+
   // ───────────────────── Real Database Reports ────────────────────
 
   @Get('reports/summary')
@@ -207,6 +216,12 @@ export class AdminSecureController {
   async exportRevenue() {
     const csv = await this.admin.exportRevenueCsv();
     return { csv, filename: `matsumoto_revenue_${Date.now()}.csv` };
+  }
+
+  @Get('reports/revenue-by-user/csv')
+  async exportRevenueByUser() {
+    const csv = await this.admin.exportRevenueByUserCsv();
+    return { csv, filename: `matsumoto_revenue_by_user_${Date.now()}.csv` };
   }
 
   // ───────────────────── Booster Plans & Transactions ─────────────────────

@@ -23,6 +23,7 @@ import { BoostersAdminTab } from '../../../components/admin/BoostersAdminTab';
 import { ReferralsAdminTab } from '../../../components/admin/ReferralsAdminTab';
 import { WithdrawalsTab } from '../../../components/admin/WithdrawalsTab';
 import { PaymentsTab } from '../../../components/admin/tabs/PaymentsTab';
+import { RevenueTab } from '../../../components/admin/tabs/RevenueTab';
 import { BlockchainTab } from '../../../components/admin/tabs/BlockchainTab';
 import { TasksTab } from '../../../components/admin/TasksTab';
 import { SupportTab } from '../../../components/admin/SupportTab';
@@ -104,7 +105,13 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
               </div>
             )}
 
-            {tab === 'dashboard' && <AnalyticsTab stats={stats} onRefresh={loadStats} />}
+            {tab === 'dashboard' && (
+              <AnalyticsTab
+                stats={stats}
+                onRefresh={loadStats}
+                onOpenRevenue={() => setTab('revenue')}
+              />
+            )}
             {tab === 'users' && <MinersTab onChanged={loadStats} onUnauthorized={onSignOut} />}
             {tab === 'kyc' && <KycTab onUnauthorized={onSignOut} />}
             {tab === 'mining-engine' && <MiningEngineTab />}
@@ -112,6 +119,7 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
             {tab === 'referrals' && <ReferralsAdminTab />}
             {tab === 'withdrawals' && <WithdrawalsTab onChanged={loadStats} onUnauthorized={onSignOut} />}
             {tab === 'payments' && <PaymentsTab />}
+            {tab === 'revenue' && <RevenueTab />}
             {tab === 'blockchain' && <BlockchainTab />}
             {tab === 'marketplace' && <MarketplaceAdminTab />}
             {tab === 'tasks' && <TasksTab onUnauthorized={onSignOut} />}

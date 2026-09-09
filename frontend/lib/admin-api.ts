@@ -342,14 +342,23 @@ export interface AdminReportsSummary {
   referralsCount: number;
   kycCount: number;
   revenueCount: number;
+  /** Distinct miners with at least one confirmed booster payment. */
+  payingUsersCount: number;
 }
+
+export type AdminReportType =
+  | 'users'
+  | 'mining'
+  | 'withdrawals'
+  | 'referrals'
+  | 'kyc'
+  | 'revenue'
+  | 'revenue-by-user';
 
 export const getReportsSummary = () =>
   adminFetch<AdminReportsSummary>('/reports/summary');
 
-export const downloadReportCsv = async (
-  type: 'users' | 'mining' | 'withdrawals' | 'referrals' | 'kyc' | 'revenue',
-) => {
+export const downloadReportCsv = async (type: AdminReportType) => {
   const data = await adminFetch<{ csv: string; filename: string }>(
     `/reports/${type}/csv`,
   );
@@ -442,3 +451,101 @@ export const forceConfirmBoosterPurchase = (id: string, txHash?: string) =>
       body: JSON.stringify({ txHash }),
     },
   );
+
+// ───────────────────── Booster revenue analytics ─────────────────────
+
+/** One point on the revenue chart — a day, an ISO week, or a month. */
+export interface RevenueBucket {
+  key: string;
+  label: string;
+  start: string;
+  revenueUsd: number;
+  purchases: number;
+  payingUsers: number;
+}
+
+export interface RevenuePeriod {
+  key: 'today' | 'week' | 'month' | 'year';
+  label: string;
+  revenueUsd: number;
+  purchases: number;
+  payingUsers: number;
+  previousRevenueUsd: number;
+  changePct: number | null;
+}
+
+export interface RevenueByCategory {
+  planId: string;
+  label: string;
+  priceUsd: number;
+  rateBonusPoints: number;
+  durationDays: number;
+  active: boolean;
+  confirmedPurchases: number;
+  awaitingPayment: number;
+  failed: number;
+  expired: number;
+  uniqueBuyers: number;
+  activeBoosters: number;
+  revenueUsd: number;
+  shareOfRevenuePct: number;
+}
+
+export interface RevenueByUser {
+  rank: number;
+  userId: string;
+  email: string | null;
+  walletAddress: string | null;
+  countryCode: string | null;
+  isBlocked: boolean;
+  joinedAt: string | null;
+  revenueUsd: number;
+  purchases: number;
+  firstPurchaseAt: string | null;
+  lastPurchaseAt: string | null;
+  plans: { planId: string; label: string; priceUsd: number; count: number }[];
+  shareOfRevenuePct: number;
+}
+
+export interface AdminRevenueAnalytics {
+  generatedAt: string;
+  windowDays: number;
+  totals: {
+    revenueUsd: number;
+    confirmedPurchases: number;
+    awaitingPayment: number;
+    awaitingPaymentUsd: number;
+    failed: number;
+    expired: number;
+    payingUsers: number;
+    totalUsers: number;
+    arppuUsd: number;
+    averageOrderUsd: number;
+    payerConversionPct: number;
+    activeBoosters: number;
+  };
+  periods: RevenuePeriod[];
+  series: {
+    daily: RevenueBucket[];
+    weekly: RevenueBucket[];
+    monthly: RevenueBucket[];
+  };
+  byCategory: RevenueByCategory[];
+  byToken: { tokenSymbol: string; purchases: number; revenueUsd: number }[];
+  topPayers: RevenueByUser[];
+  recentPayments: {
+    id: string;
+    userId: string;
+    userEmail: string | null;
+    countryCode: string | null;
+    label: string;
+    priceUsd: number;
+    tokenSymbol: string;
+    expectedAmount: string;
+    txHash: string | null;
+    paidAt: string;
+  }[];
+}
+
+export const getRevenueAnalytics = () =>
+  adminFetch<AdminRevenueAnalytics>('/analytics/revenue');
