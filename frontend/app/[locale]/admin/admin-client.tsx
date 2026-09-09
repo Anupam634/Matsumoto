@@ -5,7 +5,9 @@ import {
   getAdminToken,
   adminLogout,
   getStats,
+  getRevenueAnalytics,
   ApiError,
+  type AdminRevenueAnalytics,
   type AdminStats,
 } from '../../../lib/admin-api';
 import type { AdminTab } from '../../../components/admin/types';
@@ -23,6 +25,7 @@ import { BoostersAdminTab } from '../../../components/admin/BoostersAdminTab';
 import { ReferralsAdminTab } from '../../../components/admin/ReferralsAdminTab';
 import { WithdrawalsTab } from '../../../components/admin/WithdrawalsTab';
 import { PaymentsTab } from '../../../components/admin/tabs/PaymentsTab';
+import { RevenueTab } from '../../../components/admin/tabs/RevenueTab';
 import { BlockchainTab } from '../../../components/admin/tabs/BlockchainTab';
 import { TasksTab } from '../../../components/admin/TasksTab';
 import { SupportTab } from '../../../components/admin/SupportTab';
@@ -53,11 +56,20 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
   const [tab, setTab] = useState<AdminTab>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [revenue, setRevenue] = useState<AdminRevenueAnalytics | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Both dashboard reads refresh together, so the revenue strip cannot sit
+  // frozen at mount under a "Live Feed" badge while the tiles beside it
+  // poll — and an expired admin token signs the operator out from either.
   const loadStats = useCallback(async () => {
     try {
-      setStats(await getStats());
+      const [nextStats, nextRevenue] = await Promise.all([
+        getStats(),
+        getRevenueAnalytics(),
+      ]);
+      setStats(nextStats);
+      setRevenue(nextRevenue);
       setError(null);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) return onSignOut();
@@ -104,7 +116,14 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
               </div>
             )}
 
-            {tab === 'dashboard' && <AnalyticsTab stats={stats} onRefresh={loadStats} />}
+            {tab === 'dashboard' && (
+              <AnalyticsTab
+                stats={stats}
+                revenue={revenue}
+                onRefresh={loadStats}
+                onOpenRevenue={() => setTab('revenue')}
+              />
+            )}
             {tab === 'users' && <MinersTab onChanged={loadStats} onUnauthorized={onSignOut} />}
             {tab === 'kyc' && <KycTab onUnauthorized={onSignOut} />}
             {tab === 'mining-engine' && <MiningEngineTab />}
@@ -112,6 +131,7 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
             {tab === 'referrals' && <ReferralsAdminTab />}
             {tab === 'withdrawals' && <WithdrawalsTab onChanged={loadStats} onUnauthorized={onSignOut} />}
             {tab === 'payments' && <PaymentsTab />}
+            {tab === 'revenue' && <RevenueTab />}
             {tab === 'blockchain' && <BlockchainTab />}
             {tab === 'marketplace' && <MarketplaceAdminTab />}
             {tab === 'tasks' && <TasksTab onUnauthorized={onSignOut} />}

@@ -2,6 +2,13 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import { toCsv, CSV_MAX_ROWS } from '../common/csv';
+import {
+  bucketKey,
+  bucketLabel,
+  bucketStart,
+  startOfUtcDay,
+  type Grain,
+} from '../common/revenue-buckets';
 import { TtlCache } from '../common/ttl-cache';
 import { verifyPassword } from '../auth/password';
 import {
@@ -14,6 +21,30 @@ import {
 const ACTIVE_WINDOW_MS = 24 * 3_600_000;
 /** Referral tree depth — matches the 6 referral levels in SPEC §2. */
 const TREE_DEPTH = 6;
+
+/** How far back the revenue time-series and period comparisons reach. */
+const REVENUE_WINDOW_DAYS = 400;
+/**
+ * Payers returned inline on the analytics endpoint. The full table — every
+ * miner who ever paid — is the CSV export, so the JSON stays a fixed size.
+ */
+const TOP_PAYERS_LIMIT = 100;
+/**
+ * Ceiling on confirmed purchases pulled in for the time-series. Rows come
+ * back newest first, so hitting it drops the oldest buckets rather than an
+ * arbitrary slice — and the response says when it happened.
+ */
+const SERIES_ROW_CAP = 200_000;
+
+/** Money and percentages are display values — two decimals, never a float tail. */
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/** `part` as a percentage of `whole`; 0 rather than NaN when there is no whole. */
+function pct(part: number, whole: number): number {
+  return whole > 0 ? round2((part / whole) * 100) : 0;
+}
 
 export interface AdminUserRow {
   id: string;
@@ -44,6 +75,72 @@ export interface TreeNode {
   children: TreeNode[];
 }
 
+// ─────────────────── Booster revenue analytics ──────────────────
+
+/** One bucket of the revenue time-series (a day, an ISO week, or a month). */
+export interface RevenueBucket {
+  /** Stable bucket id — 'YYYY-MM-DD' for day/week starts, 'YYYY-MM' for months. */
+  key: string;
+  /** Short axis label. */
+  label: string;
+  /** UTC instant the bucket opens, for charts that need a real date. */
+  start: string;
+  revenueUsd: number;
+  purchases: number;
+  payingUsers: number;
+}
+
+/** Revenue over one named window, with the window before it for comparison. */
+export interface RevenuePeriod {
+  key: 'today' | 'week' | 'month' | 'year';
+  label: string;
+  revenueUsd: number;
+  purchases: number;
+  payingUsers: number;
+  /** Same-length window immediately before this one. */
+  previousRevenueUsd: number;
+  /** Percent change vs. the previous window; null when it had no revenue. */
+  changePct: number | null;
+}
+
+/** What one plan (the "category" a booster is sold under) has earned. */
+export interface RevenueByCategory {
+  planId: string;
+  label: string;
+  priceUsd: number;
+  rateBonusPoints: number;
+  durationDays: number;
+  active: boolean;
+  confirmedPurchases: number;
+  awaitingPayment: number;
+  failed: number;
+  expired: number;
+  /** Distinct miners who have ever bought this plan. */
+  uniqueBuyers: number;
+  /** Boosters from this plan that have not expired yet. */
+  activeBoosters: number;
+  revenueUsd: number;
+  shareOfRevenuePct: number;
+}
+
+/** One paying miner: how much they have spent, and on what. */
+export interface RevenueByUser {
+  rank: number;
+  userId: string;
+  email: string | null;
+  walletAddress: string | null;
+  countryCode: string | null;
+  isBlocked: boolean;
+  joinedAt: string | null;
+  revenueUsd: number;
+  purchases: number;
+  firstPurchaseAt: string | null;
+  lastPurchaseAt: string | null;
+  /** Per-plan split, cheapest first. */
+  plans: { planId: string; label: string; priceUsd: number; count: number }[];
+  shareOfRevenuePct: number;
+}
+
 @Injectable()
 export class AdminService {
   /**
@@ -51,6 +148,14 @@ export class AdminService {
    * withdrawal land within a few seconds of it arriving.
    */
   private readonly cache = new TtlCache(15_000, 100);
+
+  /**
+   * Revenue aggregates get their own, slower cache. They are heavier than
+   * `stats()` and money does not need 15-second freshness — and at 15s the
+   * dashboard's own 20s poll missed every single time, so each open tab ran
+   * the whole aggregate set on a loop.
+   */
+  private readonly revenueCache = new TtlCache(60_000, 4);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -113,6 +218,7 @@ export class AdminService {
       activeBoostersCount,
       recentLedger,
       usersPast30Days,
+      pointsMintedPerDay,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.user.count({ where: { lastMineAt: { gte: activeSince } } }),
@@ -149,6 +255,22 @@ export class AdminService {
         orderBy: { createdAt: 'desc' },
         take: 100_000,
       }),
+      // Points actually minted per day. Summed in the database because the
+      // ledger is the one table that grows with every tap, and the dashboard
+      // only ever needs 30 numbers out of it.
+      //
+      // `createdAt` is `timestamp(3)` without a zone and Prisma writes UTC
+      // into it, so truncating the column directly gives UTC days — the same
+      // keys the signup buckets above use. Casting it with `AT TIME ZONE`
+      // would hand `date_trunc` a `timestamptz` and split days on whatever
+      // the database server's local zone happens to be.
+      this.prisma.$queryRaw<{ day: string; milli: bigint }[]>`
+        SELECT to_char(date_trunc('day', "createdAt"), 'YYYY-MM-DD') AS day,
+               COALESCE(SUM("deltaMilli"), 0)::bigint AS milli
+        FROM "LedgerEntry"
+        WHERE "createdAt" >= ${monthAgo} AND "deltaMilli" > 0
+        GROUP BY 1
+      `,
     ]);
 
     // Build 7-day and 30-day time-series daily buckets
@@ -165,10 +287,14 @@ export class AdminService {
       }
     }
 
+    const mintedByDay = new Map(
+      pointsMintedPerDay.map((r) => [r.day, Number(r.milli) / 1000]),
+    );
+
     const growthHistory = Array.from(daysMap.entries()).map(([date, newUsers]) => ({
       date,
       newUsers,
-      pointsMined: Number((newUsers * 48.5 + (activeMiners * 21.6) / 30).toFixed(2)),
+      pointsMined: round2(mintedByDay.get(date) ?? 0),
     }));
 
     return {
@@ -571,21 +697,576 @@ export class AdminService {
     }));
   }
 
+  // ─────────────────── Booster revenue analytics ──────────────────
+
+  /**
+   * Everything the panel needs to answer "who paid us, how much, for which
+   * plan, and when" — totals, day/week/month series, per-plan split and the
+   * per-miner spend table.
+   *
+   * Cached alongside `stats()`: the revenue tab polls, and none of these
+   * aggregates move second to second.
+   */
+  revenueAnalytics() {
+    return this.revenueCache.wrap('revenue-analytics', () =>
+      this.computeRevenueAnalytics(),
+    );
+  }
+
+  private async computeRevenueAnalytics() {
+    const now = new Date();
+    const windowStart = new Date(now.getTime() - REVENUE_WINDOW_DAYS * 86_400_000);
+
+    // The plan catalogue is tiny and every other aggregate needs its prices
+    // to turn a purchase count into money, so it is fetched up front.
+    const plans = await this.prisma.boosterPlan.findMany({
+      orderBy: { priceUsd: 'asc' },
+    });
+    const priceOf = new Map(plans.map((p) => [p.id, p.priceUsd]));
+    const labelOf = (planId: string) => `$${priceOf.get(planId) ?? 0} Booster`;
+
+    const [
+      byStatusPlan,
+      unpricedByStatusPlan,
+      payers,
+      windowRows,
+      activeByPlan,
+      totalUsers,
+      recentRows,
+      liveIntents,
+      unpricedLiveIntents,
+    ] = await Promise.all([
+      // All-time money, summed from the price pinned on each purchase so no
+      // per-row scan is needed and repricing a plan cannot rewrite history.
+      this.prisma.boosterPurchase.groupBy({
+        by: ['status', 'planId'],
+        _count: { _all: true },
+        _sum: { priceUsd: true },
+      }),
+      // Rows written before purchases pinned their price. `_sum` skips their
+      // NULL, so they are counted here and valued at their plan's price —
+      // exactly the behaviour they had before this column existed.
+      this.prisma.boosterPurchase.groupBy({
+        by: ['status', 'planId'],
+        where: { priceUsd: null },
+        _count: { _all: true },
+      }),
+      this.payerAggregates(priceOf),
+      // Only CONFIRMED rows inside the window, and only the columns the
+      // buckets need. `confirmedAt` is what a payment is dated by; the
+      // `createdAt` arm keeps a row whose confirmation was backfilled.
+      // Ordered so that hitting the cap drops the oldest, not an arbitrary
+      // slice the caller cannot reason about.
+      this.prisma.boosterPurchase.findMany({
+        where: {
+          status: 'CONFIRMED',
+          OR: [
+            { confirmedAt: { gte: windowStart } },
+            { confirmedAt: null, createdAt: { gte: windowStart } },
+          ],
+        },
+        select: {
+          userId: true,
+          planId: true,
+          priceUsd: true,
+          tokenSymbol: true,
+          confirmedAt: true,
+          createdAt: true,
+        },
+        orderBy: { confirmedAt: { sort: 'desc', nulls: 'last' } },
+        take: SERIES_ROW_CAP,
+      }),
+      this.prisma.booster.groupBy({
+        by: ['planId'],
+        where: { expiresAt: { gt: now } },
+        _count: { _all: true },
+      }),
+      this.prisma.user.count(),
+      this.prisma.boosterPurchase.findMany({
+        where: { status: 'CONFIRMED' },
+        // Postgres sorts NULLs first on DESC. Both confirmation paths do
+        // stamp `confirmedAt`, but a row that somehow missed one must not
+        // therefore lead the "latest payments" list.
+        orderBy: { confirmedAt: { sort: 'desc', nulls: 'last' } },
+        take: 12,
+        select: {
+          id: true,
+          userId: true,
+          planId: true,
+          priceUsd: true,
+          tokenSymbol: true,
+          expectedAmount: true,
+          txHash: true,
+          confirmedAt: true,
+          createdAt: true,
+          user: { select: { email: true, countryCode: true } },
+        },
+      }),
+      // Intents a miner could still pay right now.
+      //
+      // An unpaid quote is only ever flipped to EXPIRED when that same miner
+      // re-submits against it, and nothing sweeps the rest, so every
+      // abandoned checkout sits in AWAITING_PAYMENT forever. Summing the
+      // status alone would report years of dead quotes as money in flight.
+      this.prisma.boosterPurchase.aggregate({
+        where: { status: 'AWAITING_PAYMENT', expiresAt: { gt: now } },
+        _count: { _all: true },
+        _sum: { priceUsd: true },
+      }),
+      // A live quote older than this deploy carries no pinned price.
+      this.prisma.boosterPurchase.groupBy({
+        by: ['planId'],
+        where: {
+          status: 'AWAITING_PAYMENT',
+          expiresAt: { gt: now },
+          priceUsd: null,
+        },
+        _count: { _all: true },
+      }),
+    ]);
+
+    // ── All-time totals, and the per-plan status split ──
+    // Per-plan status counts, and per-plan confirmed money, in one pass.
+    const statusOf = new Map<string, Record<string, number>>();
+    const revenueOf = new Map<string, number>();
+    let revenueUsd = 0;
+    let confirmedPurchases = 0;
+    let abandonedIntents = 0;
+    let failed = 0;
+    let expired = 0;
+
+    const unpricedOf = new Map(
+      unpricedByStatusPlan.map((g) => [`${g.status}:${g.planId}`, g._count._all]),
+    );
+
+    for (const g of byStatusPlan) {
+      const count = g._count._all;
+      const unpriced = unpricedOf.get(`${g.status}:${g.planId}`) ?? 0;
+      const value =
+        (g._sum.priceUsd ?? 0) + unpriced * (priceOf.get(g.planId) ?? 0);
+      const split = statusOf.get(g.planId) ?? {};
+      split[g.status] = (split[g.status] ?? 0) + count;
+      statusOf.set(g.planId, split);
+
+      if (g.status === 'CONFIRMED') {
+        revenueOf.set(g.planId, (revenueOf.get(g.planId) ?? 0) + value);
+        revenueUsd += value;
+        confirmedPurchases += count;
+      } else if (g.status === 'AWAITING_PAYMENT') {
+        abandonedIntents += count;
+      } else if (g.status === 'FAILED') {
+        failed += count;
+      } else {
+        expired += count;
+      }
+    }
+
+    // Quotes still inside their hour; the rest of AWAITING_PAYMENT is dead.
+    const awaitingPayment = liveIntents._count._all;
+    const awaitingPaymentUsd = unpricedLiveIntents.reduce(
+      (sum, g) => sum + g._count._all * (priceOf.get(g.planId) ?? 0),
+      liveIntents._sum.priceUsd ?? 0,
+    );
+    abandonedIntents -= awaitingPayment;
+
+    // ── Per-plan ("category") breakdown ──
+    const activeOf = new Map(activeByPlan.map((a) => [a.planId, a._count._all]));
+    const buyersOf = new Map<string, number>();
+    for (const p of payers) {
+      for (const planId of p.byPlan.keys()) {
+        buyersOf.set(planId, (buyersOf.get(planId) ?? 0) + 1);
+      }
+    }
+
+    const byCategory: RevenueByCategory[] = plans
+      .map((p) => {
+        const split = statusOf.get(p.id) ?? {};
+        const confirmed = split.CONFIRMED ?? 0;
+        const planRevenue = revenueOf.get(p.id) ?? 0;
+        return {
+          planId: p.id,
+          label: `$${p.priceUsd} Booster`,
+          priceUsd: p.priceUsd,
+          rateBonusPoints: p.rateBonusMilli / 1000,
+          durationDays: p.durationDays,
+          active: p.active,
+          confirmedPurchases: confirmed,
+          awaitingPayment: split.AWAITING_PAYMENT ?? 0,
+          failed: split.FAILED ?? 0,
+          expired: split.EXPIRED ?? 0,
+          uniqueBuyers: buyersOf.get(p.id) ?? 0,
+          activeBoosters: activeOf.get(p.id) ?? 0,
+          revenueUsd: planRevenue,
+          shareOfRevenuePct: pct(planRevenue, revenueUsd),
+        };
+      })
+      .sort((a, b) => b.revenueUsd - a.revenueUsd || b.priceUsd - a.priceUsd);
+
+    // ── Time-series ──
+    // One flat list of dated, priced payments drives every bucket below.
+    const events = windowRows.map((r) => ({
+      at: r.confirmedAt ?? r.createdAt,
+      userId: r.userId,
+      tokenSymbol: r.tokenSymbol,
+      usd: r.priceUsd ?? priceOf.get(r.planId) ?? 0,
+    }));
+
+    const series = {
+      daily: this.bucketRevenue(events, 'daily', 30, now),
+      weekly: this.bucketRevenue(events, 'weekly', 12, now),
+      monthly: this.bucketRevenue(events, 'monthly', 12, now),
+    };
+
+    // ── Named periods, each against the window immediately before it ──
+    const day = 86_400_000;
+    const spanTotals = (fromMs: number, toMs: number) => {
+      let usd = 0;
+      let purchases = 0;
+      const users = new Set<string>();
+      for (const e of events) {
+        const t = e.at.getTime();
+        if (t >= fromMs && t < toMs) {
+          usd += e.usd;
+          purchases += 1;
+          users.add(e.userId);
+        }
+      }
+      return { revenueUsd: round2(usd), purchases, payingUsers: users.size };
+    };
+
+    const startOfToday = startOfUtcDay(now).getTime();
+    const nowMs = now.getTime() + 1;
+
+    /**
+     * One period, against the equivalent window before it.
+     *
+     * The comparison window is the same *length* ending where this one
+     * begins — which for a day still in progress means the same elapsed
+     * slice of yesterday, not all of yesterday. Comparing nine hours of
+     * today against a full twenty-four would paint the card red every
+     * morning on flat revenue.
+     */
+    const periodWindow = (
+      label: string,
+      key: RevenuePeriod['key'],
+      fromMs: number,
+      toMs: number,
+    ): RevenuePeriod => {
+      const current = spanTotals(fromMs, toMs);
+      const previous = spanTotals(fromMs - (toMs - fromMs), fromMs);
+      return {
+        key,
+        label,
+        ...current,
+        previousRevenueUsd: round2(previous.revenueUsd),
+        changePct:
+          previous.revenueUsd > 0
+            ? round2(
+                ((current.revenueUsd - previous.revenueUsd) / previous.revenueUsd) * 100,
+              )
+            : null,
+      };
+    };
+
+    const periods: RevenuePeriod[] = [
+      periodWindow('Today', 'today', startOfToday, nowMs),
+      periodWindow('Last 7 days', 'week', nowMs - 7 * day, nowMs),
+      periodWindow('Last 30 days', 'month', nowMs - 30 * day, nowMs),
+      {
+        key: 'year',
+        label: 'Last 12 months',
+        ...spanTotals(nowMs - 365 * day, nowMs),
+        // A 400-day window cannot hold the year before this one.
+        previousRevenueUsd: 0,
+        changePct: null,
+      },
+    ];
+
+    // ── Which token miners actually paid with (inside the window) ──
+    const tokens = new Map<string, { purchases: number; revenueUsd: number }>();
+    for (const e of events) {
+      const symbol = e.tokenSymbol || 'UNKNOWN';
+      const row = tokens.get(symbol) ?? { purchases: 0, revenueUsd: 0 };
+      row.purchases += 1;
+      row.revenueUsd += e.usd;
+      tokens.set(symbol, row);
+    }
+    const byToken = Array.from(tokens.entries())
+      .map(([tokenSymbol, row]) => ({ tokenSymbol, ...row }))
+      .sort((a, b) => b.revenueUsd - a.revenueUsd);
+
+    // ── Per-miner spend table (top payers inline; all of them via CSV) ──
+    const top = payers.slice(0, TOP_PAYERS_LIMIT);
+    const profiles = top.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: top.map((p) => p.userId) } },
+          select: {
+            id: true,
+            email: true,
+            walletAddress: true,
+            countryCode: true,
+            isBlocked: true,
+            createdAt: true,
+          },
+        })
+      : [];
+    const profileOf = new Map(profiles.map((u) => [u.id, u]));
+
+    const topPayers: RevenueByUser[] = top.map((p, i) =>
+      this.toPayerRow(p, i + 1, revenueUsd, labelOf, priceOf, profileOf.get(p.userId)),
+    );
+
+    return {
+      generatedAt: now.toISOString(),
+      windowDays: REVENUE_WINDOW_DAYS,
+      /**
+       * True when the window held more confirmed purchases than one read
+       * returns, so the series and the period cards under-report while the
+       * all-time totals (separate grouped queries) stay complete. Surfaced
+       * rather than hidden: the two would otherwise silently disagree.
+       */
+      seriesTruncated: windowRows.length >= SERIES_ROW_CAP,
+      totals: {
+        revenueUsd: round2(revenueUsd),
+        confirmedPurchases,
+        /** Quotes a miner can still pay — see the `liveIntents` query. */
+        awaitingPayment,
+        awaitingPaymentUsd: round2(awaitingPaymentUsd),
+        /** Unpaid quotes past their hour that nothing ever swept up. */
+        abandonedIntents,
+        failed,
+        expired,
+        payingUsers: payers.length,
+        totalUsers,
+        /** Average revenue per *paying* user. */
+        arppuUsd: payers.length ? round2(revenueUsd / payers.length) : 0,
+        averageOrderUsd: confirmedPurchases
+          ? round2(revenueUsd / confirmedPurchases)
+          : 0,
+        /** Share of all registered miners who have ever paid. */
+        payerConversionPct: pct(payers.length, totalUsers),
+        activeBoosters: Array.from(activeOf.values()).reduce((a, b) => a + b, 0),
+      },
+      periods,
+      series,
+      byCategory,
+      byToken,
+      topPayers,
+      recentPayments: recentRows.map((r) => ({
+        id: r.id,
+        userId: r.userId,
+        userEmail: r.user?.email ?? null,
+        countryCode: r.user?.countryCode ?? null,
+        label: labelOf(r.planId),
+        priceUsd: r.priceUsd ?? priceOf.get(r.planId) ?? 0,
+        tokenSymbol: r.tokenSymbol,
+        expectedAmount: r.expectedAmount,
+        txHash: r.txHash,
+        paidAt: (r.confirmedAt ?? r.createdAt).toISOString(),
+      })),
+    };
+  }
+
+  /**
+   * Every miner who has ever completed a booster payment, richest first.
+   *
+   * Grouped in the database by (user, plan) rather than read row by row: the
+   * money for a group is the sum of the prices pinned on its purchases, so
+   * the whole spend table costs one grouped scan no matter how many
+   * purchases there are.
+   */
+  private async payerAggregates(priceOf: Map<string, number>) {
+    const [groups, unpriced] = await Promise.all([
+      this.prisma.boosterPurchase.groupBy({
+        by: ['userId', 'planId'],
+        where: { status: 'CONFIRMED' },
+        _count: { _all: true },
+        _sum: { priceUsd: true },
+        _min: { confirmedAt: true },
+        _max: { confirmedAt: true },
+      }),
+      // Purchases predating the pinned price, valued at their plan's price.
+      this.prisma.boosterPurchase.groupBy({
+        by: ['userId', 'planId'],
+        where: { status: 'CONFIRMED', priceUsd: null },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const unpricedOf = new Map(
+      unpriced.map((g) => [`${g.userId}:${g.planId}`, g._count._all]),
+    );
+
+    const payers = new Map<
+      string,
+      {
+        userId: string;
+        revenueUsd: number;
+        purchases: number;
+        firstPurchaseAt: Date | null;
+        lastPurchaseAt: Date | null;
+        byPlan: Map<string, number>;
+      }
+    >();
+
+    for (const g of groups) {
+      const agg =
+        payers.get(g.userId) ??
+        {
+          userId: g.userId,
+          revenueUsd: 0,
+          purchases: 0,
+          firstPurchaseAt: null as Date | null,
+          lastPurchaseAt: null as Date | null,
+          byPlan: new Map<string, number>(),
+        };
+
+      const count = g._count._all;
+      const missing = unpricedOf.get(`${g.userId}:${g.planId}`) ?? 0;
+      agg.revenueUsd +=
+        (g._sum.priceUsd ?? 0) + missing * (priceOf.get(g.planId) ?? 0);
+      agg.purchases += count;
+      agg.byPlan.set(g.planId, (agg.byPlan.get(g.planId) ?? 0) + count);
+
+      const first = g._min.confirmedAt;
+      if (first && (!agg.firstPurchaseAt || first < agg.firstPurchaseAt)) {
+        agg.firstPurchaseAt = first;
+      }
+      const last = g._max.confirmedAt;
+      if (last && (!agg.lastPurchaseAt || last > agg.lastPurchaseAt)) {
+        agg.lastPurchaseAt = last;
+      }
+
+      payers.set(g.userId, agg);
+    }
+
+    return Array.from(payers.values()).sort(
+      (a, b) => b.revenueUsd - a.revenueUsd || b.purchases - a.purchases,
+    );
+  }
+
+  private toPayerRow(
+    p: {
+      userId: string;
+      revenueUsd: number;
+      purchases: number;
+      firstPurchaseAt: Date | null;
+      lastPurchaseAt: Date | null;
+      byPlan: Map<string, number>;
+    },
+    rank: number,
+    totalRevenueUsd: number,
+    labelOf: (planId: string) => string,
+    priceOf: Map<string, number>,
+    profile?: {
+      email: string | null;
+      walletAddress: string | null;
+      countryCode: string | null;
+      isBlocked: boolean;
+      createdAt: Date;
+    },
+  ): RevenueByUser {
+    return {
+      rank,
+      userId: p.userId,
+      email: profile?.email ?? null,
+      walletAddress: profile?.walletAddress ?? null,
+      countryCode: profile?.countryCode ?? null,
+      isBlocked: profile?.isBlocked ?? false,
+      joinedAt: profile?.createdAt.toISOString() ?? null,
+      revenueUsd: round2(p.revenueUsd),
+      purchases: p.purchases,
+      firstPurchaseAt: p.firstPurchaseAt?.toISOString() ?? null,
+      lastPurchaseAt: p.lastPurchaseAt?.toISOString() ?? null,
+      plans: Array.from(p.byPlan.entries())
+        .map(([planId, count]) => ({
+          planId,
+          label: labelOf(planId),
+          priceUsd: priceOf.get(planId) ?? 0,
+          count,
+        }))
+        .sort((a, b) => a.priceUsd - b.priceUsd),
+      shareOfRevenuePct: pct(p.revenueUsd, totalRevenueUsd),
+    };
+  }
+
+  /**
+   * Fold dated payments into a fixed run of buckets ending with the current
+   * one. The empty buckets are laid out first so a quiet day still shows up
+   * as a zero on the chart instead of vanishing from the axis.
+   */
+  private bucketRevenue(
+    events: { at: Date; userId: string; usd: number }[],
+    grain: Grain,
+    count: number,
+    now: Date,
+  ): RevenueBucket[] {
+    const starts: Date[] = [];
+    for (let i = count - 1; i >= 0; i--) {
+      starts.push(bucketStart(now, grain, -i));
+    }
+
+    const slots = new Map<
+      string,
+      { bucket: RevenueBucket; users: Set<string> }
+    >();
+    for (const start of starts) {
+      const key = bucketKey(start, grain);
+      slots.set(key, {
+        bucket: {
+          key,
+          label: bucketLabel(start, grain),
+          start: start.toISOString(),
+          revenueUsd: 0,
+          purchases: 0,
+          payingUsers: 0,
+        },
+        users: new Set<string>(),
+      });
+    }
+
+    for (const e of events) {
+      const slot = slots.get(bucketKey(bucketStart(e.at, grain, 0), grain));
+      if (!slot) continue; // older than the window this grain covers
+      slot.bucket.revenueUsd += e.usd;
+      slot.bucket.purchases += 1;
+      slot.users.add(e.userId);
+    }
+
+    return Array.from(slots.values()).map(({ bucket, users }) => ({
+      ...bucket,
+      revenueUsd: round2(bucket.revenueUsd),
+      payingUsers: users.size,
+    }));
+  }
+
   // ──────────────────────── Real Reports & CSV ───────────────────────
 
   async getReportsSummary() {
-    const [usersCount, ledgerCount, withdrawalsCount, kycCount, boostersCount] =
-      await Promise.all([
-        this.prisma.user.count(),
-        this.prisma.ledgerEntry.count(),
-        this.prisma.withdrawal.count(),
-        this.prisma.kycRecord.count(),
-        this.prisma.boosterPurchase.count(),
-      ]);
-
-    const referralsCount = await this.prisma.user.count({
-      where: { referredById: { not: null } },
-    });
+    const [
+      usersCount,
+      ledgerCount,
+      withdrawalsCount,
+      kycCount,
+      boostersCount,
+      referralsCount,
+      payers,
+    ] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.ledgerEntry.count(),
+      this.prisma.withdrawal.count(),
+      this.prisma.kycRecord.count(),
+      this.prisma.boosterPurchase.count(),
+      this.prisma.user.count({ where: { referredById: { not: null } } }),
+      // Row count of the per-user export. `groupBy` would return one row per
+      // paying account just to have its length read; this is the same number
+      // in constant memory.
+      this.prisma.$queryRaw<{ count: bigint }[]>`
+        SELECT COUNT(DISTINCT "userId")::bigint AS count
+        FROM "BoosterPurchase"
+        WHERE "status" = 'CONFIRMED'
+      `,
+    ]);
 
     return {
       usersCount,
@@ -594,6 +1275,7 @@ export class AdminService {
       referralsCount,
       kycCount,
       revenueCount: boostersCount,
+      payingUsersCount: Number(payers[0]?.count ?? 0n),
     };
   }
 
@@ -789,12 +1471,76 @@ export class AdminService {
       p.userId,
       p.user?.email ?? 'Wallet',
       p.plan?.priceUsd ? '$' + p.plan.priceUsd : 'Custom',
-      p.plan?.priceUsd ?? 0,
+      p.priceUsd ?? p.plan?.priceUsd ?? 0,
       p.status,
       p.txHash ?? 'N/A',
       p.createdAt.toISOString(),
       p.confirmedAt ? p.confirmedAt.toISOString() : 'N/A',
     ]);
+
+    return toCsv(headers, rows);
+  }
+
+
+  /**
+   * Per-miner booster spend — one row per paying account rather than one per
+   * purchase, so the sheet answers "which user paid how much" directly.
+   */
+  async exportRevenueByUserCsv(): Promise<string> {
+    const plans = await this.prisma.boosterPlan.findMany({
+      orderBy: { priceUsd: 'asc' },
+    });
+    const priceOf = new Map(plans.map((p) => [p.id, p.priceUsd]));
+    const payers = (await this.payerAggregates(priceOf)).slice(0, CSV_MAX_ROWS);
+
+    const profiles = payers.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: payers.map((p) => p.userId) } },
+          select: {
+            id: true,
+            email: true,
+            walletAddress: true,
+            countryCode: true,
+            isBlocked: true,
+            createdAt: true,
+          },
+        })
+      : [];
+    const profileOf = new Map(profiles.map((u) => [u.id, u]));
+
+    // A column per plan, so the split by category reads across the row.
+    const headers = [
+      'Rank',
+      'User ID',
+      'Email',
+      'Wallet Address',
+      'Country',
+      'Is Suspended',
+      'Registered At',
+      'Total Paid (USD)',
+      'Purchases',
+      'First Purchase',
+      'Last Purchase',
+      ...plans.map((p) => `$${p.priceUsd} Booster (qty)`),
+    ];
+
+    const rows = payers.map((p, i) => {
+      const u = profileOf.get(p.userId);
+      return [
+        i + 1,
+        p.userId,
+        u?.email ?? 'Wallet',
+        u?.walletAddress ?? '',
+        u?.countryCode ?? 'Global',
+        u?.isBlocked ? 'YES' : 'NO',
+        u?.createdAt.toISOString() ?? '',
+        round2(p.revenueUsd).toFixed(2),
+        p.purchases,
+        p.firstPurchaseAt?.toISOString() ?? '',
+        p.lastPurchaseAt?.toISOString() ?? '',
+        ...plans.map((plan) => p.byPlan.get(plan.id) ?? 0),
+      ];
+    });
 
     return toCsv(headers, rows);
   }
@@ -909,7 +1655,8 @@ export class AdminService {
       userId: p.userId,
       userEmail: p.user?.email ?? 'Wallet Payer',
       planId: p.planId,
-      planPriceUsd: p.plan?.priceUsd ?? 0,
+      // What this buyer was quoted, not what the plan costs today.
+      planPriceUsd: p.priceUsd ?? p.plan?.priceUsd ?? 0,
       rateBonusPoints: (p.plan?.rateBonusMilli ?? 0) / 1000,
       tokenSymbol: p.tokenSymbol,
       expectedAmount: p.expectedAmount,

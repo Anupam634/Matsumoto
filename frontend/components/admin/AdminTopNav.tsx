@@ -29,6 +29,7 @@ export function AdminTopNav({
     marketplace: '🛒 Marketplace Store & Commerce Management',
     tasks: '🎯 Tasks, Quizzes & Lucky Wheel 360°',
     payments: '💳 On-Chain Booster Payment Audits',
+    revenue: '💰 Booster Revenue Analytics & Payer Ledger',
     support: '💬 Customer Support Helpdesk',
     cms: '📝 Content Management & Platform Legal Terms',
     reports: '📑 Automated Reports & CSV Data Exporter',
