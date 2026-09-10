@@ -158,3 +158,15 @@ describe('signup against a mailbox that is already registered', () => {
     });
   });
 });
+
+describe('degenerate addresses', () => {
+  it('does not sweep when the local part folds to nothing', async () => {
+    // `+x@gmail.com` passes @IsEmail but has no mailbox identity to compare.
+    const { service, prisma, emailService } = buildService(['xyz@gmail.com']);
+    await expect(service.sendOtp('+x@gmail.com', 'signup')).resolves.toEqual({
+      success: true,
+    });
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+    expect(emailService.sendOtpEmail).toHaveBeenCalled();
+  });
+});

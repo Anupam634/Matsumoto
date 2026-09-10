@@ -79,6 +79,12 @@ export class AuthService {
     // collision seen from the other side.
     if (!aliases) return null;
 
+    // An address whose local part is nothing but a `+tag` (`+x@gmail.com`
+    // clears @IsEmail) folds to an empty string, which is not a mailbox any
+    // account can own. Comparing it would be a scan that can only ever match
+    // junk, so refuse the fold and let the exact match above stand alone.
+    if (!canonicalLocal) return null;
+
     const [alias] = await this.prisma.$queryRaw<
       { id: string; email: string; isBlocked: boolean }[]
     >`
