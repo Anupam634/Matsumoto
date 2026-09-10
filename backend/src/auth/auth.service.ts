@@ -17,6 +17,7 @@ import {
   ResetPasswordDto,
 } from './dto';
 import { referralTierFor } from '../mining/mining.engine';
+import { canonicalizeEmail } from '../common/canonical-email';
 
 /** Request-derived signals we pass through to the anti-abuse checks. */
 export interface SignupSignals {
@@ -40,6 +41,68 @@ export class AuthService {
   }
 
   /**
+   * Find an account that already owns this *mailbox*, not just this string.
+   *
+   * Gmail delivers `xyz@`, `xy.z@` and `xyz+tag@` to one inbox, so comparing
+   * the address as typed let the same mailbox hold any number of accounts:
+   * the dot variant passed the uniqueness check, was mailed an OTP, and
+   * registered. The exact match runs first because it covers every domain and
+   * uses the unique index; the canonical sweep runs second, and only for the
+   * domains that actually alias.
+   *
+   * Read-only, and deliberately raw: the canonical form is not a stored
+   * column, so the fold has to happen in the query. The two regexes split on
+   * the LAST `@` to match `canonicalizeEmail` exactly — greedy `^.*@` leaves
+   * the domain, `@[^@]*$` leaves the local part — and from there the rule is
+   * the helper's: drop any `+` tag, drop the dots, treat both Google domains
+   * as one. Change one side and you must change the other.
+   *
+   * The sweep is a sequential scan; no index can serve a computed fold. It is
+   * bounded to Google addresses and runs only on the sign-up path after the
+   * indexed exact match misses, so it costs one scan per new Gmail sign-up.
+   * If the users table grows enough for that to hurt, the fix is a stored
+   * `emailCanonical` column with a unique index — a migration, which this
+   * change deliberately avoids.
+   */
+  private async findAccountForMailbox(rawEmail: string) {
+    const { normalized, canonicalLocal, aliases } = canonicalizeEmail(rawEmail);
+
+    const exact = await this.prisma.user.findUnique({
+      where: { email: normalized },
+      select: { id: true, email: true, isBlocked: true },
+    });
+    if (exact) return exact;
+
+    // Every Google address gets swept, including one that is already in
+    // canonical form: the account that exists may be the dotted one, and
+    // `xyz@gmail.com` arriving against a stored `x.y.z@gmail.com` is the same
+    // collision seen from the other side.
+    if (!aliases) return null;
+
+    // An address whose local part is nothing but a `+tag` (`+x@gmail.com`
+    // clears @IsEmail) folds to an empty string, which is not a mailbox any
+    // account can own. Comparing it would be a scan that can only ever match
+    // junk, so refuse the fold and let the exact match above stand alone.
+    if (!canonicalLocal) return null;
+
+    const [alias] = await this.prisma.$queryRaw<
+      { id: string; email: string; isBlocked: boolean }[]
+    >`
+      SELECT id, email, "isBlocked"
+      FROM "User"
+      WHERE email IS NOT NULL
+        AND regexp_replace(lower(email), '^.*@', '')
+            IN ('gmail.com', 'googlemail.com')
+        AND replace(
+              split_part(regexp_replace(lower(email), '@[^@]*$', ''), '+', 1),
+              '.', ''
+            ) = ${canonicalLocal}
+      LIMIT 1
+    `;
+    return alias ?? null;
+  }
+
+  /**
    * Request OTP verification code for Signup, 2FA, or Password Reset.
    * Validates user existence / uniqueness BEFORE sending email.
    */
@@ -47,9 +110,16 @@ export class AuthService {
     const cleanEmail = email.trim().toLowerCase();
 
     if (purpose === 'signup') {
-      const existing = await this.prisma.user.findUnique({ where: { email: cleanEmail } });
+      // Mailbox-level, not string-level: a Gmail dot or +tag variant of a
+      // registered address reaches an inbox that already has an account, and
+      // sending it a code is the first half of opening a duplicate on it.
+      const existing = await this.findAccountForMailbox(cleanEmail);
       if (existing) {
-        throw new BadRequestException('That email address is already registered. Please sign in instead.');
+        throw new BadRequestException(
+          existing.email === cleanEmail
+            ? 'That email address is already registered. Please sign in instead.'
+            : `That mailbox is already registered as ${existing.email}. Please sign in with that address instead.`,
+        );
       }
     } else if (purpose === 'login' || purpose === 'forgot_password') {
       const user = await this.prisma.user.findUnique({ where: { email: cleanEmail } });
@@ -131,9 +201,16 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired email verification code. Please request a new OTP.');
     }
 
-    const existing = await this.prisma.user.findUnique({ where: { email } });
+    // Same mailbox-level check as `sendOtp`, repeated rather than trusted:
+    // `register` is reachable on its own, and two aliases racing here would
+    // both pass a check made only at OTP time.
+    const existing = await this.findAccountForMailbox(email);
     if (existing) {
-      throw new BadRequestException('That email is already registered.');
+      throw new BadRequestException(
+        existing.email === email
+          ? 'That email is already registered.'
+          : `That mailbox is already registered as ${existing.email}. Please sign in with that address instead.`,
+      );
     }
 
     await this.antiabuse.assertSignupAllowed({
