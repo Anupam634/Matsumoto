@@ -3,7 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { PrismaService } from './prisma.service';
+import { PrismaModule } from './prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { AntiabuseModule } from './antiabuse/antiabuse.module';
 import { MiningModule } from './mining/mining.module';
@@ -24,6 +24,7 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    PrismaModule,
     ScheduleModule.forRoot(),
     // A blanket per-IP ceiling. Deliberately generous — the dashboard polls
     // mining status, and this is a backstop against scripted abuse, not a
@@ -45,9 +46,6 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
     ReferralsModule,
     LeaderboardModule,
   ],
-  providers: [
-    PrismaService,
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
-  ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

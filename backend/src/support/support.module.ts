@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { SupportService } from './support.service';
 import { SupportController, SupportAdminController } from './support.controller';
 import { AdminAuthGuard } from '../admin/admin.guard';
-import { PrismaService } from '../prisma.service';
 import { AuthModule } from '../auth/auth.module';
 
 /**
@@ -12,6 +11,6 @@ import { AuthModule } from '../auth/auth.module';
 @Module({
   imports: [AuthModule],
   controllers: [SupportController, SupportAdminController],
-  providers: [SupportService, AdminAuthGuard, PrismaService],
+  providers: [SupportService, AdminAuthGuard],
 })
 export class SupportModule {}
