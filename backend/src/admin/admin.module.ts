@@ -3,7 +3,6 @@ import { AdminService } from './admin.service';
 import { AdminBootstrapService } from './admin-bootstrap.service';
 import { AdminController, AdminSecureController } from './admin.controller';
 import { AdminAuthGuard } from './admin.guard';
-import { PrismaService } from '../prisma.service';
 import { AuthModule } from '../auth/auth.module';
 import { WithdrawalsModule } from '../withdrawals/withdrawals.module';
 import { TasksService } from '../tasks/tasks.service';
@@ -19,7 +18,6 @@ import { TasksService } from '../tasks/tasks.service';
   providers: [
     AdminService,
     AdminAuthGuard,
-    PrismaService,
     AdminBootstrapService,
     TasksService,
   ],

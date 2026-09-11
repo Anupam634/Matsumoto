@@ -4,7 +4,6 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtAuthGuard } from './jwt.guard';
-import { PrismaService } from '../prisma.service';
 import { AntiabuseModule } from '../antiabuse/antiabuse.module';
 import { Logger } from '@nestjs/common';
 import { checkJwtSecret } from '../common/jwt-secret';
@@ -36,7 +35,7 @@ import { checkJwtSecret } from '../common/jwt-secret';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard, PrismaService],
+  providers: [AuthService, JwtAuthGuard],
   exports: [JwtAuthGuard, JwtModule],
 })
 export class AuthModule {}
