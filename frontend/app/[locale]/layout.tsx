@@ -20,8 +20,12 @@ export const metadata = {
   title: TITLE,
   description: DESCRIPTION,
   manifest: '/manifest.webmanifest',
+  // /favicon.png is a 64x64 render of the emblem, not the 1024x1024 master.
+  // Browsers ask for the icon on every navigation and a tab strip never shows
+  // more than 32 CSS pixels of it, so shipping the master was ~947 KB spent
+  // per cold fetch for nothing.
   icons: {
-    icon: '/favicon.png',
+    icon: [{ url: '/favicon.png', type: 'image/png', sizes: '64x64' }],
     shortcut: '/favicon.png',
     apple: '/apple-icon.png',
   },
@@ -31,7 +35,7 @@ export const metadata = {
     title: TITLE,
     description: DESCRIPTION,
     url: SITE_URL,
-    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'BONDKOIN — node mining on BNB Chain' }],
+    images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'BONDKOIN — node mining on BNB Chain' }],
   },
   twitter: {
     card: 'summary_large_image',
@@ -39,7 +43,7 @@ export const metadata = {
     creator: '@BondKoin',
     title: TITLE,
     description: DESCRIPTION,
-    images: ['/og-image.png'],
+    images: ['/og-image.jpg'],
   },
 };
 
