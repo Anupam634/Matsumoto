@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { ProductImageThumb } from '../ProductImage';
 
 export interface AdminProduct {
   id: string;
@@ -462,9 +463,11 @@ export function MarketplaceAdminTab() {
                   <tr key={p.id} className="hover:bg-slate-900/40 transition-colors">
                     <td className="p-3.5">
                       <div className="flex items-center gap-3">
-                        <img
+                        <ProductImageThumb
                           src={p.imageSrc}
                           alt={p.name}
+                          width={64}
+                          height={48}
                           className="marketplace-3d-img h-12 w-16 rounded-xl object-cover border border-slate-700/50 shadow-md"
                         />
                         <div>

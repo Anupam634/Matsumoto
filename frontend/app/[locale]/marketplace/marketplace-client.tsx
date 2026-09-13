@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { AppHeader } from '../../../components/AppHeader';
 import { MobileTabBar } from '../../../components/MobileTabBar';
 import { BnbBadge } from '../../../components/BnbLogo';
+import { ProductImageFill, ProductImageThumb } from '../../../components/ProductImage';
 import { getProfile, type Profile } from '../../../lib/api';
 
 interface ProductItem {
@@ -454,11 +455,12 @@ export default function MarketplaceClient() {
                 <div>
                   {/* 3D Product Image Showcase Box */}
                   <div className="marketplace-img-container relative aspect-[16/10] w-full overflow-hidden rounded-2xl border border-slate-700/50 shadow-md">
-                    <img
+                    {/* sizes tracks the grid: four across at lg, two at sm, one below. */}
+                    <ProductImageFill
                       src={prod.imageSrc}
                       alt={prod.name}
                       className="marketplace-3d-img block h-full w-full object-cover object-center group-hover:scale-110 transition-transform duration-700 ease-out"
-                      loading="lazy"
+                      sizes="(min-width: 1024px) 300px, (min-width: 640px) 50vw, 100vw"
                     />
 
                     {/* 3D Floating Badge */}
@@ -579,9 +581,11 @@ export default function MarketplaceClient() {
               <div>
                 <div className="flex items-center justify-between border-b border-white/10 pb-4">
                   <div className="flex items-center gap-3">
-                    <img
+                    <ProductImageThumb
                       src={checkoutProduct.imageSrc}
                       alt={checkoutProduct.name}
+                      width={64}
+                      height={48}
                       className="h-12 w-16 rounded-xl object-cover border border-white/10"
                     />
                     <div>

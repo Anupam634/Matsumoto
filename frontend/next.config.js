@@ -95,13 +95,50 @@ const securityHeaders = [
       ]),
 ];
 
+/**
+ * Cache policy for the files in /public.
+ *
+ * Vercel's default for them is `public, max-age=0, must-revalidate`, which
+ * makes the browser re-ask for every logo and product shot on every single
+ * navigation. Anything that then skips the conditional request — crawlers,
+ * in-app webviews, a cold cache — pulls the whole body down again. That
+ * default is what put /favicon.png at 43k requests and 5.3 GB of Fast Data
+ * Transfer in twelve hours.
+ *
+ * A week of browser cache plus a month of serve-stale-while-revalidating cuts
+ * the repeat traffic to nothing. These names are not content-hashed, so the
+ * way to push a new version out early is to commit it under a new filename
+ * and update the reference — a week is short enough that doing it the lazy
+ * way still lands, and long enough that returning miners fetch none of it.
+ */
+const STATIC_ASSET_CACHE = 'public, max-age=604800, stale-while-revalidate=2592000';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   // Nothing gains from advertising the framework version.
   poweredByHeader: false,
+  images: {
+    // AVIF first, WebP for the browsers without it. A 1376x768 product JPEG
+    // that ships as ~900 KB of source becomes tens of KB at the size a card
+    // actually renders it.
+    formats: ['image/avif', 'image/webp'],
+    // Hold each optimized variant at the edge for 30 days instead of the
+    // 60-second default, so the optimizer stops re-fetching the originals.
+    minimumCacheTTL: 2592000,
+  },
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }];
+    return [
+      { source: '/:path*', headers: securityHeaders },
+      {
+        source: '/:path*.(png|jpg|jpeg|gif|svg|ico|webp|avif|mp4|webm|woff|woff2)',
+        headers: [{ key: 'Cache-Control', value: STATIC_ASSET_CACHE }],
+      },
+      {
+        source: '/manifest.webmanifest',
+        headers: [{ key: 'Cache-Control', value: STATIC_ASSET_CACHE }],
+      },
+    ];
   },
 };
 
