@@ -351,6 +351,19 @@ function Landing({ locale }: { locale: string }) {
       </section>
 
       {/* ────────────────────────── Footer ───────────────────────── */}
+      {/*
+        Footer links carry prefetch={false} deliberately.
+
+        next/link prefetches once a link comes within 200px of the viewport, and
+        every one of those is a real edge request returning ~33 KB of RSC
+        payload. Scrolling to the bottom of the highest-traffic public page was
+        firing ten of them at routes almost nobody reaches from here — which is
+        why /en/kyc and /en/withdraw showed edge request counts within noise of
+        /en/dashboard. The nav people actually navigate with (hero CTAs,
+        AppHeader, MobileTabBar) still prefetches, so the fast paths stay fast.
+        Note that in the App Router prefetch={false} also opts out of the
+        hover/touch prefetch, so a footer click costs one round trip.
+      */}
       <footer className="border-t border-white/[0.08] bg-slate-950/90 px-5 pt-16 pb-12 text-slate-400 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl grid gap-10 lg:grid-cols-12 pb-12 border-b border-white/[0.08]">
           <div className="lg:col-span-5 space-y-4">
@@ -387,7 +400,7 @@ function Landing({ locale }: { locale: string }) {
               </h4>
               <ul className="space-y-2 text-slate-400">
                 <li><a href="#how" className="hover:text-amber-400">{t('nav.features')}</a></li>
-                <li><Link href={`/${locale}/boosters`} className="hover:text-amber-400">{t('nav.boosters')}</Link></li>
+                <li><Link href={`/${locale}/boosters`} prefetch={false} className="hover:text-amber-400">{t('nav.boosters')}</Link></li>
                 <li><a href="#calculator" className="hover:text-amber-400">{t('nav.calculator')}</a></li>
                 <li><a href="#referrals" className="hover:text-amber-400">{t('nav.referrals')}</a></li>
               </ul>
@@ -398,11 +411,11 @@ function Landing({ locale }: { locale: string }) {
                 {t('footer.ecosystem')}
               </h4>
               <ul className="space-y-2 text-slate-400">
-                <li><Link href={`/${locale}/dashboard`} className="text-blue-400 font-mono font-bold hover:underline">$BONDKOIN BEP-20</Link></li>
-                <li><Link href={`/${locale}/marketplace`} className="text-cyan-300 font-bold hover:underline">🛒 Network Marketplace</Link></li>
-                <li><Link href={`/${locale}/withdraw`} className="hover:text-blue-400">BNB Chain Withdrawals</Link></li>
-                <li><Link href={`/${locale}/kyc`} className="hover:text-blue-400">KYC Verification</Link></li>
-                <li><Link href={`/${locale}/support`} className="hover:text-blue-400">Support Desk</Link></li>
+                <li><Link href={`/${locale}/dashboard`} prefetch={false} className="text-blue-400 font-mono font-bold hover:underline">$BONDKOIN BEP-20</Link></li>
+                <li><Link href={`/${locale}/marketplace`} prefetch={false} className="text-cyan-300 font-bold hover:underline">🛒 Network Marketplace</Link></li>
+                <li><Link href={`/${locale}/withdraw`} prefetch={false} className="hover:text-blue-400">BNB Chain Withdrawals</Link></li>
+                <li><Link href={`/${locale}/kyc`} prefetch={false} className="hover:text-blue-400">KYC Verification</Link></li>
+                <li><Link href={`/${locale}/support`} prefetch={false} className="hover:text-blue-400">Support Desk</Link></li>
               </ul>
             </div>
 
@@ -411,10 +424,10 @@ function Landing({ locale }: { locale: string }) {
                 {t('footer.legal')}
               </h4>
               <ul className="space-y-2 text-slate-400">
-                <li><Link href={`/${locale}/faq`} className="hover:text-blue-400">{t('footer.faq')}</Link></li>
-                <li><Link href={`/${locale}/terms`} className="hover:text-blue-400">{t('footer.terms')}</Link></li>
-                <li><Link href={`/${locale}/privacy`} className="hover:text-blue-400">{t('footer.privacy')}</Link></li>
-                <li><Link href={`/${locale}/support`} className="hover:text-blue-400">{t('footer.support')}</Link></li>
+                <li><Link href={`/${locale}/faq`} prefetch={false} className="hover:text-blue-400">{t('footer.faq')}</Link></li>
+                <li><Link href={`/${locale}/terms`} prefetch={false} className="hover:text-blue-400">{t('footer.terms')}</Link></li>
+                <li><Link href={`/${locale}/privacy`} prefetch={false} className="hover:text-blue-400">{t('footer.privacy')}</Link></li>
+                <li><Link href={`/${locale}/support`} prefetch={false} className="hover:text-blue-400">{t('footer.support')}</Link></li>
               </ul>
             </div>
           </div>
