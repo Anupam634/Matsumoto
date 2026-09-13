@@ -8,7 +8,11 @@ export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
 }
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bondkoinlabs.com';
+// The apex answers 308 to the www host, so every canonical/OG URL built on the
+// apex costs a redirect before anything is served — and a scraper that does not
+// follow redirects for images just gets nothing. Default to the host that
+// actually returns 200.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.bondkoinlabs.com';
 const TITLE = 'BONDKOIN Labs | Next-Gen Node Mining on BNB Chain';
 const DESCRIPTION =
   'Register free in seconds. No battery drain. Accumulate digital assets daily. Convert points directly to on-chain $BONDKOIN BEP-20 tokens on BNB Chain.';
@@ -24,9 +28,13 @@ export const metadata = {
   // Browsers ask for the icon on every navigation and a tab strip never shows
   // more than 32 CSS pixels of it, so shipping the master was ~947 KB spent
   // per cold fetch for nothing.
+  //
+  // There is no `shortcut` entry here on purpose. Declaring both `icon` and
+  // `shortcut` emitted two <link> tags pointing at the same file, and the
+  // second one buys nothing: rel="shortcut icon" is a legacy alias that no
+  // browser needs alongside rel="icon".
   icons: {
     icon: [{ url: '/favicon.png', type: 'image/png', sizes: '64x64' }],
-    shortcut: '/favicon.png',
     apple: '/apple-icon.png',
   },
   openGraph: {
