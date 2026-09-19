@@ -155,6 +155,24 @@ model BoosterPurchase {
   // they keep the behaviour they already had while every new purchase is
   // priced exactly.
   priceUsd        Int?
+  // Which configured collector wallet this purchase was quoted to pay
+  // (see boosters/collectors.ts). "default" is the platform's original
+  // treasury wallet and always existed implicitly before this column did,
+  // so it is also the default for every row written before this column
+  // existed. Revenue totals (admin.service.ts revenueAnalytics) deliberately
+  // do NOT filter on this column — every collector's money is platform
+  // revenue. Row-level admin views that would surface another collector's
+  // wallet/txHash (the plain booster-purchase list, revenue CSV, the
+  // dashboard's "recent payments" widget) DO filter to "default" — a
+  // non-finance admin sees the totals move but not another collector's
+  // individual transactions. Only FinanceController, gated on the
+  // CRYPTO_PAYMENT_VIEW permission, reads other collectors' rows directly.
+  collectorId     String                @default("default")
+  // Chain the payment was made on. Every collector today is paid on the
+  // same chain as the booster payment flow (BNB Smart Chain), but the
+  // column exists so a purchase's network is never inferred from whatever
+  // the platform happens to be configured for at read time.
+  network         String                @default("BSC")
   // Wallet the user declared they will pay from. Verification requires the
   // transaction's sender to match, so a stranger's tx hash cannot be claimed.
   fromAddress     String
@@ -300,6 +318,11 @@ model AdminUser {
   email        String   @unique
   passwordHash String
   role         String   @default("admin")
+  // Fine-grained grants beyond `role`. A "super" role bypasses this check
+  // entirely (PermissionGuard treats it as having every permission); this
+  // array is how a specific non-super admin gets one extra capability, e.g.
+  // CRYPTO_PAYMENT_VIEW, without becoming super.
+  permissions  String[] @default([])
   createdAt    DateTime @default(now())
 }
 

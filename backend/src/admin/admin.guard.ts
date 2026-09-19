@@ -23,6 +23,7 @@ export interface RequestAdmin {
   id: string;
   email: string;
   role: string;
+  permissions: string[];
 }
 
 @Injectable()
@@ -57,7 +58,7 @@ export class AdminAuthGuard implements CanActivate {
     // rather than at token expiry.
     const admin = await this.prisma.adminUser.findUnique({
       where: { id: payload.sub },
-      select: { id: true, email: true, role: true },
+      select: { id: true, email: true, role: true, permissions: true },
     });
     if (!admin) throw new UnauthorizedException('Admin no longer exists.');
 

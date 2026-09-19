@@ -102,8 +102,18 @@ export class ChainReaderService {
   /**
    * Look up a transaction and extract the transfer relevant to us.
    * Returns null when the hash is unknown or still unmined.
+   *
+   * `payToAddress` is the wallet *this particular purchase* was quoted to
+   * pay — the platform now routes different purchases to different
+   * collector wallets (see boosters/collectors.ts), so the address to look
+   * for on chain is a parameter, not the single configured
+   * `this.config.payToAddress`, which remains only the default/native-BNB
+   * config source.
    */
-  async observe(txHash: string): Promise<ObservedPayment | null> {
+  async observe(
+    txHash: string,
+    payToAddress: string = this.config.payToAddress,
+  ): Promise<ObservedPayment | null> {
     if (!this.provider) return null;
 
     const [tx, receipt] = await Promise.all([
@@ -130,10 +140,11 @@ export class ChainReaderService {
       };
     }
 
-    // BEP-20: find a Transfer log from the configured token addressed to us.
-    // Summing would let a single tx that pays us twice count once per log, so
-    // we take the largest matching transfer instead.
-    const wanted = this.config.payToAddress.toLowerCase();
+    // BEP-20: find a Transfer log from the configured token addressed to the
+    // wallet this purchase was quoted to pay. Summing would let a single tx
+    // that pays us twice count once per log, so we take the largest
+    // matching transfer instead.
+    const wanted = payToAddress.toLowerCase();
     let best: { from: string; units: bigint } | null = null;
 
     for (const log of receipt.logs) {
@@ -166,7 +177,7 @@ export class ChainReaderService {
 
     return {
       from: best.from,
-      to: this.config.payToAddress,
+      to: payToAddress,
       units: best.units,
       tokenAddress: this.config.tokenAddress,
       confirmations,

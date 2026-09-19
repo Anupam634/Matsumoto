@@ -9,6 +9,7 @@ import { AntiabuseModule } from './antiabuse/antiabuse.module';
 import { MiningModule } from './mining/mining.module';
 import { WithdrawalsModule } from './withdrawals/withdrawals.module';
 import { AdminModule } from './admin/admin.module';
+import { FinanceModule } from './admin/finance/finance.module';
 import { TasksModule } from './tasks/tasks.module';
 import { KycModule } from './kyc/kyc.module';
 import { BoostersModule } from './boosters/boosters.module';
@@ -38,6 +39,7 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
     MiningModule,
     WithdrawalsModule,
     AdminModule,
+    FinanceModule,
     TasksModule,
     KycModule,
     SupportModule,

@@ -146,6 +146,16 @@ run by hand, and nothing breaks if a start command is later edited.
    forgotten password, change it and redeploy. Sign in at
    `https://your-frontend/en/admin`.
 
+   Optionally, also set `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` the same
+   way to bootstrap a **super admin** — the only role that can see the crypto
+   finance module (`/admin/finance/crypto/...`), which lists every booster
+   payment across every collector wallet, including ones the general admin
+   above cannot see individual transactions for (see
+   `backend/src/boosters/collectors.ts` and
+   `backend/src/admin/permissions.ts`). A general admin can instead be
+   granted just that one permission with:
+   `npm run admin:create -- <email> <password> admin CRYPTO_PAYMENT_VIEW`.
+
    Redis is optional but no longer unused: pending verification codes live in
    it when `REDIS_URL` is set, and in the API process when it is not. Provision
    one or leave the variable unset — do not point it at a Redis that isn't

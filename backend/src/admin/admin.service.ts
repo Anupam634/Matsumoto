@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import { toCsv, CSV_MAX_ROWS } from '../common/csv';
@@ -179,7 +183,12 @@ export class AdminService {
     });
     return {
       accessToken,
-      admin: { id: admin.id, email: admin.email, role: admin.role },
+      admin: {
+        id: admin.id,
+        email: admin.email,
+        role: admin.role,
+        permissions: admin.permissions,
+      },
     };
   }
 
@@ -783,7 +792,13 @@ export class AdminService {
       }),
       this.prisma.user.count(),
       this.prisma.boosterPurchase.findMany({
-        where: { status: 'CONFIRMED' },
+        // Scoped to the default collector: this list surfaces a per-row
+        // txHash, and a non-default collector's transactions are only
+        // readable through the finance module (CRYPTO_PAYMENT_VIEW). The
+        // *total* revenue figures elsewhere on this same response are
+        // deliberately NOT scoped this way — every collector's money is
+        // real platform revenue.
+        where: { status: 'CONFIRMED', collectorId: 'default' },
         // Postgres sorts NULLs first on DESC. Both confirmation paths do
         // stamp `confirmedAt`, but a row that somehow missed one must not
         // therefore lead the "latest payments" list.
@@ -1446,6 +1461,12 @@ export class AdminService {
 
   async exportRevenueCsv(): Promise<string> {
     const purchases = await this.prisma.boosterPurchase.findMany({
+      // Same default-collector scope as listBoosterPurchases: this sheet
+      // has a Transaction Hash column per row. A non-default collector's
+      // purchases still count in every revenue total; they are just not
+      // handed out here as individual transactions. Full CSV export across
+      // every collector belongs to the finance module, not this one.
+      where: { collectorId: 'default' },
       orderBy: { createdAt: 'desc' },
       take: CSV_MAX_ROWS,
       include: {
@@ -1624,7 +1645,12 @@ export class AdminService {
   }
 
   async listBoosterPurchases(query?: { status?: string; search?: string }) {
-    const where: any = {};
+    // General admin view: scoped to the default collector wallet. A
+    // purchase routed to another collector (see boosters/collectors.ts) is
+    // only visible in the finance module, behind CRYPTO_PAYMENT_VIEW — this
+    // list shows a wallet and a tx hash per row, which is exactly the detail
+    // that stays out of the general admin surface for those purchases.
+    const where: any = { collectorId: 'default' };
 
     if (query?.status && query.status !== 'ALL') {
       where.status = query.status;
@@ -1676,6 +1702,16 @@ export class AdminService {
       where: { id: purchaseId },
       include: { plan: true },
     });
+
+    // General admin surface is scoped to the default collector everywhere
+    // else (listBoosterPurchases, exportRevenueCsv, the dashboard's recent
+    // payments); a mutating action must not have a wider reach than the
+    // read paths that would let an admin discover the id in the first
+    // place. NotFoundException, not Forbidden — this id simply isn't part
+    // of the general admin's booster-purchase surface.
+    if (purchase.collectorId !== 'default') {
+      throw new NotFoundException('Booster purchase not found.');
+    }
 
     if (purchase.status === 'CONFIRMED') {
       return { success: true, message: 'Purchase is already confirmed.' };
