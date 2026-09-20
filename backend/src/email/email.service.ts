@@ -281,6 +281,10 @@ export class EmailService {
       subject = 'BONDKOIN 2FA Security Code';
       purposeTitle = 'Two-Factor Authentication';
       purposeDesc = 'Use the verification code below to sign in to your BONDKOIN Mining Dashboard.';
+    } else if (purpose === 'withdrawal') {
+      subject = 'BONDKOIN Withdrawal Confirmation Code';
+      purposeTitle = 'Confirm Your Withdrawal';
+      purposeDesc = 'Use the verification code below to confirm your withdrawal request. If you did not request this, do not share this code with anyone.';
     }
 
     const html = `

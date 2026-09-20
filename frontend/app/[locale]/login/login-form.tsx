@@ -99,7 +99,13 @@ function AuthForm() {
         });
         router.push(`/${params.locale}/dashboard`);
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Invalid email or password.');
+        if (err instanceof ApiError && err.code === 'OTP_REQUIRED') {
+          setEmail(email.trim().toLowerCase());
+          setStep('otp');
+          setInfoMsg(err.message);
+        } else {
+          setError(err instanceof ApiError ? err.message : 'Invalid email or password.');
+        }
       } finally {
         setBusy(false);
       }
@@ -542,7 +548,9 @@ function AuthForm() {
                       onClick={async () => {
                         setBusy(true);
                         try {
-                          const res = await (mode === 'forgot' ? forgotPassword(email) : sendOtp(email));
+                          const res = await (mode === 'forgot'
+                            ? forgotPassword(email)
+                            : sendOtp(email, mode === 'login' ? 'login' : 'signup'));
                           setInfoMsg(res.message || 'A new verification code has been sent to your email.');
                         } catch (err: any) {
                           setError(err?.message || 'Failed to resend code.');

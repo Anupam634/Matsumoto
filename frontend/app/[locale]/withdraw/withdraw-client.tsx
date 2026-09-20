@@ -10,6 +10,7 @@ import {
   getToken,
   getWithdrawals,
   requestWithdrawal,
+  sendWithdrawalOtp,
   WITHDRAWAL_COOLDOWN_DAYS,
   WITHDRAWAL_MIN_POINTS,
   type Profile,
@@ -122,6 +123,9 @@ function RequestForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [step, setStep] = useState<'form' | 'otp'>('form');
+  const [otp, setOtp] = useState('');
+  const [infoMsg, setInfoMsg] = useState<string | null>(null);
 
   const balance = profile.pointsBalance;
 
@@ -157,6 +161,53 @@ function RequestForm({
       setToAddress('');
       setDone(true);
       onDone();
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'OTP_REQUIRED') {
+        try {
+          const res = await sendWithdrawalOtp();
+          setInfoMsg(res.message || 'A confirmation code has been sent to your email.');
+          setStep('otp');
+        } catch (sendErr) {
+          setError(sendErr instanceof ApiError ? sendErr.message : t('offline'));
+        }
+      } else {
+        setError(err instanceof ApiError ? err.message : t('offline'));
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmWithOtp(e: React.FormEvent) {
+    e.preventDefault();
+    if (!otp.trim()) {
+      setError('Enter the 6-digit code sent to your email.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await requestWithdrawal(amount, toAddress.trim(), otp.trim());
+      setPoints('');
+      setToAddress('');
+      setOtp('');
+      setStep('form');
+      setInfoMsg(null);
+      setDone(true);
+      onDone();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('offline'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resendOtp() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await sendWithdrawalOtp();
+      setInfoMsg(res.message || 'A new confirmation code has been sent to your email.');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('offline'));
     } finally {
@@ -214,6 +265,69 @@ function RequestForm({
         </p>
       )}
 
+      {infoMsg && step === 'otp' && (
+        <p className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
+          {infoMsg}
+        </p>
+      )}
+
+      {step === 'otp' ? (
+        <form onSubmit={confirmWithOtp} className="mt-4 space-y-4" noValidate>
+          <label className="block">
+            <span className="field-label">6-Digit Confirmation Code</span>
+            <input
+              className="input-field mt-1.5 text-center font-mono text-lg tracking-widest"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+              disabled={busy}
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="••••••"
+              autoFocus
+            />
+            <span className="mt-1.5 block text-xs text-slate-500">
+              Confirms the withdrawal of {amount} points to {toAddress.trim()}.
+            </span>
+          </label>
+
+          {error && (
+            <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={busy || otp.trim().length !== 6}
+            className="btn-primary flex w-full items-center justify-center gap-2 py-3.5 text-center text-sm font-black uppercase tracking-wider text-white shadow-lg transition-all disabled:opacity-50"
+          >
+            {busy ? '⏳ Confirming…' : 'Confirm Withdrawal'}
+          </button>
+
+          <div className="flex items-center justify-between pt-1 text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                setStep('form');
+                setOtp('');
+                setError(null);
+                setInfoMsg(null);
+              }}
+              className="font-bold text-slate-400 transition hover:text-slate-200"
+            >
+              ← Back to edit
+            </button>
+            <button
+              type="button"
+              onClick={resendOtp}
+              disabled={busy}
+              className="font-bold text-indigo-300 transition hover:text-indigo-200 disabled:opacity-40"
+            >
+              Resend Code
+            </button>
+          </div>
+        </form>
+      ) : (
       <form onSubmit={submit} className="mt-4 space-y-4" noValidate>
         <label className="block">
           <span className="field-label">
@@ -293,6 +407,7 @@ function RequestForm({
 
         <p className="text-xs text-slate-500">{t('reviewNote')}</p>
       </form>
+      )}
     </section>
   );
 }

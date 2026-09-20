@@ -59,14 +59,24 @@ export class LoginDto {
   password!: string;
 
   /**
-   * Optional second factor. Unlike signup, no client requests a login code
-   * today, so this stays optional — but when it is sent it must be a valid
-   * `login_2fa` code (see AuthService.login).
+   * Second factor. Required when `platform` is `web` (see AuthService.login);
+   * optional otherwise so the mobile app, which has no OTP step in its
+   * sign-in screen yet, keeps working unchanged.
    */
   @IsOptional()
   @IsString()
   @Length(6, 6)
   otp?: string;
+
+  /**
+   * Which client is calling, so the OTP requirement below can apply to the
+   * website without breaking the mobile app's password-only sign-in. Not a
+   * security boundary — a caller can simply omit it — but it closes the gap
+   * for the real website and for any generic (non-mobile-aware) attack tool.
+   */
+  @IsOptional()
+  @IsIn(['web', 'mobile'])
+  platform?: 'web' | 'mobile';
 
   @IsOptional()
   @IsString()

@@ -271,23 +271,6 @@ export class AuthService {
   async login(dto: LoginDto, signals: SignupSignals) {
     const email = dto.email.trim().toLowerCase();
 
-    // Login 2FA is a step the caller opts into: neither the web nor the
-    // mobile sign-in screen requests a code today, so requiring one here
-    // would lock out every existing account. When a code *is* presented it
-    // has to be a real `login_2fa` code — but treat the plain
-    // email + password path as the actual security boundary until a second
-    // factor is enrolled per user rather than per request.
-    if (dto.otp) {
-      const isValid = await this.emailService.verifyOtp(
-        email,
-        dto.otp,
-        'login_2fa',
-      );
-      if (!isValid) {
-        throw new BadRequestException('Invalid or expired 2FA verification code. Please request a new OTP.');
-      }
-    }
-
     const user = await this.prisma.user.findUnique({
       where: { email },
       select: {
@@ -300,12 +283,36 @@ export class AuthService {
     });
 
     // Same message for unknown email and wrong password — no account probing.
+    // Checked before OTP so a caller with no password can't use this route to
+    // spam a stranger's inbox with codes.
     const ok = user && (await verifyPassword(dto.password, user.passwordHash));
     if (!user || !ok) {
       throw new UnauthorizedException('Invalid email or password.');
     }
     if (user.isBlocked) {
       throw new ForbiddenException('Account is blocked.');
+    }
+
+    // The website requires a second factor; the mobile app's sign-in screen
+    // has no OTP step yet, so it stays on the password-only path (see the
+    // `platform` field on LoginDto for the caveat on what this does and does
+    // not guard against).
+    if (dto.otp) {
+      const isValid = await this.emailService.verifyOtp(
+        email,
+        dto.otp,
+        'login_2fa',
+      );
+      if (!isValid) {
+        throw new BadRequestException('Invalid or expired 2FA verification code. Please request a new OTP.');
+      }
+    } else if (dto.platform === 'web') {
+      await this.emailService.sendOtpEmail(email, 'login_2fa');
+      throw new UnauthorizedException({
+        statusCode: 401,
+        code: 'OTP_REQUIRED',
+        message: 'Enter the verification code we just emailed you to finish signing in.',
+      });
     }
 
     await this.antiabuse.recordDevice(user.id, {
