@@ -1,10 +1,14 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import { AntiabuseService } from '../antiabuse/antiabuse.service';
@@ -34,7 +38,41 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly antiabuse: AntiabuseService,
     private readonly emailService: EmailService,
+    private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Emergency off-switch for the web login OTP requirement, checked on every
+   * call rather than cached at boot so flipping it takes effect without a
+   * redeploy. Exists because the requirement hard-fails login the moment
+   * mail delivery has a bad day (see `sendLoginOtpOrFail`) — this is how an
+   * operator gets the site back to password-only login in that window
+   * without shipping code.
+   */
+  private loginOtpEnforced(): boolean {
+    return this.config.get<string>('LOGIN_OTP_ENFORCED') !== 'false';
+  }
+
+  /**
+   * Mail the login code, turning a mail-delivery failure into a plain 503
+   * instead of letting nodemailer's own exception (mapped to a raw 502)
+   * reach the client looking indistinguishable from the whole API being
+   * down.
+   */
+  private async sendLoginOtpOrFail(email: string) {
+    try {
+      await this.emailService.sendOtpEmail(email, 'login_2fa');
+    } catch (err) {
+      // The per-address rate limit is a real, expected rejection — surface
+      // it as-is rather than masking it as a generic outage.
+      if (err instanceof HttpException && err.getStatus() === HttpStatus.TOO_MANY_REQUESTS) {
+        throw err;
+      }
+      throw new ServiceUnavailableException(
+        'Could not send your verification code right now. Please try again in a moment.',
+      );
+    }
+  }
 
   private sign(user: { id: string; email: string | null }) {
     return this.jwt.signAsync({ sub: user.id, email: user.email });
@@ -306,8 +344,8 @@ export class AuthService {
       if (!isValid) {
         throw new BadRequestException('Invalid or expired 2FA verification code. Please request a new OTP.');
       }
-    } else if (dto.platform === 'web') {
-      await this.emailService.sendOtpEmail(email, 'login_2fa');
+    } else if (dto.platform === 'web' && this.loginOtpEnforced()) {
+      await this.sendLoginOtpOrFail(email);
       throw new UnauthorizedException({
         statusCode: 401,
         code: 'OTP_REQUIRED',
