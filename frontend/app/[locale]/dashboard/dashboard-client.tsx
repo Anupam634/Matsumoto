@@ -8,9 +8,7 @@ import {
   ApiError,
   claimMining,
   getBoosters,
-  getMiningHistory,
-  getMiningStatus,
-  getProfile,
+  getDashboard,
   getToken,
   logout,
   type BoosterPlanDto,
@@ -30,8 +28,15 @@ import { usePolling } from '../../../lib/use-polling';
 
 /** How often the live accrual counter repaints. 10fps reads as smooth. */
 const TICK_MS = 100;
-/** Background refresh so the server stays the source of truth. */
-const REFRESH_MS = 15_000;
+/**
+ * Background refresh so the server stays the source of truth.
+ *
+ * The pending-points counter interpolates locally between refreshes (see
+ * TICK_MS), so this only has to correct drift and pick up changes made
+ * elsewhere — it does not drive what the user sees tick by tick. At 15s each
+ * open tab was asking the database for the same numbers four times a minute.
+ */
+const REFRESH_MS = 60_000;
 
 export default function DashboardClient() {
   const t = useTranslations('dashboard');
@@ -55,11 +60,7 @@ export default function DashboardClient() {
 
   const load = useCallback(async () => {
     try {
-      const [s, p, h] = await Promise.all([
-        getMiningStatus(),
-        getProfile(),
-        getMiningHistory(),
-      ]);
+      const { status: s, profile: p, history: h } = await getDashboard();
       setStatus(s);
       setProfile(p);
       setHistory(h);

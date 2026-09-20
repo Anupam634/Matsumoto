@@ -505,6 +505,23 @@ export interface MiningHistory {
 
 export const getMiningHistory = () => apiFetch<MiningHistory>('/mining/history');
 
+// ───────────────────────── Dashboard ────────────────────────
+
+/** Mining status, profile and recent ledger in one response. */
+export interface DashboardOverview {
+  status: MiningStatus;
+  profile: Profile;
+  history: MiningHistory;
+}
+
+/**
+ * One request in place of `getMiningStatus` + `getProfile` +
+ * `getMiningHistory`. Those three still exist for callers that need a single
+ * piece; the dashboard polls this instead so each refresh is one round trip
+ * rather than three.
+ */
+export const getDashboard = () => apiFetch<DashboardOverview>('/dashboard');
+
 // ───────────────────────── Withdrawals ──────────────────────
 
 export interface WithdrawalDto {

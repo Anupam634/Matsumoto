@@ -36,6 +36,6 @@ import { checkJwtSecret } from '../common/jwt-secret';
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtAuthGuard],
-  exports: [JwtAuthGuard, JwtModule],
+  exports: [JwtAuthGuard, JwtModule, AuthService],
 })
 export class AuthModule {}
