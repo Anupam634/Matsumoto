@@ -17,6 +17,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    /** Machine-readable error tag from the backend, e.g. `OTP_REQUIRED`. */
+    readonly code?: string,
   ) {
     super(message);
   }
@@ -64,17 +66,21 @@ export async function apiFetch<T>(
   });
 
   if (!res.ok) {
-    // Nest error bodies are { message: string | string[], statusCode }.
+    // Nest error bodies are { message: string | string[], statusCode }, plus
+    // an optional `code` tag on the structured errors this client checks for
+    // (e.g. OTP_REQUIRED).
     let message = res.statusText;
+    let code: string | undefined;
     try {
       const body = await res.json();
       message = Array.isArray(body.message)
         ? body.message.join(', ')
         : (body.message ?? message);
+      code = typeof body.code === 'string' ? body.code : undefined;
     } catch {
       /* non-JSON error body — keep the status text */
     }
-    throw new ApiError(message, res.status);
+    throw new ApiError(message, res.status, code);
   }
   return res.json() as Promise<T>;
 }
@@ -124,6 +130,7 @@ export async function login(params: {
     body: JSON.stringify({
       ...params,
       otp: params.otp || undefined,
+      platform: 'web',
       deviceFingerprint: deviceFingerprint(),
     }),
   });
@@ -521,10 +528,20 @@ export const WITHDRAWAL_COOLDOWN_DAYS = 7;
 
 export const getWithdrawals = () => apiFetch<WithdrawalDto[]>('/withdrawals');
 
-export const requestWithdrawal = (points: number, toAddress: string) =>
+/** Mails a confirmation code to the caller's own address, for `requestWithdrawal`. */
+export const sendWithdrawalOtp = () =>
+  apiFetch<{ success: boolean; message: string }>('/withdrawals/send-otp', {
+    method: 'POST',
+  });
+
+export const requestWithdrawal = (
+  points: number,
+  toAddress: string,
+  otp?: string,
+) =>
   apiFetch<WithdrawalDto>('/withdrawals', {
     method: 'POST',
-    body: JSON.stringify({ points, toAddress }),
+    body: JSON.stringify({ points, toAddress, otp, platform: 'web' }),
   });
 
 // ─────────────────────────── Support ────────────────────────

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { WalletService } from '../wallet/wallet.service';
+import { EmailService } from '../email/email.service';
 import { pointsToToken } from '../mining/mining.engine';
 import { lockUserRow } from '../common/row-lock';
 
@@ -54,7 +55,24 @@ export class WithdrawalsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly wallet: WalletService,
+    private readonly emailService: EmailService,
   ) {}
+
+  /**
+   * Mail a confirmation code to the caller's own address for the step-up
+   * check in `request`. Keyed off the authenticated user, not a body-supplied
+   * email, so a caller can only ever trigger a code for their own account.
+   */
+  async sendWithdrawalOtp(userId: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { email: true },
+    });
+    if (!user.email) {
+      throw new BadRequestException('This account has no email on file to send a code to.');
+    }
+    return this.emailService.sendOtpEmail(user.email, 'withdrawal');
+  }
 
   /**
    * Escrow points and queue a payout for admin review.
@@ -65,7 +83,12 @@ export class WithdrawalsService {
    * passed both the balance check and the "one per week" check — leaving five
    * pending payouts and a balance of -400.
    */
-  async request(userId: string, toAddress: string, pointsMilli: number) {
+  async request(
+    userId: string,
+    toAddress: string,
+    pointsMilli: number,
+    confirmation: { otp?: string; platform?: 'web' | 'mobile' } = {},
+  ) {
     if (pointsMilli < MIN_WITHDRAWAL_MILLI) {
       throw new BadRequestException('Minimum withdrawal is 100 points.');
     }
@@ -80,6 +103,28 @@ export class WithdrawalsService {
         where: { id: userId },
         include: { kyc: true },
       });
+
+      // Step-up check: a bearer token alone must not be enough to move
+      // funds. Verified before the KYC/balance/cooldown checks below so a
+      // stolen-but-otherwise-blocked request doesn't burn the code for
+      // nothing.
+      if (confirmation.otp) {
+        const validOtp = await this.emailService.verifyOtp(
+          user.email ?? '',
+          confirmation.otp,
+          'withdrawal',
+        );
+        if (!validOtp) {
+          throw new BadRequestException('Invalid or expired verification code. Please request a new OTP.');
+        }
+      } else if (confirmation.platform === 'web') {
+        throw new BadRequestException({
+          statusCode: 400,
+          code: 'OTP_REQUIRED',
+          message: 'Request a confirmation code (POST /withdrawals/send-otp) and include it to submit this withdrawal.',
+        });
+      }
+
       if (user.kyc?.status !== 'APPROVED') {
         throw new BadRequestException('KYC must be approved before withdrawal.');
       }
