@@ -1,4 +1,11 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
 import { WalletService } from '../wallet/wallet.service';
 import { EmailService } from '../email/email.service';
@@ -56,12 +63,25 @@ export class WithdrawalsService {
     private readonly prisma: PrismaService,
     private readonly wallet: WalletService,
     private readonly emailService: EmailService,
+    private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Emergency off-switch for the web withdrawal OTP requirement — same
+   * escape hatch and same reasoning as AuthService.loginOtpEnforced.
+   */
+  private withdrawalOtpEnforced(): boolean {
+    return this.config.get<string>('WITHDRAWAL_OTP_ENFORCED') !== 'false';
+  }
 
   /**
    * Mail a confirmation code to the caller's own address for the step-up
    * check in `request`. Keyed off the authenticated user, not a body-supplied
    * email, so a caller can only ever trigger a code for their own account.
+   *
+   * Mail-delivery failures are turned into a plain 503 rather than letting
+   * EmailService's own exception (mapped to a raw 502) reach the client
+   * looking like the API itself is down.
    */
   async sendWithdrawalOtp(userId: string) {
     const user = await this.prisma.user.findUniqueOrThrow({
@@ -71,7 +91,16 @@ export class WithdrawalsService {
     if (!user.email) {
       throw new BadRequestException('This account has no email on file to send a code to.');
     }
-    return this.emailService.sendOtpEmail(user.email, 'withdrawal');
+    try {
+      return await this.emailService.sendOtpEmail(user.email, 'withdrawal');
+    } catch (err) {
+      if (err instanceof HttpException && err.getStatus() === HttpStatus.TOO_MANY_REQUESTS) {
+        throw err;
+      }
+      throw new ServiceUnavailableException(
+        'Could not send your confirmation code right now. Please try again in a moment.',
+      );
+    }
   }
 
   /**
@@ -117,7 +146,7 @@ export class WithdrawalsService {
         if (!validOtp) {
           throw new BadRequestException('Invalid or expired verification code. Please request a new OTP.');
         }
-      } else if (confirmation.platform === 'web') {
+      } else if (confirmation.platform === 'web' && this.withdrawalOtpEnforced()) {
         throw new BadRequestException({
           statusCode: 400,
           code: 'OTP_REQUIRED',
