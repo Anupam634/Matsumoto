@@ -22,6 +22,12 @@ export class AdminLoginDto {
 export class BlockUserDto {
   @IsBoolean()
   blocked!: boolean;
+
+  /** Optional explanation, included in the email sent to the user. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
 }
 
 export class AdjustRateDto {

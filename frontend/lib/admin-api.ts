@@ -134,6 +134,7 @@ export interface ReferralAuditLog {
   inviteeIsBlocked: boolean;
   inviterId: string;
   inviterEmail: string;
+  inviterIsBlocked: boolean;
   inviteeFingerprint: string;
   inviteeIp: string;
   inviterFingerprint: string;
@@ -163,6 +164,27 @@ export interface ReferralAuditResult {
 }
 
 export type ReferralAuditFilter = 'ALL' | 'SUSPICIOUS' | 'CLEAN';
+
+/** An inviter ranked by referrals that share their device or IP. */
+export interface ReferralOffender {
+  inviterId: string;
+  inviterEmail: string;
+  inviterIsBlocked: boolean;
+  totalReferrals: number;
+  /** Referrals on the inviter's own device — strong evidence. */
+  sameDevice: number;
+  /** Same IP but not device — can be a shared network. */
+  sameIp: number;
+  flagged: number;
+  /** Flagged referrals already suspended. */
+  flaggedBlocked: number;
+  flaggedPct: number;
+}
+
+export const getReferralOffenders = (limit = 50) =>
+  adminFetch<{ totalOffenders: number; offenders: ReferralOffender[] }>(
+    `/referrals/offenders?limit=${limit}`,
+  );
 
 export const getReferralAudit = (params: {
   page?: number;
@@ -221,10 +243,20 @@ export const listUsers = (search: string, page = 1) =>
 export const getUserDetail = (id: string) =>
   adminFetch<AdminUserDetail>(`/users/${id}`);
 
-export const setBlocked = (id: string, blocked: boolean) =>
-  adminFetch<{ id: string; isBlocked: boolean }>(`/users/${id}/block`, {
+export interface SetBlockedResult {
+  id: string;
+  isBlocked: boolean;
+  /** Whether the suspend/reinstate email was delivered. */
+  emailed: boolean;
+  /** False for wallet-only accounts, which have no address to email. */
+  hasEmail: boolean;
+}
+
+/** Suspend or reinstate a miner; the user is emailed, with `reason` if given. */
+export const setBlocked = (id: string, blocked: boolean, reason?: string) =>
+  adminFetch<SetBlockedResult>(`/users/${id}/block`, {
     method: 'POST',
-    body: JSON.stringify({ blocked }),
+    body: JSON.stringify({ blocked, reason: reason?.trim() || undefined }),
   });
 
 export const adjustRate = (id: string, rateAdjustMilli: number) =>

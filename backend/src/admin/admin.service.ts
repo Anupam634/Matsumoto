@@ -1,7 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { EmailService } from '../email/email.service';
 import { toCsv, CSV_MAX_ROWS } from '../common/csv';
 import {
   bucketKey,
@@ -25,6 +26,9 @@ const TREE_DEPTH = 6;
 /** Referral audit rows per page, and the most a caller may ask for. */
 const AUDIT_PAGE_SIZE = 50;
 const AUDIT_MAX_PAGE_SIZE = 100;
+/** Inviters listed in the referral-offenders ranking. */
+const OFFENDERS_DEFAULT = 50;
+const OFFENDERS_MAX = 200;
 
 /**
  * Every referral with whether the invitee shares a device or an IP with
@@ -34,6 +38,7 @@ const AUDIT_MAX_PAGE_SIZE = 100;
  */
 const FLAGGED_REFERRALS = Prisma.sql`
   SELECT u.id,
+         u."referredById" AS inviter_id,
          COALESCE(bool_or(a.fingerprint = b.fingerprint AND a.fingerprint <> 'unknown'), false) AS same_device,
          COALESCE(bool_or(a."lastIp" IS NOT NULL AND a."lastIp" = b."lastIp"), false) AS same_ip
   FROM "User" u
@@ -187,9 +192,12 @@ export class AdminService {
    */
   private readonly revenueCache = new TtlCache(60_000, 4);
 
+  private readonly logger = new Logger(AdminService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly email: EmailService,
   ) {}
 
   // ────────────────────────── Auth ──────────────────────────
@@ -571,6 +579,7 @@ export class AdminService {
               select: {
                 id: true,
                 email: true,
+                isBlocked: true,
                 devices: { select: { fingerprint: true, lastIp: true } },
               },
             },
@@ -610,6 +619,7 @@ export class AdminService {
           inviteeIsBlocked: r.isBlocked,
           inviterId: r.referredById!,
           inviterEmail: r.referredBy?.email ?? 'Unknown Inviter',
+          inviterIsBlocked: r.referredBy?.isBlocked ?? false,
           inviteeFingerprint: invitee?.fingerprint ?? 'None',
           inviteeIp: invitee?.lastIp ?? 'None',
           inviterFingerprint: inviter?.fingerprint ?? 'None',
@@ -639,6 +649,66 @@ export class AdminService {
       /** Referrals matching the current filter and search, across all pages. */
       matched: pageRows[0]?.matched ?? 0,
       auditLogs,
+    };
+  }
+
+  /**
+   * Inviters ranked by how many of their referrals share a device or an IP
+   * with them — the accounts most likely farming referral rewards.
+   *
+   * Same-device is strong evidence; same-IP alone can be a shared household
+   * or a mobile carrier that puts many customers behind one address, so the
+   * two are reported separately rather than as one score.
+   */
+  async referralOffenders(limit = OFFENDERS_DEFAULT) {
+    const take = Math.min(OFFENDERS_MAX, Math.max(1, Math.trunc(limit) || OFFENDERS_DEFAULT));
+    const rows = await this.prisma.$queryRaw<
+      {
+        inviter_id: string;
+        email: string | null;
+        is_blocked: boolean;
+        total_referrals: number;
+        same_device: number;
+        same_ip_only: number;
+        flagged: number;
+        flagged_blocked: number;
+        total_offenders: number;
+      }[]
+    >`
+      WITH f AS (${FLAGGED_REFERRALS})
+      SELECT f.inviter_id,
+             i.email,
+             i."isBlocked" AS is_blocked,
+             count(*)::int AS total_referrals,
+             (count(*) FILTER (WHERE f.same_device))::int AS same_device,
+             (count(*) FILTER (WHERE f.same_ip AND NOT f.same_device))::int AS same_ip_only,
+             (count(*) FILTER (WHERE f.same_device OR f.same_ip))::int AS flagged,
+             (count(*) FILTER (WHERE (f.same_device OR f.same_ip) AND invitee."isBlocked"))::int AS flagged_blocked,
+             (count(*) OVER ())::int AS total_offenders
+      FROM f
+      JOIN "User" i ON i.id = f.inviter_id
+      JOIN "User" invitee ON invitee.id = f.id
+      GROUP BY f.inviter_id, i.email, i."isBlocked"
+      HAVING count(*) FILTER (WHERE f.same_device OR f.same_ip) > 0
+      ORDER BY flagged DESC, total_referrals DESC, f.inviter_id
+      LIMIT ${take}
+    `;
+
+    return {
+      /** Inviters with at least one flagged referral, before the limit. */
+      totalOffenders: rows[0]?.total_offenders ?? 0,
+      offenders: rows.map((r) => ({
+        inviterId: r.inviter_id,
+        inviterEmail: r.email ?? 'Wallet Miner',
+        inviterIsBlocked: r.is_blocked,
+        totalReferrals: r.total_referrals,
+        sameDevice: r.same_device,
+        sameIp: r.same_ip_only,
+        flagged: r.flagged,
+        /** Flagged invitees already suspended. */
+        flaggedBlocked: r.flagged_blocked,
+        flaggedPct: pct(r.flagged, r.total_referrals),
+      })),
     };
   }
 
@@ -691,13 +761,40 @@ export class AdminService {
     return attach(byParent.get(rootId) ?? []);
   }
 
-  async setBlocked(userId: string, blocked: boolean) {
+  /**
+   * Suspend or reinstate a miner, and email them about it.
+   *
+   * The status change is the action; the email is best effort. A failed send
+   * (e.g. the SMTP provider's hourly cap) is reported back as `emailed:
+   * false` rather than undoing a suspension the admin asked for. No email
+   * goes out when the status did not actually change, so a double click
+   * doesn't mail the user twice.
+   */
+  async setBlocked(userId: string, blocked: boolean, reason?: string) {
+    const before = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { isBlocked: true, email: true },
+    });
     const u = await this.prisma.user.update({
       where: { id: userId },
       data: { isBlocked: blocked },
       select: { id: true, isBlocked: true },
     });
-    return u;
+
+    let emailed = false;
+    if (before.isBlocked !== blocked && before.email) {
+      try {
+        emailed = await this.email.sendAccountStatusEmail(before.email, {
+          suspended: blocked,
+          reason,
+        });
+      } catch (err) {
+        this.logger.warn(
+          `[ACCOUNT STATUS EMAIL FAILED] user=${userId}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+    return { ...u, emailed, hasEmail: !!before.email };
   }
 
   /** Manual hash-rate override (SPEC §6). */
