@@ -113,10 +113,22 @@ export class KycService {
 
   // ───────────────────── Admin review ─────────────────────
 
-  /** Review queue. Deliberately excludes image payloads. */
-  async adminList(status?: string) {
+  /**
+   * Review queue. Deliberately excludes image payloads.
+   *
+   * `search` matches the applicant's email and is applied in the query, not
+   * by the client: the page is capped at 200 rows, so filtering on screen
+   * could never find anyone past that cap.
+   */
+  async adminList(status?: string, search?: string) {
+    const term = search?.trim().slice(0, 254);
     const rows = await this.prisma.kycRecord.findMany({
-      where: status ? { status: status as never } : { NOT: { status: 'NONE' } },
+      where: {
+        ...(status ? { status: status as never } : { NOT: { status: 'NONE' } }),
+        ...(term
+          ? { user: { email: { contains: term, mode: 'insensitive' } } }
+          : {}),
+      },
       orderBy: { submittedAt: 'asc' },
       take: 200,
       include: {
@@ -133,6 +145,8 @@ export class KycService {
       documentType: r.documentType,
       documentNumber: r.documentNumber,
       countryCode: r.countryCode,
+      /** Country chosen at signup — may differ from the document's. */
+      userCountryCode: r.user.countryCode,
       documentCount: r._count.documents,
       submittedAt: r.submittedAt,
       reviewedAt: r.reviewedAt,
