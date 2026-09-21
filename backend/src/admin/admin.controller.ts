@@ -125,10 +125,10 @@ export class AdminSecureController {
     return this.admin.userDetail(id);
   }
 
-  /** POST /api/admin/users/:id/block — block or unblock. */
+  /** POST /api/admin/users/:id/block — block or unblock, and email the user. */
   @Post('users/:id/block')
   block(@Param('id') id: string, @Body() dto: BlockUserDto) {
-    return this.admin.setBlocked(id, dto.blocked);
+    return this.admin.setBlocked(id, dto.blocked, dto.reason);
   }
 
   /** POST /api/admin/users/:id/rate — manual hash-rate adjustment. */
@@ -144,6 +144,12 @@ export class AdminSecureController {
   }
 
   /** GET /api/admin/referrals/audit — fraud detection and device handshake check */
+  /** GET /api/admin/referrals/offenders?limit=50 — inviters ranked by flagged referrals. */
+  @Get('referrals/offenders')
+  referralOffenders(@Query('limit') limit?: string) {
+    return this.admin.referralOffenders(limit ? Number(limit) : undefined);
+  }
+
   @Get('referrals/audit')
   referralsAudit(
     @Query('page') page?: string,
