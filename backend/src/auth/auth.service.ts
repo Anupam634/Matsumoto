@@ -22,6 +22,15 @@ import {
 } from './dto';
 import { referralTierFor } from '../mining/mining.engine';
 import { canonicalizeEmail } from '../common/canonical-email';
+import { isDisposableEmail } from '../common/disposable-email';
+
+function assertNotDisposable(email: string) {
+  if (isDisposableEmail(email)) {
+    throw new BadRequestException(
+      'Temporary or disposable email addresses cannot be used. Please sign up with a permanent email address.',
+    );
+  }
+}
 
 /** Request-derived signals we pass through to the anti-abuse checks. */
 export interface SignupSignals {
@@ -154,6 +163,10 @@ export class AuthService {
     const cleanEmail = email.trim().toLowerCase();
 
     if (purpose === 'signup') {
+      // Checked before anything is mailed: a throwaway inbox would otherwise
+      // cost a real OTP send, which is the volume this exists to stop.
+      assertNotDisposable(cleanEmail);
+
       // Mailbox-level, not string-level: a Gmail dot or +tag variant of a
       // registered address reaches an inbox that already has an account, and
       // sending it a code is the first half of opening a duplicate on it.
@@ -234,6 +247,10 @@ export class AuthService {
    */
   async register(dto: RegisterDto, signals: SignupSignals) {
     const email = dto.email.trim().toLowerCase();
+
+    // Repeated here, not trusted from sendOtp: `register` is reachable on
+    // its own, e.g. with a code issued before a domain was added to the list.
+    assertNotDisposable(email);
 
     // Unconditional. This used to be `if (dto.otp)`, so a client that simply
     // omitted the field skipped verification entirely — the whole OTP step
