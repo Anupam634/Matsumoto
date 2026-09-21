@@ -68,6 +68,12 @@ export class AuthService {
       if (err instanceof HttpException && err.getStatus() === HttpStatus.TOO_MANY_REQUESTS) {
         throw err;
       }
+      // The client only sees a generic 503, so this log line is the one
+      // place the real cause is recorded.
+      this.logger.error(
+        `[LOGIN OTP SEND FAILED] ${email}: ${err instanceof Error ? err.message : String(err)}`,
+        err instanceof Error ? err.stack : undefined,
+      );
       throw new ServiceUnavailableException(
         'Could not send your verification code right now. Please try again in a moment.',
       );

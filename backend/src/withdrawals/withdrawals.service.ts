@@ -3,6 +3,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -59,6 +60,8 @@ function toDto(w: {
  */
 @Injectable()
 export class WithdrawalsService {
+  private readonly logger = new Logger(WithdrawalsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly wallet: WalletService,
@@ -97,6 +100,10 @@ export class WithdrawalsService {
       if (err instanceof HttpException && err.getStatus() === HttpStatus.TOO_MANY_REQUESTS) {
         throw err;
       }
+      this.logger.error(
+        `[WITHDRAWAL OTP SEND FAILED] user=${userId}: ${err instanceof Error ? err.message : String(err)}`,
+        err instanceof Error ? err.stack : undefined,
+      );
       throw new ServiceUnavailableException(
         'Could not send your confirmation code right now. Please try again in a moment.',
       );
