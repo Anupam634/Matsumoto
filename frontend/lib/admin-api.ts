@@ -148,7 +148,13 @@ export interface ReferralAuditResult {
   totalReferralLinks: number;
   cleanReferralsCount: number;
   suspiciousReferralsCount: number;
+  /** Invitee shares a device fingerprint with their inviter. */
+  sameDeviceCount: number;
+  /** Shares an IP but not a device. */
+  sameIpCount: number;
   integrityScore: number;
+  /** Rows in `auditLogs` — the latest referrals only; totals cover all. */
+  sampleSize: number;
   auditLogs: ReferralAuditLog[];
 }
 

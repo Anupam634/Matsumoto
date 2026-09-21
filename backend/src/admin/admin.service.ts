@@ -21,6 +21,8 @@ import {
 const ACTIVE_WINDOW_MS = 24 * 3_600_000;
 /** Referral tree depth — matches the 6 referral levels in SPEC §2. */
 const TREE_DEPTH = 6;
+/** Latest referrals listed row by row in the audit; totals cover all of them. */
+const AUDIT_SAMPLE = 200;
 
 /** How far back the revenue time-series and period comparisons reach. */
 const REVENUE_WINDOW_DAYS = 400;
@@ -475,10 +477,36 @@ export class AdminService {
   /**
    * Referral Fraud & Sybil Bypass Auditor.
    * Compares device fingerprints, IP addresses and self-referral attempts.
+   *
+   * The headline counts cover every referral, computed in SQL. The per-row
+   * log is only the latest AUDIT_SAMPLE — the counts used to be derived from
+   * that capped list, so the dashboard read "200" forever once the platform
+   * passed 200 referrals.
    */
   async referralAudit() {
-    const [totalMiners, referrals] = await Promise.all([
+    const [totalMiners, [totals], referrals] = await Promise.all([
       this.prisma.user.count(),
+      // `'unknown'` is what recordDevice stores when the client sent no
+      // fingerprint; two such rows are not the same device.
+      this.prisma.$queryRaw<
+        { total: number; same_device: number; same_ip_only: number }[]
+      >`
+        WITH flagged AS (
+          SELECT u.id,
+                 bool_or(a.fingerprint = b.fingerprint AND a.fingerprint <> 'unknown') AS same_device,
+                 bool_or(a."lastIp" IS NOT NULL AND a."lastIp" = b."lastIp") AS same_ip
+          FROM "User" u
+          JOIN "DeviceFingerprint" a ON a."userId" = u.id
+          JOIN "DeviceFingerprint" b ON b."userId" = u."referredById"
+          WHERE u."referredById" IS NOT NULL
+          GROUP BY u.id
+        )
+        SELECT
+          (SELECT count(*) FROM "User" WHERE "referredById" IS NOT NULL)::int AS total,
+          (count(*) FILTER (WHERE same_device))::int AS same_device,
+          (count(*) FILTER (WHERE same_ip AND NOT same_device))::int AS same_ip_only
+        FROM flagged
+      `,
       this.prisma.user.findMany({
         where: { referredById: { not: null } },
         select: {
@@ -497,13 +525,14 @@ export class AdminService {
           devices: { select: { fingerprint: true, lastIp: true } },
         },
         orderBy: { createdAt: 'desc' },
-        take: 200,
+        take: AUDIT_SAMPLE,
       }),
     ]);
 
-    let suspiciousCount = 0;
     const auditLogs = referrals.map((r) => {
-      const inviteeFps = new Set(r.devices.map((d) => d.fingerprint).filter(Boolean));
+      const inviteeFps = new Set(
+        r.devices.map((d) => d.fingerprint).filter((f) => f && f !== 'unknown'),
+      );
       const inviteeIps = new Set(r.devices.map((d) => d.lastIp).filter(Boolean));
 
       const inviterFps = new Set(
@@ -535,11 +564,9 @@ export class AdminService {
       if (sameDevice) {
         flagReason = 'SAME_DEVICE_FINGERPRINT';
         severity = 'HIGH';
-        suspiciousCount++;
       } else if (sameIp) {
         flagReason = 'SAME_IP_SUBNET';
         severity = 'MEDIUM';
-        suspiciousCount++;
       }
 
       return {
@@ -558,15 +585,20 @@ export class AdminService {
       };
     });
 
+    const total = totals?.total ?? 0;
+    const suspicious = (totals?.same_device ?? 0) + (totals?.same_ip_only ?? 0);
+
     return {
       totalMiners,
-      totalReferralLinks: referrals.length,
-      cleanReferralsCount: referrals.length - suspiciousCount,
-      suspiciousReferralsCount: suspiciousCount,
+      totalReferralLinks: total,
+      cleanReferralsCount: total - suspicious,
+      suspiciousReferralsCount: suspicious,
+      sameDeviceCount: totals?.same_device ?? 0,
+      sameIpCount: totals?.same_ip_only ?? 0,
       integrityScore:
-        referrals.length > 0
-          ? Number((((referrals.length - suspiciousCount) / referrals.length) * 100).toFixed(1))
-          : 100,
+        total > 0 ? Number((((total - suspicious) / total) * 100).toFixed(1)) : 100,
+      /** How many of the latest referrals `auditLogs` lists. */
+      sampleSize: auditLogs.length,
       auditLogs,
     };
   }

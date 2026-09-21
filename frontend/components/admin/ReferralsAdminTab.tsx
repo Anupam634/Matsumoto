@@ -120,7 +120,9 @@ export function ReferralsAdminTab() {
             {audit?.suspiciousReferralsCount ?? 0}
           </div>
           <div className="mt-1 text-xs text-red-400/80 font-bold">
-            Shared device or subnet flagged
+            {audit
+              ? `${audit.sameDeviceCount} same device · ${audit.sameIpCount} same IP`
+              : 'Shared device or subnet flagged'}
           </div>
         </div>
       </div>
@@ -156,6 +158,12 @@ export function ReferralsAdminTab() {
             <p className="text-xs text-slate-400">
               Automated cross-check comparing inviter vs invitee device fingerprints and IP subnets
             </p>
+            {audit && audit.sampleSize < audit.totalReferralLinks && (
+              <p className="mt-1 text-[11px] font-semibold text-amber-400/90">
+                Showing the latest {audit.sampleSize.toLocaleString()} of{' '}
+                {audit.totalReferralLinks.toLocaleString()} referrals. The cards above count all of them.
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-1.5 text-xs">
