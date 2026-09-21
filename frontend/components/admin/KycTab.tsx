@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   listKyc,
   getKycDetail,
@@ -9,29 +9,43 @@ import {
   type AdminKycRow,
   type AdminKycDetail,
 } from '../../lib/admin-api';
+import { countryFlag, countryName } from '../../lib/countries';
 import { KycInspectModal } from './modals/KycInspectModal';
 
 interface KycTabProps {
   onUnauthorized: () => void;
 }
 
+/** Wait this long after the last keystroke before querying. */
+const SEARCH_DEBOUNCE_MS = 300;
+
 export function KycTab({ onUnauthorized }: KycTabProps) {
   const [status, setStatus] = useState<string>('PENDING');
+  const [search, setSearch] = useState('');
+  const [query, setQuery] = useState('');
   const [rows, setRows] = useState<AdminKycRow[]>([]);
   const [selected, setSelected] = useState<AdminKycDetail | null>(null);
   const [busy, setBusy] = useState(false);
+  // Responses can land out of order while typing; only the latest may win.
+  const latest = useRef(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(search.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const load = useCallback(async () => {
+    const id = ++latest.current;
     setBusy(true);
     try {
-      const data = await listKyc(status === 'ALL' ? undefined : status);
-      setRows(data);
+      const data = await listKyc(status === 'ALL' ? undefined : status, query);
+      if (id === latest.current) setRows(data);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) return onUnauthorized();
     } finally {
-      setBusy(false);
+      if (id === latest.current) setBusy(false);
     }
-  }, [status, onUnauthorized]);
+  }, [status, query, onUnauthorized]);
 
   useEffect(() => {
     load();
@@ -81,6 +95,32 @@ export function KycTab({ onUnauthorized }: KycTabProps) {
         </div>
       </div>
 
+      <div className="relative max-w-md">
+        <span aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+          🔎
+        </span>
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by user email…"
+          aria-label="Search KYC applicants by email"
+          autoComplete="off"
+          spellCheck={false}
+          className="w-full rounded-lg border border-slate-800 bg-slate-950/80 py-2 pl-9 pr-9 text-sm text-slate-100 placeholder-slate-600 outline-none transition focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40"
+        />
+        {search && (
+          <button
+            type="button"
+            onClick={() => setSearch('')}
+            aria-label="Clear search"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded px-1.5 text-slate-500 hover:text-slate-200"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
       <div className="card overflow-hidden border-slate-800 bg-slate-900/80 shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
@@ -88,6 +128,7 @@ export function KycTab({ onUnauthorized }: KycTabProps) {
               <tr>
                 <th className="p-3.5">Submitted</th>
                 <th className="p-3.5">User Account</th>
+                <th className="p-3.5">Country</th>
                 <th className="p-3.5">Full Legal Name</th>
                 <th className="p-3.5">Document Type</th>
                 <th className="p-3.5">Document Number</th>
@@ -98,8 +139,12 @@ export function KycTab({ onUnauthorized }: KycTabProps) {
             <tbody className="divide-y divide-slate-800/80">
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-500">
-                    {busy ? 'Loading KYC applicants…' : 'No KYC records found.'}
+                  <td colSpan={8} className="p-8 text-center text-slate-500">
+                    {busy
+                      ? 'Loading KYC applicants…'
+                      : query
+                      ? `No KYC records match “${query}”.`
+                      : 'No KYC records found.'}
                   </td>
                 </tr>
               ) : (
@@ -110,6 +155,9 @@ export function KycTab({ onUnauthorized }: KycTabProps) {
                     </td>
                     <td className="p-3.5 font-bold text-white">
                       {r.userEmail ?? r.userId.slice(0, 8)}
+                    </td>
+                    <td className="p-3.5">
+                      <CountryCell code={r.countryCode} signupCode={r.userCountryCode} />
                     </td>
                     <td className="p-3.5 font-semibold text-slate-200">{r.fullName ?? '—'}</td>
                     <td className="p-3.5 text-amber-300 font-bold">{r.documentType ?? '—'}</td>
@@ -149,6 +197,45 @@ export function KycTab({ onUnauthorized }: KycTabProps) {
           onClose={() => setSelected(null)}
           onDecide={handleDecide}
         />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Flag + code for the document's country, falling back to the signup country.
+ * The code is always printed beside the flag because Windows renders flag
+ * emoji as bare letters. When the document and signup countries differ, the
+ * signup one is shown underneath — worth a second look during review.
+ */
+function CountryCell({
+  code,
+  signupCode,
+}: {
+  code: string | null;
+  signupCode?: string | null;
+}) {
+  const shown = code || signupCode;
+  if (!shown) return <span className="text-slate-600">—</span>;
+
+  const mismatch =
+    !!code && !!signupCode && code.toUpperCase() !== signupCode.toUpperCase();
+
+  return (
+    <div title={countryName(shown)} className="whitespace-nowrap">
+      <span className="flex items-center gap-1.5">
+        <span aria-hidden className="text-base leading-none">
+          {countryFlag(shown)}
+        </span>
+        <span className="font-mono font-bold text-slate-200">{shown.toUpperCase()}</span>
+      </span>
+      {mismatch && (
+        <span
+          title={`Signed up from ${countryName(signupCode!)}`}
+          className="mt-0.5 block text-[10px] font-semibold text-amber-400"
+        >
+          signup: {countryFlag(signupCode!)} {signupCode!.toUpperCase()}
+        </span>
       )}
     </div>
   );

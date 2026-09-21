@@ -235,7 +235,10 @@ export interface AdminKycRow {
   fullName: string | null;
   documentType: string | null;
   documentNumber: string | null;
+  /** Country of the submitted document. */
   countryCode: string | null;
+  /** Country the user chose at signup. Only on list rows. */
+  userCountryCode?: string | null;
   documentCount: number;
   submittedAt: string | null;
   reviewedAt: string | null;
@@ -246,8 +249,14 @@ export interface AdminKycDetail extends AdminKycRow {
   documents: { id: string; kind: string; dataUrl: string }[];
 }
 
-export const listKyc = (status?: string) =>
-  adminFetch<AdminKycRow[]>(`/kyc${status ? `?status=${status}` : ''}`);
+/** `search` matches the applicant's email, server-side. */
+export const listKyc = (status?: string, search?: string) => {
+  const q = new URLSearchParams();
+  if (status) q.set('status', status);
+  if (search?.trim()) q.set('search', search.trim());
+  const qs = q.toString();
+  return adminFetch<AdminKycRow[]>(`/kyc${qs ? `?${qs}` : ''}`);
+};
 
 export const getKycDetail = (userId: string) =>
   adminFetch<AdminKycDetail>(`/kyc/${userId}`);
