@@ -22,6 +22,19 @@ export const OTP_MAX_ATTEMPTS = 5;
 /** Upper bound on how long a caller waits for SMTP before giving up. */
 const SMTP_DEADLINE_MS = 12_000;
 
+/**
+ * The From address. SMTP_FROM_EMAIL wins; otherwise the SMTP login is used,
+ * which only works for providers whose login *is* a mailbox (Spacemail,
+ * Gmail). Amazon SES logs in with an access-key-style username, so it needs
+ * SMTP_FROM_EMAIL set to an address on the verified domain.
+ */
+function senderAddress(): string {
+  const configured = process.env.SMTP_FROM_EMAIL?.trim();
+  if (configured) return configured.toLowerCase();
+  const user = process.env.SMTP_USER?.trim();
+  return (user && user.includes('@') ? user : 'hello@bondkoinlabs.com').toLowerCase();
+}
+
 /** Minimal HTML escaping for values interpolated into email templates. */
 function escapeHtml(value: string): string {
   return value
@@ -380,7 +393,7 @@ export class EmailService {
       return false;
     }
 
-    const senderEmail = (process.env.SMTP_USER || 'hello@bondkoinlabs.com').trim().toLowerCase();
+    const senderEmail = senderAddress();
     const message = { from: `"BONDKOIN Labs" <${senderEmail}>`, ...mail };
 
     try {
@@ -487,7 +500,7 @@ export class EmailService {
   async testEmail(rawEmail: string) {
     this.initTransporter();
     const cleanEmail = this.sanitizeEmail(rawEmail);
-    const senderEmail = (process.env.SMTP_USER || 'hello@bondkoinlabs.com').trim().toLowerCase();
+    const senderEmail = senderAddress();
 
     if (!this.transporter) {
       return {
