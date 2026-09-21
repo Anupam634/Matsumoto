@@ -148,12 +148,37 @@ export interface ReferralAuditResult {
   totalReferralLinks: number;
   cleanReferralsCount: number;
   suspiciousReferralsCount: number;
+  /** Invitee shares a device fingerprint with their inviter. */
+  sameDeviceCount: number;
+  /** Shares an IP but not a device. */
+  sameIpCount: number;
   integrityScore: number;
+  page: number;
+  pageSize: number;
+  filter: ReferralAuditFilter;
+  /** Referrals matching the filter and search, across all pages. */
+  matched: number;
+  /** One page, newest first. */
   auditLogs: ReferralAuditLog[];
 }
 
-export const getReferralAudit = () =>
-  adminFetch<ReferralAuditResult>('/referrals/audit');
+export type ReferralAuditFilter = 'ALL' | 'SUSPICIOUS' | 'CLEAN';
+
+export const getReferralAudit = (params: {
+  page?: number;
+  pageSize?: number;
+  filter?: ReferralAuditFilter;
+  /** Invitee or inviter email. */
+  search?: string;
+} = {}) => {
+  const q = new URLSearchParams();
+  if (params.page) q.set('page', String(params.page));
+  if (params.pageSize) q.set('pageSize', String(params.pageSize));
+  if (params.filter && params.filter !== 'ALL') q.set('filter', params.filter);
+  if (params.search?.trim()) q.set('search', params.search.trim());
+  const qs = q.toString();
+  return adminFetch<ReferralAuditResult>(`/referrals/audit${qs ? `?${qs}` : ''}`);
+};
 
 export interface AdminWithdrawal {
   id: string;

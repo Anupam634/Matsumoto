@@ -145,8 +145,18 @@ export class AdminSecureController {
 
   /** GET /api/admin/referrals/audit — fraud detection and device handshake check */
   @Get('referrals/audit')
-  referralsAudit() {
-    return this.admin.referralAudit();
+  referralsAudit(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('filter') filter?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.admin.referralAudit({
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
+      filter,
+      search,
+    });
   }
 
   /** GET /api/admin/withdrawals?status=PENDING — approval queue. */

@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { toCsv, CSV_MAX_ROWS } from '../common/csv';
 import {
@@ -21,6 +22,35 @@ import {
 const ACTIVE_WINDOW_MS = 24 * 3_600_000;
 /** Referral tree depth — matches the 6 referral levels in SPEC §2. */
 const TREE_DEPTH = 6;
+/** Referral audit rows per page, and the most a caller may ask for. */
+const AUDIT_PAGE_SIZE = 50;
+const AUDIT_MAX_PAGE_SIZE = 100;
+
+/**
+ * Every referral with whether the invitee shares a device or an IP with
+ * their inviter. LEFT JOINs so referrals with no device rows are still
+ * counted (as clean). `'unknown'` is what recordDevice stores when the client
+ * sent no fingerprint; two such rows are not the same device.
+ */
+const FLAGGED_REFERRALS = Prisma.sql`
+  SELECT u.id,
+         COALESCE(bool_or(a.fingerprint = b.fingerprint AND a.fingerprint <> 'unknown'), false) AS same_device,
+         COALESCE(bool_or(a."lastIp" IS NOT NULL AND a."lastIp" = b."lastIp"), false) AS same_ip
+  FROM "User" u
+  LEFT JOIN "DeviceFingerprint" a ON a."userId" = u.id
+  LEFT JOIN "DeviceFingerprint" b ON b."userId" = u."referredById"
+  WHERE u."referredById" IS NOT NULL
+  GROUP BY u.id
+`;
+
+export interface ReferralAuditQuery {
+  page?: number;
+  pageSize?: number;
+  /** ALL | SUSPICIOUS | CLEAN; anything else means ALL. */
+  filter?: string;
+  /** Matches the invitee's or the inviter's email. */
+  search?: string;
+}
 
 /** How far back the revenue time-series and period comparisons reach. */
 const REVENUE_WINDOW_DAYS = 400;
@@ -474,99 +504,140 @@ export class AdminService {
 
   /**
    * Referral Fraud & Sybil Bypass Auditor.
-   * Compares device fingerprints, IP addresses and self-referral attempts.
+   * Compares inviter and invitee device fingerprints and IPs.
+   *
+   * Headline counts cover every referral. The log is paged, and its
+   * CLEAN/SUSPICIOUS filter and email search run in SQL over every referral
+   * too. It used to list only the latest 200 and filter those in the browser,
+   * so older referrals were unreachable and the cards read "200" forever.
    */
-  async referralAudit() {
-    const [totalMiners, referrals] = await Promise.all([
+  async referralAudit(query: ReferralAuditQuery = {}) {
+    const pageSize = Math.min(
+      AUDIT_MAX_PAGE_SIZE,
+      Math.max(1, Math.trunc(query.pageSize ?? AUDIT_PAGE_SIZE) || AUDIT_PAGE_SIZE),
+    );
+    const page = Math.max(1, Math.trunc(query.page ?? 1) || 1);
+    const filter =
+      query.filter === 'SUSPICIOUS' || query.filter === 'CLEAN' ? query.filter : 'ALL';
+    const term = query.search?.trim().slice(0, 254);
+
+    const conditions: Prisma.Sql[] = [];
+    if (filter === 'SUSPICIOUS') conditions.push(Prisma.sql`(f.same_device OR f.same_ip)`);
+    if (filter === 'CLEAN') conditions.push(Prisma.sql`NOT (f.same_device OR f.same_ip)`);
+    if (term) {
+      const like = `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      conditions.push(Prisma.sql`(u.email ILIKE ${like} OR r.email ILIKE ${like})`);
+    }
+    const whereSql = conditions.length
+      ? Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`
+      : Prisma.empty;
+
+    const [totalMiners, [totals], pageRows] = await Promise.all([
       this.prisma.user.count(),
-      this.prisma.user.findMany({
-        where: { referredById: { not: null } },
-        select: {
-          id: true,
-          email: true,
-          createdAt: true,
-          isBlocked: true,
-          referredById: true,
-          referredBy: {
-            select: {
-              id: true,
-              email: true,
-              devices: { select: { fingerprint: true, lastIp: true } },
-            },
-          },
-          devices: { select: { fingerprint: true, lastIp: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 200,
-      }),
+      this.prisma.$queryRaw<
+        { total: number; same_device: number; same_ip_only: number }[]
+      >`
+        WITH f AS (${FLAGGED_REFERRALS})
+        SELECT
+          count(*)::int AS total,
+          (count(*) FILTER (WHERE same_device))::int AS same_device,
+          (count(*) FILTER (WHERE same_ip AND NOT same_device))::int AS same_ip_only
+        FROM f
+      `,
+      this.prisma.$queryRaw<
+        { id: string; same_device: boolean; same_ip: boolean; matched: number }[]
+      >`
+        WITH f AS (${FLAGGED_REFERRALS})
+        SELECT f.id, f.same_device, f.same_ip, (count(*) OVER ())::int AS matched
+        FROM f
+        JOIN "User" u ON u.id = f.id
+        LEFT JOIN "User" r ON r.id = u."referredById"
+        ${whereSql}
+        ORDER BY u."createdAt" DESC, u.id
+        LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
+      `,
     ]);
 
-    let suspiciousCount = 0;
-    const auditLogs = referrals.map((r) => {
-      const inviteeFps = new Set(r.devices.map((d) => d.fingerprint).filter(Boolean));
-      const inviteeIps = new Set(r.devices.map((d) => d.lastIp).filter(Boolean));
+    const details = pageRows.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: pageRows.map((p) => p.id) } },
+          select: {
+            id: true,
+            email: true,
+            createdAt: true,
+            isBlocked: true,
+            referredById: true,
+            referredBy: {
+              select: {
+                id: true,
+                email: true,
+                devices: { select: { fingerprint: true, lastIp: true } },
+              },
+            },
+            devices: { select: { fingerprint: true, lastIp: true } },
+          },
+        })
+      : [];
+    const byId = new Map(details.map((d) => [d.id, d]));
 
-      const inviterFps = new Set(
-        r.referredBy?.devices.map((d) => d.fingerprint).filter(Boolean) ?? [],
-      );
-      const inviterIps = new Set(
-        r.referredBy?.devices.map((d) => d.lastIp).filter(Boolean) ?? [],
-      );
+    // Show a real fingerprint when one exists rather than whichever row came first.
+    const shown = (devices: { fingerprint: string; lastIp: string | null }[]) =>
+      devices.find((d) => d.fingerprint !== 'unknown') ?? devices[0];
 
-      let sameDevice = false;
-      for (const fp of Array.from(inviteeFps)) {
-        if (inviterFps.has(fp)) {
-          sameDevice = true;
-          break;
-        }
-      }
+    const auditLogs = pageRows.flatMap((row) => {
+      const r = byId.get(row.id);
+      if (!r) return [];
+      const invitee = shown(r.devices);
+      const inviter = shown(r.referredBy?.devices ?? []);
 
-      let sameIp = false;
-      for (const ip of Array.from(inviteeIps)) {
-        if (inviterIps.has(ip)) {
-          sameIp = true;
-          break;
-        }
-      }
+      // Flags come from the same SQL as the totals, so a row and the cards
+      // can never disagree about what counts as suspicious.
+      const flagReason = row.same_device
+        ? 'SAME_DEVICE_FINGERPRINT'
+        : row.same_ip
+          ? 'SAME_IP_SUBNET'
+          : 'CLEAN_VERIFIED';
+      const severity: 'CLEAN' | 'MEDIUM' | 'HIGH' = row.same_device
+        ? 'HIGH'
+        : row.same_ip
+          ? 'MEDIUM'
+          : 'CLEAN';
 
-      let flagReason = 'CLEAN_VERIFIED';
-      let severity: 'CLEAN' | 'MEDIUM' | 'HIGH' = 'CLEAN';
-
-      if (sameDevice) {
-        flagReason = 'SAME_DEVICE_FINGERPRINT';
-        severity = 'HIGH';
-        suspiciousCount++;
-      } else if (sameIp) {
-        flagReason = 'SAME_IP_SUBNET';
-        severity = 'MEDIUM';
-        suspiciousCount++;
-      }
-
-      return {
-        inviteeId: r.id,
-        inviteeEmail: r.email ?? 'Wallet Miner',
-        inviteeIsBlocked: r.isBlocked,
-        inviterId: r.referredById!,
-        inviterEmail: r.referredBy?.email ?? 'Unknown Inviter',
-        inviteeFingerprint: r.devices[0]?.fingerprint ?? 'None',
-        inviteeIp: r.devices[0]?.lastIp ?? 'None',
-        inviterFingerprint: r.referredBy?.devices[0]?.fingerprint ?? 'None',
-        inviterIp: r.referredBy?.devices[0]?.lastIp ?? 'None',
-        flagReason,
-        severity,
-        joinedAt: r.createdAt.toISOString(),
-      };
+      return [
+        {
+          inviteeId: r.id,
+          inviteeEmail: r.email ?? 'Wallet Miner',
+          inviteeIsBlocked: r.isBlocked,
+          inviterId: r.referredById!,
+          inviterEmail: r.referredBy?.email ?? 'Unknown Inviter',
+          inviteeFingerprint: invitee?.fingerprint ?? 'None',
+          inviteeIp: invitee?.lastIp ?? 'None',
+          inviterFingerprint: inviter?.fingerprint ?? 'None',
+          inviterIp: inviter?.lastIp ?? 'None',
+          flagReason,
+          severity,
+          joinedAt: r.createdAt.toISOString(),
+        },
+      ];
     });
+
+    const total = totals?.total ?? 0;
+    const suspicious = (totals?.same_device ?? 0) + (totals?.same_ip_only ?? 0);
 
     return {
       totalMiners,
-      totalReferralLinks: referrals.length,
-      cleanReferralsCount: referrals.length - suspiciousCount,
-      suspiciousReferralsCount: suspiciousCount,
+      totalReferralLinks: total,
+      cleanReferralsCount: total - suspicious,
+      suspiciousReferralsCount: suspicious,
+      sameDeviceCount: totals?.same_device ?? 0,
+      sameIpCount: totals?.same_ip_only ?? 0,
       integrityScore:
-        referrals.length > 0
-          ? Number((((referrals.length - suspiciousCount) / referrals.length) * 100).toFixed(1))
-          : 100,
+        total > 0 ? Number((((total - suspicious) / total) * 100).toFixed(1)) : 100,
+      page,
+      pageSize,
+      filter,
+      /** Referrals matching the current filter and search, across all pages. */
+      matched: pageRows[0]?.matched ?? 0,
       auditLogs,
     };
   }

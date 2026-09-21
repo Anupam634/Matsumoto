@@ -1,34 +1,60 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getReferralAudit,
   ApiError,
+  type ReferralAuditFilter,
   type ReferralAuditResult,
 } from '../../lib/admin-api';
+
+const PAGE_SIZE = 50;
+const SEARCH_DEBOUNCE_MS = 300;
 
 export function ReferralsAdminTab() {
   const [audit, setAudit] = useState<ReferralAuditResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'ALL' | 'SUSPICIOUS' | 'CLEAN'>('ALL');
+  const [filter, setFilter] = useState<ReferralAuditFilter>('ALL');
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [query, setQuery] = useState('');
+  // Responses can land out of order while paging or typing; only the latest wins.
+  const latest = useRef(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setQuery(search.trim());
+      setPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const loadAudit = useCallback(async () => {
+    const id = ++latest.current;
     setBusy(true);
     try {
-      const data = await getReferralAudit();
+      const data = await getReferralAudit({ page, pageSize: PAGE_SIZE, filter, search: query });
+      if (id !== latest.current) return;
       setAudit(data);
       setError(null);
     } catch (err) {
+      if (id !== latest.current) return;
       setError(err instanceof ApiError ? err.message : 'Failed to fetch referral audit.');
     } finally {
-      setBusy(false);
+      if (id === latest.current) setBusy(false);
     }
-  }, []);
+  }, [page, filter, query]);
 
   useEffect(() => {
     loadAudit();
   }, [loadAudit]);
+
+  const logs = audit?.auditLogs ?? [];
+  const matched = audit?.matched ?? 0;
+  const totalPages = Math.max(1, Math.ceil(matched / PAGE_SIZE));
+  const firstRow = matched === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const lastRow = Math.min(page * PAGE_SIZE, matched);
 
   const tiers = [
     { level: 1, invites: '1 – 4 Direct Invites', multiplier: '1.0× Base Rate', bonusCommission: '10% Tier 1' },
@@ -38,12 +64,6 @@ export function ReferralsAdminTab() {
     { level: 5, invites: '50 – 99 Direct Invites', multiplier: '2.2× Boost Multiplier', bonusCommission: '22% Tier 1 + 8% Tier 2 + 5% Tier 3' },
     { level: 6, invites: '100+ Direct Invites (VIP)', multiplier: '3.0× Maximum Multiplier', bonusCommission: '25% Tier 1 + 10% Tier 2 + 6% Tier 3' },
   ];
-
-  const filteredLogs = (audit?.auditLogs ?? []).filter((log) => {
-    if (filter === 'SUSPICIOUS') return log.severity !== 'CLEAN';
-    if (filter === 'CLEAN') return log.severity === 'CLEAN';
-    return true;
-  });
 
   return (
     <div className="space-y-6">
@@ -120,7 +140,9 @@ export function ReferralsAdminTab() {
             {audit?.suspiciousReferralsCount ?? 0}
           </div>
           <div className="mt-1 text-xs text-red-400/80 font-bold">
-            Shared device or subnet flagged
+            {audit
+              ? `${audit.sameDeviceCount} same device · ${audit.sameIpCount} same IP`
+              : 'Shared device or subnet flagged'}
           </div>
         </div>
       </div>
@@ -158,11 +180,24 @@ export function ReferralsAdminTab() {
             </p>
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search invitee or inviter email…"
+              aria-label="Search referrals by email"
+              autoComplete="off"
+              spellCheck={false}
+              className="w-60 rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs text-slate-100 placeholder-slate-600 outline-none focus:border-amber-500"
+            />
             {(['ALL', 'SUSPICIOUS', 'CLEAN'] as const).map((f) => (
               <button
                 key={f}
-                onClick={() => setFilter(f)}
+                onClick={() => {
+                  setFilter(f);
+                  setPage(1);
+                }}
                 className={`rounded-lg px-3 py-1.5 font-bold uppercase transition ${
                   filter === f
                     ? 'bg-amber-500 text-slate-950 shadow-sm'
@@ -188,15 +223,15 @@ export function ReferralsAdminTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/80 font-mono text-[11px]">
-              {filteredLogs.length === 0 ? (
+              {logs.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-8 text-center text-slate-500 font-sans">
                     {busy ? 'Analyzing referral graphs…' : 'No referral logs matching filter.'}
                   </td>
                 </tr>
               ) : (
-                filteredLogs.map((log, idx) => (
-                  <tr key={idx} className="hover:bg-slate-800/40 transition">
+                logs.map((log) => (
+                  <tr key={log.inviteeId} className="hover:bg-slate-800/40 transition">
                     <td className="p-3.5 font-sans">
                       <div className="font-bold text-white">{log.inviteeEmail}</div>
                       <div className="text-[10px] text-slate-500">{log.inviteeId.slice(0, 10)}…</div>
@@ -248,6 +283,48 @@ export function ReferralsAdminTab() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.08] bg-slate-950/80 px-4 py-3 text-xs text-slate-400">
+          <span>
+            {matched === 0
+              ? 'No results'
+              : `Showing ${firstRow.toLocaleString()}–${lastRow.toLocaleString()} of ${matched.toLocaleString()}`}
+            {busy && ' · loading…'}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(1)}
+              disabled={busy || page <= 1}
+              className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 font-bold text-slate-300 transition hover:border-amber-500 disabled:opacity-40"
+            >
+              « First
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={busy || page <= 1}
+              className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 font-bold text-slate-300 transition hover:border-amber-500 disabled:opacity-40"
+            >
+              ‹ Prev
+            </button>
+            <span className="px-1 font-bold text-slate-200 tabular-nums">
+              Page {page.toLocaleString()} / {totalPages.toLocaleString()}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={busy || page >= totalPages}
+              className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 font-bold text-slate-300 transition hover:border-amber-500 disabled:opacity-40"
+            >
+              Next ›
+            </button>
+            <button
+              onClick={() => setPage(totalPages)}
+              disabled={busy || page >= totalPages}
+              className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 font-bold text-slate-300 transition hover:border-amber-500 disabled:opacity-40"
+            >
+              Last »
+            </button>
+          </div>
         </div>
       </div>
     </div>
