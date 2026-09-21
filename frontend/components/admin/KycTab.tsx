@@ -127,19 +127,20 @@ export function KycTab({ onUnauthorized }: KycTabProps) {
             <thead className="border-b border-white/[0.08] bg-slate-950/80 font-bold uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="p-3.5">Submitted</th>
-                <th className="p-3.5">User Account</th>
-                <th className="p-3.5">Country</th>
+                <th className="p-3.5">Applicant</th>
                 <th className="p-3.5">Full Legal Name</th>
-                <th className="p-3.5">Document Type</th>
-                <th className="p-3.5">Document Number</th>
+                <th className="p-3.5">Document</th>
                 <th className="p-3.5">Status</th>
-                <th className="p-3.5 text-right">Inspect Document</th>
+                {/* Pinned so the one action on the row never scrolls off-screen. */}
+                <th className="sticky right-0 border-l border-slate-800 bg-slate-950 p-3.5 text-right">
+                  Inspect
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/80">
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-500">
+                  <td colSpan={6} className="p-8 text-center text-slate-500">
                     {busy
                       ? 'Loading KYC applicants…'
                       : query
@@ -149,19 +150,23 @@ export function KycTab({ onUnauthorized }: KycTabProps) {
                 </tr>
               ) : (
                 rows.map((r) => (
-                  <tr key={r.userId} className="transition hover:bg-slate-800/40">
-                    <td className="p-3.5 text-slate-400">
+                  <tr key={r.userId} className="group transition hover:bg-slate-800/40">
+                    <td className="whitespace-nowrap p-3.5 text-slate-400">
                       {r.submittedAt ? new Date(r.submittedAt).toLocaleDateString() : '—'}
                     </td>
-                    <td className="p-3.5 font-bold text-white">
-                      {r.userEmail ?? r.userId.slice(0, 8)}
-                    </td>
                     <td className="p-3.5">
-                      <CountryCell code={r.countryCode} signupCode={r.userCountryCode} />
+                      <div className="max-w-[240px] break-all font-bold text-white">
+                        {r.userEmail ?? r.userId.slice(0, 8)}
+                      </div>
+                      <div className="mt-1">
+                        <CountryCell code={r.countryCode} signupCode={r.userCountryCode} />
+                      </div>
                     </td>
                     <td className="p-3.5 font-semibold text-slate-200">{r.fullName ?? '—'}</td>
-                    <td className="p-3.5 text-amber-300 font-bold">{r.documentType ?? '—'}</td>
-                    <td className="p-3.5 font-mono text-slate-400">{r.documentNumber ?? '—'}</td>
+                    <td className="p-3.5">
+                      <div className="font-bold text-amber-300">{r.documentType ?? '—'}</div>
+                      <div className="mt-0.5 font-mono text-slate-400">{r.documentNumber ?? '—'}</div>
+                    </td>
                     <td className="p-3.5">
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
@@ -175,12 +180,12 @@ export function KycTab({ onUnauthorized }: KycTabProps) {
                         {r.status}
                       </span>
                     </td>
-                    <td className="p-3.5 text-right">
+                    <td className="sticky right-0 border-l border-slate-800 bg-slate-900 p-3.5 text-right group-hover:bg-slate-800">
                       <button
                         onClick={() => openDetail(r.userId)}
-                        className="rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-900/50 transition"
+                        className="whitespace-nowrap rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-900/50 transition"
                       >
-                        🔍 Inspect Media
+                        🔍 Inspect
                       </button>
                     </td>
                   </tr>
