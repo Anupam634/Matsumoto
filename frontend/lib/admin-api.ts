@@ -300,6 +300,12 @@ export interface AdminKycRow {
   submittedAt: string | null;
   reviewedAt: string | null;
   reviewerNote: string | null;
+  /** Most recent address this applicant was seen on. */
+  lastIp?: string | null;
+  /** Accounts on that exact address, including this one. */
+  sameIpAccounts?: number;
+  /** Accounts on its /24, including this one — the farm signal. */
+  sameSubnetAccounts?: number;
 }
 
 export interface AdminKycDetail extends AdminKycRow {
