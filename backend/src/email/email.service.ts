@@ -22,6 +22,19 @@ export const OTP_MAX_ATTEMPTS = 5;
 /** Upper bound on how long a caller waits for SMTP before giving up. */
 const SMTP_DEADLINE_MS = 12_000;
 
+/**
+ * The From address. SMTP_FROM_EMAIL wins; otherwise the SMTP login is used,
+ * which only works for providers whose login *is* a mailbox (Spacemail,
+ * Gmail). Amazon SES logs in with an access-key-style username, so it needs
+ * SMTP_FROM_EMAIL set to an address on the verified domain.
+ */
+function senderAddress(): string {
+  const configured = process.env.SMTP_FROM_EMAIL?.trim();
+  if (configured) return configured.toLowerCase();
+  const user = process.env.SMTP_USER?.trim();
+  return (user && user.includes('@') ? user : 'hello@bondkoinlabs.com').toLowerCase();
+}
+
 /** Minimal HTML escaping for values interpolated into email templates. */
 function escapeHtml(value: string): string {
   return value
@@ -281,6 +294,10 @@ export class EmailService {
       subject = 'BONDKOIN 2FA Security Code';
       purposeTitle = 'Two-Factor Authentication';
       purposeDesc = 'Use the verification code below to sign in to your BONDKOIN Mining Dashboard.';
+    } else if (purpose === 'withdrawal') {
+      subject = 'BONDKOIN Withdrawal Confirmation Code';
+      purposeTitle = 'Confirm Your Withdrawal';
+      purposeDesc = 'Use the verification code below to confirm your withdrawal request. If you did not request this, do not share this code with anyone.';
     }
 
     const html = `
@@ -376,7 +393,7 @@ export class EmailService {
       return false;
     }
 
-    const senderEmail = (process.env.SMTP_USER || 'hello@bondkoinlabs.com').trim().toLowerCase();
+    const senderEmail = senderAddress();
     const message = { from: `"BONDKOIN Labs" <${senderEmail}>`, ...mail };
 
     try {
@@ -478,12 +495,90 @@ export class EmailService {
   }
 
   /**
+   * Tells a miner their account was suspended or reinstated by an admin.
+   * Resolves false when delivery fails; the caller decides whether that
+   * matters (the suspension itself has already happened).
+   *
+   * A suspended user can no longer sign in to reach the support desk, so the
+   * email points them at replying to it instead.
+   */
+  async sendAccountStatusEmail(
+    rawEmail: string,
+    params: { suspended: boolean; reason?: string },
+  ): Promise<boolean> {
+    const cleanEmail = this.sanitizeEmail(rawEmail);
+    const reason = params.reason?.trim();
+
+    const subject = params.suspended
+      ? 'Your BONDKOIN account has been suspended'
+      : 'Your BONDKOIN account has been reinstated';
+    const title = params.suspended ? 'Account suspended' : 'Account reinstated';
+    const lead = params.suspended
+      ? 'Your BONDKOIN account has been suspended by our review team. While it is suspended you cannot sign in, mine, receive referral rewards or request withdrawals.'
+      : 'Your BONDKOIN account has been reinstated. You can sign in, mine and use your account normally again.';
+    const appeal = params.suspended
+      ? 'If you believe this is a mistake, reply to this email with your account email address and any details that help us review it.'
+      : 'Thank you for your patience while we reviewed your account.';
+    const reasonLabel = params.suspended ? 'Reason' : 'Note from our team';
+
+    const text = [
+      lead,
+      ...(reason ? ['', `${reasonLabel}: ${reason}`] : []),
+      '',
+      appeal,
+    ].join('\n');
+
+    const accent = params.suspended ? '#f87171' : '#34d399';
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { margin: 0; padding: 0; background-color: #05070f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f1f5f9; }
+          .wrapper { width: 100%; max-width: 540px; margin: 30px auto; background-color: #0b0f19; border: 1px solid #1e293b; border-radius: 20px; overflow: hidden; }
+          .header { padding: 28px 24px; text-align: center; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); border-bottom: 1px solid #334155; }
+          .logo { font-size: 22px; font-weight: 900; letter-spacing: 1px; color: #f8fafc; text-transform: uppercase; }
+          .logo-accent { color: #38bdf8; }
+          .content { padding: 32px 28px; }
+          .title { font-size: 18px; font-weight: 800; color: ${accent}; margin-bottom: 12px; text-align: center; }
+          .desc { font-size: 13px; line-height: 1.6; color: #cbd5e1; margin-bottom: 18px; }
+          .reason { background: #020617; border-left: 3px solid ${accent}; border-radius: 10px; padding: 14px 16px; margin: 18px 0; font-size: 13px; line-height: 1.6; color: #e2e8f0; }
+          .reason b { color: ${accent}; }
+          .note { font-size: 12px; color: #94a3b8; line-height: 1.6; }
+          .footer { padding: 20px 24px; text-align: center; font-size: 11px; color: #475569; border-top: 1px solid #1e293b; background: #070a14; }
+          .footer a { color: #38bdf8; text-decoration: none; }
+        </style>
+      </head>
+      <body>
+        <div class="wrapper">
+          <div class="header">
+            <div class="logo">BONDKOIN <span class="logo-accent">LABS</span></div>
+          </div>
+          <div class="content">
+            <div class="title">${title}</div>
+            <div class="desc">${escapeHtml(lead)}</div>
+            ${reason ? `<div class="reason"><b>${reasonLabel}:</b> ${escapeHtml(reason)}</div>` : ''}
+            <div class="note">${escapeHtml(appeal)}</div>
+          </div>
+          <div class="footer">
+            © ${new Date().getFullYear()} BONDKOIN Labs (<a href="https://bondkoinlabs.com">bondkoinlabs.com</a>)
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return this.deliver({ to: cleanEmail, subject, html, text });
+  }
+
+  /**
    * Diagnostic Test Email Endpoint
    */
   async testEmail(rawEmail: string) {
     this.initTransporter();
     const cleanEmail = this.sanitizeEmail(rawEmail);
-    const senderEmail = (process.env.SMTP_USER || 'hello@bondkoinlabs.com').trim().toLowerCase();
+    const senderEmail = senderAddress();
 
     if (!this.transporter) {
       return {

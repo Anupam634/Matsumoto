@@ -1,6 +1,17 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
+import { assertHuman, captchaApplies } from '../common/turnstile';
+import { CAPTCHA_ACTIONS } from '../auth/auth.service';
 import { WalletService } from '../wallet/wallet.service';
+import { EmailService } from '../email/email.service';
 import { pointsToToken } from '../mining/mining.engine';
 import { lockUserRow } from '../common/row-lock';
 
@@ -51,10 +62,67 @@ function toDto(w: {
  */
 @Injectable()
 export class WithdrawalsService {
+  private readonly logger = new Logger(WithdrawalsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly wallet: WalletService,
+    private readonly emailService: EmailService,
+    private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Emergency off-switch for the web withdrawal OTP requirement — same
+   * escape hatch and same reasoning as AuthService.loginOtpEnforced.
+   */
+  private withdrawalOtpEnforced(): boolean {
+    return this.config.get<string>('WITHDRAWAL_OTP_ENFORCED') !== 'false';
+  }
+
+  /**
+   * Mail a confirmation code to the caller's own address for the step-up
+   * check in `request`. Keyed off the authenticated user, not a body-supplied
+   * email, so a caller can only ever trigger a code for their own account.
+   *
+   * Mail-delivery failures are turned into a plain 503 rather than letting
+   * EmailService's own exception (mapped to a raw 502) reach the client
+   * looking like the API itself is down.
+   */
+  async sendWithdrawalOtp(
+    userId: string,
+    ctx: { captchaToken?: string; platform?: 'web' | 'mobile'; ip?: string } = {},
+  ) {
+    // This is the step that spends an email, so it is the one worth gating.
+    // The confirm that follows carries the mailed code, which no script has.
+    if (captchaApplies(ctx.platform)) {
+      await assertHuman(ctx.captchaToken, {
+        ip: ctx.ip,
+        action: CAPTCHA_ACTIONS.withdrawal,
+      });
+    }
+
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { email: true },
+    });
+    if (!user.email) {
+      throw new BadRequestException('This account has no email on file to send a code to.');
+    }
+    try {
+      return await this.emailService.sendOtpEmail(user.email, 'withdrawal');
+    } catch (err) {
+      if (err instanceof HttpException && err.getStatus() === HttpStatus.TOO_MANY_REQUESTS) {
+        throw err;
+      }
+      this.logger.error(
+        `[WITHDRAWAL OTP SEND FAILED] user=${userId}: ${err instanceof Error ? err.message : String(err)}`,
+        err instanceof Error ? err.stack : undefined,
+      );
+      throw new ServiceUnavailableException(
+        'Could not send your confirmation code right now. Please try again in a moment.',
+      );
+    }
+  }
 
   /**
    * Escrow points and queue a payout for admin review.
@@ -65,7 +133,12 @@ export class WithdrawalsService {
    * passed both the balance check and the "one per week" check — leaving five
    * pending payouts and a balance of -400.
    */
-  async request(userId: string, toAddress: string, pointsMilli: number) {
+  async request(
+    userId: string,
+    toAddress: string,
+    pointsMilli: number,
+    confirmation: { otp?: string; platform?: 'web' | 'mobile' } = {},
+  ) {
     if (pointsMilli < MIN_WITHDRAWAL_MILLI) {
       throw new BadRequestException('Minimum withdrawal is 100 points.');
     }
@@ -80,6 +153,28 @@ export class WithdrawalsService {
         where: { id: userId },
         include: { kyc: true },
       });
+
+      // Step-up check: a bearer token alone must not be enough to move
+      // funds. Verified before the KYC/balance/cooldown checks below so a
+      // stolen-but-otherwise-blocked request doesn't burn the code for
+      // nothing.
+      if (confirmation.otp) {
+        const validOtp = await this.emailService.verifyOtp(
+          user.email ?? '',
+          confirmation.otp,
+          'withdrawal',
+        );
+        if (!validOtp) {
+          throw new BadRequestException('Invalid or expired verification code. Please request a new OTP.');
+        }
+      } else if (confirmation.platform === 'web' && this.withdrawalOtpEnforced()) {
+        throw new BadRequestException({
+          statusCode: 400,
+          code: 'OTP_REQUIRED',
+          message: 'Request a confirmation code (POST /withdrawals/send-otp) and include it to submit this withdrawal.',
+        });
+      }
+
       if (user.kyc?.status !== 'APPROVED') {
         throw new BadRequestException('KYC must be approved before withdrawal.');
       }

@@ -30,10 +30,10 @@ export class KycController {
 export class KycAdminController {
   constructor(private readonly kyc: KycService) {}
 
-  /** GET /api/admin/kyc?status=PENDING */
+  /** GET /api/admin/kyc?status=PENDING&search=name@example */
   @Get()
-  list(@Query('status') status?: string) {
-    return this.kyc.adminList(status);
+  list(@Query('status') status?: string, @Query('search') search?: string) {
+    return this.kyc.adminList(status, search);
   }
 
   /** GET /api/admin/kyc/:userId — includes the document images. */

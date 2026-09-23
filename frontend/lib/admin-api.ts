@@ -162,6 +162,7 @@ export interface ReferralAuditLog {
   inviteeIsBlocked: boolean;
   inviterId: string;
   inviterEmail: string;
+  inviterIsBlocked: boolean;
   inviteeFingerprint: string;
   inviteeIp: string;
   inviterFingerprint: string;
@@ -176,12 +177,58 @@ export interface ReferralAuditResult {
   totalReferralLinks: number;
   cleanReferralsCount: number;
   suspiciousReferralsCount: number;
+  /** Invitee shares a device fingerprint with their inviter. */
+  sameDeviceCount: number;
+  /** Shares an IP but not a device. */
+  sameIpCount: number;
   integrityScore: number;
+  page: number;
+  pageSize: number;
+  filter: ReferralAuditFilter;
+  /** Referrals matching the filter and search, across all pages. */
+  matched: number;
+  /** One page, newest first. */
   auditLogs: ReferralAuditLog[];
 }
 
-export const getReferralAudit = () =>
-  adminFetch<ReferralAuditResult>('/referrals/audit');
+export type ReferralAuditFilter = 'ALL' | 'SUSPICIOUS' | 'CLEAN';
+
+/** An inviter ranked by referrals that share their device or IP. */
+export interface ReferralOffender {
+  inviterId: string;
+  inviterEmail: string;
+  inviterIsBlocked: boolean;
+  totalReferrals: number;
+  /** Referrals on the inviter's own device — strong evidence. */
+  sameDevice: number;
+  /** Same IP but not device — can be a shared network. */
+  sameIp: number;
+  flagged: number;
+  /** Flagged referrals already suspended. */
+  flaggedBlocked: number;
+  flaggedPct: number;
+}
+
+export const getReferralOffenders = (limit = 50) =>
+  adminFetch<{ totalOffenders: number; offenders: ReferralOffender[] }>(
+    `/referrals/offenders?limit=${limit}`,
+  );
+
+export const getReferralAudit = (params: {
+  page?: number;
+  pageSize?: number;
+  filter?: ReferralAuditFilter;
+  /** Invitee or inviter email. */
+  search?: string;
+} = {}) => {
+  const q = new URLSearchParams();
+  if (params.page) q.set('page', String(params.page));
+  if (params.pageSize) q.set('pageSize', String(params.pageSize));
+  if (params.filter && params.filter !== 'ALL') q.set('filter', params.filter);
+  if (params.search?.trim()) q.set('search', params.search.trim());
+  const qs = q.toString();
+  return adminFetch<ReferralAuditResult>(`/referrals/audit${qs ? `?${qs}` : ''}`);
+};
 
 export interface AdminWithdrawal {
   id: string;
@@ -225,10 +272,20 @@ export const listUsers = (search: string, page = 1) =>
 export const getUserDetail = (id: string) =>
   adminFetch<AdminUserDetail>(`/users/${id}`);
 
-export const setBlocked = (id: string, blocked: boolean) =>
-  adminFetch<{ id: string; isBlocked: boolean }>(`/users/${id}/block`, {
+export interface SetBlockedResult {
+  id: string;
+  isBlocked: boolean;
+  /** Whether the suspend/reinstate email was delivered. */
+  emailed: boolean;
+  /** False for wallet-only accounts, which have no address to email. */
+  hasEmail: boolean;
+}
+
+/** Suspend or reinstate a miner; the user is emailed, with `reason` if given. */
+export const setBlocked = (id: string, blocked: boolean, reason?: string) =>
+  adminFetch<SetBlockedResult>(`/users/${id}/block`, {
     method: 'POST',
-    body: JSON.stringify({ blocked }),
+    body: JSON.stringify({ blocked, reason: reason?.trim() || undefined }),
   });
 
 export const adjustRate = (id: string, rateAdjustMilli: number) =>
@@ -264,19 +321,34 @@ export interface AdminKycRow {
   fullName: string | null;
   documentType: string | null;
   documentNumber: string | null;
+  /** Country of the submitted document. */
   countryCode: string | null;
+  /** Country the user chose at signup. Only on list rows. */
+  userCountryCode?: string | null;
   documentCount: number;
   submittedAt: string | null;
   reviewedAt: string | null;
   reviewerNote: string | null;
+  /** Most recent address this applicant was seen on. */
+  lastIp?: string | null;
+  /** Accounts on that exact address, including this one. */
+  sameIpAccounts?: number;
+  /** Accounts on its /24, including this one — the farm signal. */
+  sameSubnetAccounts?: number;
 }
 
 export interface AdminKycDetail extends AdminKycRow {
   documents: { id: string; kind: string; dataUrl: string }[];
 }
 
-export const listKyc = (status?: string) =>
-  adminFetch<AdminKycRow[]>(`/kyc${status ? `?status=${status}` : ''}`);
+/** `search` matches the applicant's email, server-side. */
+export const listKyc = (status?: string, search?: string) => {
+  const q = new URLSearchParams();
+  if (status) q.set('status', status);
+  if (search?.trim()) q.set('search', search.trim());
+  const qs = q.toString();
+  return adminFetch<AdminKycRow[]>(`/kyc${qs ? `?${qs}` : ''}`);
+};
 
 export const getKycDetail = (userId: string) =>
   adminFetch<AdminKycDetail>(`/kyc/${userId}`);

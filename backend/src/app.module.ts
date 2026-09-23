@@ -18,6 +18,7 @@ import { HealthModule } from './health/health.module';
 import { EmailModule } from './email/email.module';
 import { ReferralsModule } from './referrals/referrals.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 /**
  * Root module.
@@ -47,6 +48,7 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
     BoostersModule,
     ReferralsModule,
     LeaderboardModule,
+    DashboardModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

@@ -4,11 +4,12 @@ import {
   Controller,
   Get,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { WithdrawalsService } from './withdrawals.service';
-import { RequestWithdrawalDto } from './dto';
+import { RequestWithdrawalDto, SendWithdrawalOtpDto } from './dto';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 
@@ -16,6 +17,20 @@ import { CurrentUser } from '../auth/current-user.decorator';
 @Controller('withdrawals')
 export class WithdrawalsController {
   constructor(private readonly withdrawals: WithdrawalsService) {}
+
+  /** POST /api/withdrawals/send-otp — mail a confirmation code to self. */
+  @Post('send-otp')
+  sendOtp(
+    @CurrentUser('id') userId: string,
+    @Body() dto: SendWithdrawalOtpDto,
+    @Req() req: any,
+  ) {
+    return this.withdrawals.sendWithdrawalOtp(userId, {
+      captchaToken: dto.captchaToken,
+      platform: dto.platform,
+      ip: req?.ip ?? req?.socket?.remoteAddress,
+    });
+  }
 
   /** POST /api/withdrawals — request a payout (min 100 pts, 1/week, KYC). */
   @Post()
@@ -25,7 +40,10 @@ export class WithdrawalsController {
     }
     // Points arrive as decimals; the service works in integer milli-points.
     const pointsMilli = Math.round(dto.points * 1000);
-    return this.withdrawals.request(userId, dto.toAddress, pointsMilli);
+    return this.withdrawals.request(userId, dto.toAddress, pointsMilli, {
+      otp: dto.otp,
+      platform: dto.platform,
+    });
   }
 
   /** GET /api/withdrawals — the caller's own request history. */

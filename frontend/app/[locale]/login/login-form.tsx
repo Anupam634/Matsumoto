@@ -13,6 +13,7 @@ import {
   getToken,
   ApiError,
 } from '../../../lib/api';
+import { Turnstile, turnstileConfigured } from '../../../components/Turnstile';
 import { CountrySelect } from '../../../components/CountrySelect';
 import { LogoLockup, LogoMark } from '../../../components/Logo';
 import { LocaleSwitcher } from '../../../components/LocaleSwitcher';
@@ -20,6 +21,17 @@ import { ThemeToggle } from '../../../components/ThemeToggle';
 
 type Mode = 'login' | 'register' | 'forgot';
 type Step = 'form' | 'otp';
+
+/**
+ * The captcha action per mode. These strings must match CAPTCHA_ACTIONS on
+ * the backend, which refuses a token issued for a different action — the
+ * screen's own mode name ('register') is not one of them.
+ */
+const CAPTCHA_ACTION: Record<Mode, string> = {
+  login: 'login',
+  register: 'signup',
+  forgot: 'password-reset',
+};
 
 const STAT_KEYS = ['baseRate', 'conversion', 'minWithdrawal', 'boosterDuration'] as const;
 const STAT_VALUES: Record<(typeof STAT_KEYS)[number], string> = {
@@ -67,18 +79,50 @@ function AuthForm() {
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Turnstile token for whichever flow is on screen. It is single use, so
+  // `captchaNonce` asks the widget for a fresh one after every attempt,
+  // successful or not.
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaNonce, setCaptchaNonce] = useState(0);
+  // Login needs one too: it is what a credential-stuffing script hits, and
+  // a successful password guess mails a code.
+  const needsCaptcha = turnstileConfigured;
+  const captchaMissing = needsCaptcha && !captchaToken;
+
   useEffect(() => {
     if (getToken() && !search.get('ref')) {
       router.replace(`/${params.locale}/dashboard`);
     }
   }, [router, params.locale, search]);
 
+  /** A token is good for one call, so drop it and mount a fresh widget. */
+  function spendCaptcha() {
+    if (!turnstileConfigured) return;
+    setCaptchaToken(null);
+    setCaptchaNonce((n) => n + 1);
+  }
+
   function switchMode(next: Mode) {
     setMode(next);
     setStep('form');
     setError(null);
     setInfoMsg(null);
+    spendCaptcha();
   }
+
+  const captchaBlock = needsCaptcha ? (
+    <div>
+      <Turnstile
+        action={CAPTCHA_ACTION[mode]}
+        resetKey={captchaNonce}
+        onToken={setCaptchaToken}
+        onError={setError}
+      />
+      <p className="mt-1.5 text-center text-[11px] text-slate-500">
+        This check keeps automated traffic out.
+      </p>
+    </div>
+  ) : null;
 
   // 1. Initial Submit (Form Phase)
   async function handleSubmit(e: React.FormEvent) {
@@ -96,11 +140,19 @@ function AuthForm() {
         await login({
           email: email.trim().toLowerCase(),
           password,
+          captchaToken: captchaToken ?? undefined,
         });
         router.push(`/${params.locale}/dashboard`);
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Invalid email or password.');
+        if (err instanceof ApiError && err.code === 'OTP_REQUIRED') {
+          setEmail(email.trim().toLowerCase());
+          setStep('otp');
+          setInfoMsg(err.message);
+        } else {
+          setError(err instanceof ApiError ? err.message : 'Invalid email or password.');
+        }
       } finally {
+        spendCaptcha();
         setBusy(false);
       }
       return;
@@ -122,12 +174,13 @@ function AuthForm() {
       // Check if email already exists before sending OTP!
       setBusy(true);
       try {
-        const res = await sendOtp(email.trim().toLowerCase(), 'signup');
+        const res = await sendOtp(email.trim().toLowerCase(), 'signup', captchaToken ?? undefined);
         setStep('otp');
         setInfoMsg(res.message || 'Verification code sent to your email. Please check your inbox.');
       } catch (err) {
         setError(err instanceof ApiError ? err.message : 'Failed to send verification code.');
       } finally {
+        spendCaptcha();
         setBusy(false);
       }
       return;
@@ -141,12 +194,13 @@ function AuthForm() {
       }
       setBusy(true);
       try {
-        const res = await forgotPassword(email.trim().toLowerCase());
+        const res = await forgotPassword(email.trim().toLowerCase(), captchaToken ?? undefined);
         setStep('otp');
         setInfoMsg(res.message || 'Password reset OTP sent to your email. Please check your inbox.');
       } catch (err) {
         setError(err instanceof ApiError ? err.message : 'No account found with this email address.');
       } finally {
+        spendCaptcha();
         setBusy(false);
       }
     }
@@ -424,9 +478,11 @@ function AuthForm() {
                     <p className="text-[11px] text-slate-400">{t('passwordHint')}</p>
                   )}
 
+                  {captchaBlock}
+
                   <button
                     type="submit"
-                    disabled={busy}
+                    disabled={busy || captchaMissing}
                     className="btn-gold mt-2 w-full rounded-xl py-3.5 text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-lg shadow-amber-500/20 disabled:opacity-50"
                   >
                     {busy ? (
@@ -529,6 +585,9 @@ function AuthForm() {
                     )}
                   </button>
 
+                  {/* Resend mails the address again, so it needs its own solve. */}
+                  {captchaBlock}
+
                   <div className="flex items-center justify-between pt-2 text-xs">
                     <button
                       type="button"
@@ -542,15 +601,20 @@ function AuthForm() {
                       onClick={async () => {
                         setBusy(true);
                         try {
-                          const res = await (mode === 'forgot' ? forgotPassword(email) : sendOtp(email));
+                          const token = captchaToken ?? undefined;
+                          const res = await (mode === 'forgot'
+                            ? forgotPassword(email, token)
+                            : sendOtp(email, mode === 'login' ? 'login' : 'signup', token));
                           setInfoMsg(res.message || 'A new verification code has been sent to your email.');
                         } catch (err: any) {
                           setError(err?.message || 'Failed to resend code.');
                         } finally {
+                          spendCaptcha();
                           setBusy(false);
                         }
                       }}
-                      className="font-bold text-amber-400 hover:text-amber-300 transition"
+                      disabled={busy || captchaMissing}
+                      className="font-bold text-amber-400 transition hover:text-amber-300 disabled:opacity-40"
                     >
                       Resend Code
                     </button>

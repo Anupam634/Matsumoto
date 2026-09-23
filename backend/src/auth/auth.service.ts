@@ -1,10 +1,14 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import { AntiabuseService } from '../antiabuse/antiabuse.service';
@@ -18,11 +22,39 @@ import {
 } from './dto';
 import { referralTierFor } from '../mining/mining.engine';
 import { canonicalizeEmail } from '../common/canonical-email';
+import { isDisposableEmail } from '../common/disposable-email';
+import { assertHuman, captchaApplies, turnstileEnabled } from '../common/turnstile';
+
+/**
+ * The `action` each widget is rendered with, checked against what Cloudflare
+ * reports so a solution from one flow cannot be spent on another. The
+ * frontend renders the same strings.
+ */
+export const CAPTCHA_ACTIONS = {
+  signup: 'signup',
+  login: 'login',
+  forgot_password: 'password-reset',
+  withdrawal: 'withdrawal',
+} as const;
+
+function assertNotDisposable(email: string) {
+  if (isDisposableEmail(email)) {
+    throw new BadRequestException(
+      'Temporary or disposable email addresses cannot be used. Please sign up with a permanent email address.',
+    );
+  }
+}
 
 /** Request-derived signals we pass through to the anti-abuse checks. */
 export interface SignupSignals {
   ip?: string;
   fingerprint?: string;
+}
+
+/** What `sendOtp` needs beyond the address: abuse signals and the captcha. */
+export interface SendOtpContext extends SignupSignals {
+  captchaToken?: string;
+  platform?: 'web' | 'mobile';
 }
 
 @Injectable()
@@ -34,7 +66,47 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly antiabuse: AntiabuseService,
     private readonly emailService: EmailService,
+    private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Emergency off-switch for the web login OTP requirement, checked on every
+   * call rather than cached at boot so flipping it takes effect without a
+   * redeploy. Exists because the requirement hard-fails login the moment
+   * mail delivery has a bad day (see `sendLoginOtpOrFail`) — this is how an
+   * operator gets the site back to password-only login in that window
+   * without shipping code.
+   */
+  private loginOtpEnforced(): boolean {
+    return this.config.get<string>('LOGIN_OTP_ENFORCED') !== 'false';
+  }
+
+  /**
+   * Mail the login code, turning a mail-delivery failure into a plain 503
+   * instead of letting nodemailer's own exception (mapped to a raw 502)
+   * reach the client looking indistinguishable from the whole API being
+   * down.
+   */
+  private async sendLoginOtpOrFail(email: string) {
+    try {
+      await this.emailService.sendOtpEmail(email, 'login_2fa');
+    } catch (err) {
+      // The per-address rate limit is a real, expected rejection — surface
+      // it as-is rather than masking it as a generic outage.
+      if (err instanceof HttpException && err.getStatus() === HttpStatus.TOO_MANY_REQUESTS) {
+        throw err;
+      }
+      // The client only sees a generic 503, so this log line is the one
+      // place the real cause is recorded.
+      this.logger.error(
+        `[LOGIN OTP SEND FAILED] ${email}: ${err instanceof Error ? err.message : String(err)}`,
+        err instanceof Error ? err.stack : undefined,
+      );
+      throw new ServiceUnavailableException(
+        'Could not send your verification code right now. Please try again in a moment.',
+      );
+    }
+  }
 
   private sign(user: { id: string; email: string | null }) {
     return this.jwt.signAsync({ sub: user.id, email: user.email });
@@ -106,10 +178,44 @@ export class AuthService {
    * Request OTP verification code for Signup, 2FA, or Password Reset.
    * Validates user existence / uniqueness BEFORE sending email.
    */
-  async sendOtp(email: string, purpose: 'signup' | 'login' | 'forgot_password' = 'signup') {
+  async sendOtp(
+    email: string,
+    purpose: 'signup' | 'login' | 'forgot_password' = 'signup',
+    ctx: SendOtpContext = {},
+  ) {
     const cleanEmail = email.trim().toLowerCase();
 
+    // Every purpose here mails somebody, so every one is a way to spend the
+    // sending quota from outside.
+    if (captchaApplies(ctx.platform)) {
+      await assertHuman(ctx.captchaToken, {
+        ip: ctx.ip,
+        action: CAPTCHA_ACTIONS[purpose],
+      });
+    }
+
     if (purpose === 'signup') {
+      // A signup that claims no platform skips the captcha unless
+      // CAPTCHA_ALL_PLATFORMS is on. Logged so the size of that hole is
+      // visible: the real mobile app is a trickle, a flood here is scripts.
+      if (turnstileEnabled() && !captchaApplies(ctx.platform)) {
+        this.logger.warn(
+          `[SIGNUP WITHOUT CAPTCHA] platform=${ctx.platform ?? 'none'} ip=${ctx.ip ?? 'unknown'} domain=${cleanEmail.split('@')[1] ?? '?'}`,
+        );
+      }
+
+      // Checked before anything is mailed: a throwaway inbox would otherwise
+      // cost a real OTP send, which is the volume this exists to stop.
+      assertNotDisposable(cleanEmail);
+
+      // The per-device and per-IP caps used to run only in `register`, by
+      // which point the code had already been mailed — so a caller past the
+      // cap still cost an email every time they tried.
+      await this.antiabuse.assertSignupAllowed({
+        fingerprint: ctx.fingerprint,
+        ip: ctx.ip,
+      });
+
       // Mailbox-level, not string-level: a Gmail dot or +tag variant of a
       // registered address reaches an inbox that already has an account, and
       // sending it a code is the first half of opening a duplicate on it.
@@ -140,8 +246,12 @@ export class AuthService {
   /**
    * Request password reset OTP.
    */
-  async forgotPassword(dto: ForgotPasswordDto) {
+  async forgotPassword(dto: ForgotPasswordDto, ip?: string) {
     const email = dto.email.trim().toLowerCase();
+
+    if (captchaApplies(dto.platform)) {
+      await assertHuman(dto.captchaToken, { ip, action: CAPTCHA_ACTIONS.forgot_password });
+    }
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) {
       throw new BadRequestException('No account found with this email address.');
@@ -190,6 +300,10 @@ export class AuthService {
    */
   async register(dto: RegisterDto, signals: SignupSignals) {
     const email = dto.email.trim().toLowerCase();
+
+    // Repeated here, not trusted from sendOtp: `register` is reachable on
+    // its own, e.g. with a code issued before a domain was added to the list.
+    assertNotDisposable(email);
 
     // Unconditional. This used to be `if (dto.otp)`, so a client that simply
     // omitted the field skipped verification entirely — the whole OTP step
@@ -271,21 +385,14 @@ export class AuthService {
   async login(dto: LoginDto, signals: SignupSignals) {
     const email = dto.email.trim().toLowerCase();
 
-    // Login 2FA is a step the caller opts into: neither the web nor the
-    // mobile sign-in screen requests a code today, so requiring one here
-    // would lock out every existing account. When a code *is* presented it
-    // has to be a real `login_2fa` code — but treat the plain
-    // email + password path as the actual security boundary until a second
-    // factor is enrolled per user rather than per request.
-    if (dto.otp) {
-      const isValid = await this.emailService.verifyOtp(
-        email,
-        dto.otp,
-        'login_2fa',
-      );
-      if (!isValid) {
-        throw new BadRequestException('Invalid or expired 2FA verification code. Please request a new OTP.');
-      }
+    // Only the first step: the second carries an OTP that was mailed after
+    // this same check, so a scripted caller can never reach it. Placed ahead
+    // of the password check so credential stuffing pays the captcha too.
+    if (!dto.otp && captchaApplies(dto.platform)) {
+      await assertHuman(dto.captchaToken, {
+        ip: signals.ip,
+        action: CAPTCHA_ACTIONS.login,
+      });
     }
 
     const user = await this.prisma.user.findUnique({
@@ -300,12 +407,36 @@ export class AuthService {
     });
 
     // Same message for unknown email and wrong password — no account probing.
+    // Checked before OTP so a caller with no password can't use this route to
+    // spam a stranger's inbox with codes.
     const ok = user && (await verifyPassword(dto.password, user.passwordHash));
     if (!user || !ok) {
       throw new UnauthorizedException('Invalid email or password.');
     }
     if (user.isBlocked) {
       throw new ForbiddenException('Account is blocked.');
+    }
+
+    // The website requires a second factor; the mobile app's sign-in screen
+    // has no OTP step yet, so it stays on the password-only path (see the
+    // `platform` field on LoginDto for the caveat on what this does and does
+    // not guard against).
+    if (dto.otp) {
+      const isValid = await this.emailService.verifyOtp(
+        email,
+        dto.otp,
+        'login_2fa',
+      );
+      if (!isValid) {
+        throw new BadRequestException('Invalid or expired 2FA verification code. Please request a new OTP.');
+      }
+    } else if (dto.platform === 'web' && this.loginOtpEnforced()) {
+      await this.sendLoginOtpOrFail(email);
+      throw new UnauthorizedException({
+        statusCode: 401,
+        code: 'OTP_REQUIRED',
+        message: 'Enter the verification code we just emailed you to finish signing in.',
+      });
     }
 
     await this.antiabuse.recordDevice(user.id, {

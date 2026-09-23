@@ -17,6 +17,7 @@ import { useT } from '../../src/i18n';
 import { useToast } from '../../src/components/ui/Toast';
 import { useFeedback } from '../../src/lib/feedback';
 import { forgotPassword, resetPassword } from '../../src/api/endpoints';
+import { useCaptcha } from '../../src/components/common/Captcha';
 import { errorMessage } from '../../src/api/client';
 import { EMAIL_RE } from '../../src/lib/format';
 
@@ -32,6 +33,7 @@ export default function Forgot() {
 
   const passwordRef = useRef<TextInput>(null);
 
+  const captcha = useCaptcha();
   const [step, setStep] = useState<'form' | 'otp'>('form');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -75,7 +77,7 @@ export default function Forgot() {
 
     setBusy(true);
     try {
-      const res = await forgotPassword(cleanEmail);
+      const res = await forgotPassword(cleanEmail, await captcha.solve('password-reset'));
       setInfo(res.message);
       setStep('otp');
       startResendCooldown();
@@ -92,7 +94,7 @@ export default function Forgot() {
     setError(null);
     setResending(true);
     try {
-      const res = await forgotPassword(cleanEmail);
+      const res = await forgotPassword(cleanEmail, await captcha.solve('password-reset'));
       setInfo(res.message);
       startResendCooldown();
     } catch (err) {
@@ -208,7 +210,9 @@ export default function Forgot() {
             onPress={() => void resendCode()}
           />
         </View>
-      </AuthShell>
+      {captcha.sheet}
+      {captcha.sheet}
+    </AuthShell>
     );
   }
 
@@ -254,6 +258,7 @@ export default function Forgot() {
         fullWidth
         size="lg"
       />
+    {captcha.sheet}
     </AuthShell>
   );
 }

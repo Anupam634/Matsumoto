@@ -52,12 +52,14 @@ function buildService(registered: string[]) {
     recordDevice: jest.fn(async () => undefined),
   };
   const jwt = { signAsync: jest.fn(async () => 'token') };
+  const config = { get: jest.fn(() => undefined) };
 
   const service = new AuthService(
     prisma as any,
     jwt as any,
     antiabuse as any,
     emailService as any,
+    config as any,
   );
   return { service, prisma, emailService };
 }

@@ -1,10 +1,13 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { EmailService } from '../email/email.service';
 import { toCsv, CSV_MAX_ROWS } from '../common/csv';
 import {
   bucketKey,
@@ -14,6 +17,7 @@ import {
   type Grain,
 } from '../common/revenue-buckets';
 import { TtlCache } from '../common/ttl-cache';
+import { createGate } from '../common/concurrency';
 import { verifyPassword } from '../auth/password';
 import {
   effectiveRateMilli,
@@ -25,6 +29,39 @@ import {
 const ACTIVE_WINDOW_MS = 24 * 3_600_000;
 /** Referral tree depth — matches the 6 referral levels in SPEC §2. */
 const TREE_DEPTH = 6;
+/** Referral audit rows per page, and the most a caller may ask for. */
+const AUDIT_PAGE_SIZE = 50;
+const AUDIT_MAX_PAGE_SIZE = 100;
+/** Inviters listed in the referral-offenders ranking. */
+const OFFENDERS_DEFAULT = 50;
+const OFFENDERS_MAX = 200;
+
+/**
+ * Every referral with whether the invitee shares a device or an IP with
+ * their inviter. LEFT JOINs so referrals with no device rows are still
+ * counted (as clean). `'unknown'` is what recordDevice stores when the client
+ * sent no fingerprint; two such rows are not the same device.
+ */
+const FLAGGED_REFERRALS = Prisma.sql`
+  SELECT u.id,
+         u."referredById" AS inviter_id,
+         COALESCE(bool_or(a.fingerprint = b.fingerprint AND a.fingerprint <> 'unknown'), false) AS same_device,
+         COALESCE(bool_or(a."lastIp" IS NOT NULL AND a."lastIp" = b."lastIp"), false) AS same_ip
+  FROM "User" u
+  LEFT JOIN "DeviceFingerprint" a ON a."userId" = u.id
+  LEFT JOIN "DeviceFingerprint" b ON b."userId" = u."referredById"
+  WHERE u."referredById" IS NOT NULL
+  GROUP BY u.id
+`;
+
+export interface ReferralAuditQuery {
+  page?: number;
+  pageSize?: number;
+  /** ALL | SUSPICIOUS | CLEAN; anything else means ALL. */
+  filter?: string;
+  /** Matches the invitee's or the inviter's email. */
+  search?: string;
+}
 
 /** How far back the revenue time-series and period comparisons reach. */
 const REVENUE_WINDOW_DAYS = 400;
@@ -39,6 +76,17 @@ const TOP_PAYERS_LIMIT = 100;
  * arbitrary slice — and the response says when it happened.
  */
 const SERIES_ROW_CAP = 200_000;
+
+/**
+ * Queries one dashboard read may have in flight at once.
+ *
+ * Below the connection pool's size (see PrismaService), so a fan-out here
+ * leaves room for the transactions the rest of the app is running. These
+ * reads used to ask for a dozen connections in one `Promise.all` and starve
+ * everything else — including themselves, which then failed with "Unable to
+ * start a transaction in the given time".
+ */
+const DASHBOARD_QUERY_CONCURRENCY = 4;
 
 /** Money and percentages are display values — two decimals, never a float tail. */
 function round2(n: number): number {
@@ -161,9 +209,15 @@ export class AdminService {
    */
   private readonly revenueCache = new TtlCache(60_000, 4);
 
+  /** Caps how many queries one dashboard read has open at a time. */
+  private readonly gate = createGate(DASHBOARD_QUERY_CONCURRENCY);
+
+  private readonly logger = new Logger(AdminService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly email: EmailService,
   ) {}
 
   // ────────────────────────── Auth ──────────────────────────
@@ -229,41 +283,51 @@ export class AdminService {
       usersPast30Days,
       pointsMintedPerDay,
     ] = await Promise.all([
-      this.prisma.user.count(),
-      this.prisma.user.count({ where: { lastMineAt: { gte: activeSince } } }),
-      this.prisma.user.count({ where: { isBlocked: true } }),
-      this.prisma.user.aggregate({ _sum: { pointsBalance: true } }),
-      this.prisma.user.groupBy({
-        by: ['countryCode'],
-        _count: { _all: true },
-        orderBy: { _count: { countryCode: 'desc' } },
-      }),
-      this.prisma.withdrawal.groupBy({
-        by: ['status'],
-        _count: { _all: true },
-      }),
-      this.prisma.user.count({ where: { createdAt: { gte: dayAgo } } }),
-      this.prisma.user.count({ where: { createdAt: { gte: weekAgo } } }),
-      this.prisma.user.count({ where: { createdAt: { gte: monthAgo } } }),
-      this.prisma.kycRecord.groupBy({
-        by: ['status'],
-        _count: { _all: true },
-      }),
-      this.prisma.booster.count({ where: { expiresAt: { gt: new Date() } } }),
-      this.prisma.ledgerEntry.findMany({
-        take: 8,
-        orderBy: { createdAt: 'desc' },
-        include: { user: { select: { email: true } } },
-      }),
+      this.gate(() => this.prisma.user.count()),
+      this.gate(() => this.prisma.user.count({ where: { lastMineAt: { gte: activeSince } } })),
+      this.gate(() => this.prisma.user.count({ where: { isBlocked: true } })),
+      this.gate(() => this.prisma.user.aggregate({ _sum: { pointsBalance: true } })),
+      this.gate(() =>
+        this.prisma.user.groupBy({
+          by: ['countryCode'],
+          _count: { _all: true },
+          orderBy: { _count: { countryCode: 'desc' } },
+        }),
+      ),
+      this.gate(() =>
+        this.prisma.withdrawal.groupBy({
+          by: ['status'],
+          _count: { _all: true },
+        }),
+      ),
+      this.gate(() => this.prisma.user.count({ where: { createdAt: { gte: dayAgo } } })),
+      this.gate(() => this.prisma.user.count({ where: { createdAt: { gte: weekAgo } } })),
+      this.gate(() => this.prisma.user.count({ where: { createdAt: { gte: monthAgo } } })),
+      this.gate(() =>
+        this.prisma.kycRecord.groupBy({
+          by: ['status'],
+          _count: { _all: true },
+        }),
+      ),
+      this.gate(() => this.prisma.booster.count({ where: { expiresAt: { gt: new Date() } } })),
+      this.gate(() =>
+        this.prisma.ledgerEntry.findMany({
+          take: 8,
+          orderBy: { createdAt: 'desc' },
+          include: { user: { select: { email: true } } },
+        }),
+      ),
       // Only the signup dates are needed, to bucket them by day. This is the
       // one query here that grows without bound as the userbase does; the
       // cache is what keeps it off the hot path.
-      this.prisma.user.findMany({
-        where: { createdAt: { gte: monthAgo } },
-        select: { createdAt: true },
-        orderBy: { createdAt: 'desc' },
-        take: 100_000,
-      }),
+      this.gate(() =>
+        this.prisma.user.findMany({
+          where: { createdAt: { gte: monthAgo } },
+          select: { createdAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: 100_000,
+        }),
+      ),
       // Points actually minted per day. Summed in the database because the
       // ledger is the one table that grows with every tap, and the dashboard
       // only ever needs 30 numbers out of it.
@@ -273,13 +337,15 @@ export class AdminService {
       // keys the signup buckets above use. Casting it with `AT TIME ZONE`
       // would hand `date_trunc` a `timestamptz` and split days on whatever
       // the database server's local zone happens to be.
-      this.prisma.$queryRaw<{ day: string; milli: bigint }[]>`
-        SELECT to_char(date_trunc('day', "createdAt"), 'YYYY-MM-DD') AS day,
-               COALESCE(SUM("deltaMilli"), 0)::bigint AS milli
-        FROM "LedgerEntry"
-        WHERE "createdAt" >= ${monthAgo} AND "deltaMilli" > 0
-        GROUP BY 1
-      `,
+      this.gate(() =>
+        this.prisma.$queryRaw<{ day: string; milli: bigint }[]>`
+          SELECT to_char(date_trunc('day', "createdAt"), 'YYYY-MM-DD') AS day,
+                 COALESCE(SUM("deltaMilli"), 0)::bigint AS milli
+          FROM "LedgerEntry"
+          WHERE "createdAt" >= ${monthAgo} AND "deltaMilli" > 0
+          GROUP BY 1
+        `,
+      ),
     ]);
 
     // Build 7-day and 30-day time-series daily buckets
@@ -362,19 +428,21 @@ export class AdminService {
       : {};
 
     const [total, rows] = await Promise.all([
-      this.prisma.user.count({ where }),
-      this.prisma.user.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        include: {
-          kyc: true,
-          boosters: { include: { plan: true } },
-          devices: { orderBy: { seenAt: 'desc' }, take: 2 },
-          _count: { select: { referrals: true } },
-        },
-      }),
+      this.gate(() => this.prisma.user.count({ where })),
+      this.gate(() =>
+        this.prisma.user.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          include: {
+            kyc: true,
+            boosters: { include: { plan: true } },
+            devices: { orderBy: { seenAt: 'desc' }, take: 2 },
+            _count: { select: { referrals: true } },
+          },
+        }),
+      ),
     ]);
 
     return {
@@ -443,17 +511,21 @@ export class AdminService {
     });
 
     const [tree, ledger, withdrawals] = await Promise.all([
-      this.referralTree(userId),
-      this.prisma.ledgerEntry.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      }),
-      this.prisma.withdrawal.findMany({
-        where: { userId },
-        orderBy: { requestedAt: 'desc' },
-        take: 10,
-      }),
+      this.gate(() => this.referralTree(userId)),
+      this.gate(() =>
+        this.prisma.ledgerEntry.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        }),
+      ),
+      this.gate(() =>
+        this.prisma.withdrawal.findMany({
+          where: { userId },
+          orderBy: { requestedAt: 'desc' },
+          take: 10,
+        }),
+      ),
     ]);
 
     return {
@@ -483,100 +555,207 @@ export class AdminService {
 
   /**
    * Referral Fraud & Sybil Bypass Auditor.
-   * Compares device fingerprints, IP addresses and self-referral attempts.
+   * Compares inviter and invitee device fingerprints and IPs.
+   *
+   * Headline counts cover every referral. The log is paged, and its
+   * CLEAN/SUSPICIOUS filter and email search run in SQL over every referral
+   * too. It used to list only the latest 200 and filter those in the browser,
+   * so older referrals were unreachable and the cards read "200" forever.
    */
-  async referralAudit() {
-    const [totalMiners, referrals] = await Promise.all([
-      this.prisma.user.count(),
-      this.prisma.user.findMany({
-        where: { referredById: { not: null } },
-        select: {
-          id: true,
-          email: true,
-          createdAt: true,
-          isBlocked: true,
-          referredById: true,
-          referredBy: {
-            select: {
-              id: true,
-              email: true,
-              devices: { select: { fingerprint: true, lastIp: true } },
-            },
-          },
-          devices: { select: { fingerprint: true, lastIp: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 200,
-      }),
+  async referralAudit(query: ReferralAuditQuery = {}) {
+    const pageSize = Math.min(
+      AUDIT_MAX_PAGE_SIZE,
+      Math.max(1, Math.trunc(query.pageSize ?? AUDIT_PAGE_SIZE) || AUDIT_PAGE_SIZE),
+    );
+    const page = Math.max(1, Math.trunc(query.page ?? 1) || 1);
+    const filter =
+      query.filter === 'SUSPICIOUS' || query.filter === 'CLEAN' ? query.filter : 'ALL';
+    const term = query.search?.trim().slice(0, 254);
+
+    const conditions: Prisma.Sql[] = [];
+    if (filter === 'SUSPICIOUS') conditions.push(Prisma.sql`(f.same_device OR f.same_ip)`);
+    if (filter === 'CLEAN') conditions.push(Prisma.sql`NOT (f.same_device OR f.same_ip)`);
+    if (term) {
+      const like = `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      conditions.push(Prisma.sql`(u.email ILIKE ${like} OR r.email ILIKE ${like})`);
+    }
+    const whereSql = conditions.length
+      ? Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`
+      : Prisma.empty;
+
+    const [totalMiners, [totals], pageRows] = await Promise.all([
+      this.gate(() => this.prisma.user.count()),
+      this.gate(() =>
+        this.prisma.$queryRaw<
+          { total: number; same_device: number; same_ip_only: number }[]
+        >`
+          WITH f AS (${FLAGGED_REFERRALS})
+          SELECT
+            count(*)::int AS total,
+            (count(*) FILTER (WHERE same_device))::int AS same_device,
+            (count(*) FILTER (WHERE same_ip AND NOT same_device))::int AS same_ip_only
+          FROM f
+        `,
+      ),
+      this.gate(() =>
+        this.prisma.$queryRaw<
+          { id: string; same_device: boolean; same_ip: boolean; matched: number }[]
+        >`
+          WITH f AS (${FLAGGED_REFERRALS})
+          SELECT f.id, f.same_device, f.same_ip, (count(*) OVER ())::int AS matched
+          FROM f
+          JOIN "User" u ON u.id = f.id
+          LEFT JOIN "User" r ON r.id = u."referredById"
+          ${whereSql}
+          ORDER BY u."createdAt" DESC, u.id
+          LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
+        `,
+      ),
     ]);
 
-    let suspiciousCount = 0;
-    const auditLogs = referrals.map((r) => {
-      const inviteeFps = new Set(r.devices.map((d) => d.fingerprint).filter(Boolean));
-      const inviteeIps = new Set(r.devices.map((d) => d.lastIp).filter(Boolean));
+    const details = pageRows.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: pageRows.map((p) => p.id) } },
+          select: {
+            id: true,
+            email: true,
+            createdAt: true,
+            isBlocked: true,
+            referredById: true,
+            referredBy: {
+              select: {
+                id: true,
+                email: true,
+                isBlocked: true,
+                devices: { select: { fingerprint: true, lastIp: true } },
+              },
+            },
+            devices: { select: { fingerprint: true, lastIp: true } },
+          },
+        })
+      : [];
+    const byId = new Map(details.map((d) => [d.id, d]));
 
-      const inviterFps = new Set(
-        r.referredBy?.devices.map((d) => d.fingerprint).filter(Boolean) ?? [],
-      );
-      const inviterIps = new Set(
-        r.referredBy?.devices.map((d) => d.lastIp).filter(Boolean) ?? [],
-      );
+    // Show a real fingerprint when one exists rather than whichever row came first.
+    const shown = (devices: { fingerprint: string; lastIp: string | null }[]) =>
+      devices.find((d) => d.fingerprint !== 'unknown') ?? devices[0];
 
-      let sameDevice = false;
-      for (const fp of Array.from(inviteeFps)) {
-        if (inviterFps.has(fp)) {
-          sameDevice = true;
-          break;
-        }
-      }
+    const auditLogs = pageRows.flatMap((row) => {
+      const r = byId.get(row.id);
+      if (!r) return [];
+      const invitee = shown(r.devices);
+      const inviter = shown(r.referredBy?.devices ?? []);
 
-      let sameIp = false;
-      for (const ip of Array.from(inviteeIps)) {
-        if (inviterIps.has(ip)) {
-          sameIp = true;
-          break;
-        }
-      }
+      // Flags come from the same SQL as the totals, so a row and the cards
+      // can never disagree about what counts as suspicious.
+      const flagReason = row.same_device
+        ? 'SAME_DEVICE_FINGERPRINT'
+        : row.same_ip
+          ? 'SAME_IP_SUBNET'
+          : 'CLEAN_VERIFIED';
+      const severity: 'CLEAN' | 'MEDIUM' | 'HIGH' = row.same_device
+        ? 'HIGH'
+        : row.same_ip
+          ? 'MEDIUM'
+          : 'CLEAN';
 
-      let flagReason = 'CLEAN_VERIFIED';
-      let severity: 'CLEAN' | 'MEDIUM' | 'HIGH' = 'CLEAN';
-
-      if (sameDevice) {
-        flagReason = 'SAME_DEVICE_FINGERPRINT';
-        severity = 'HIGH';
-        suspiciousCount++;
-      } else if (sameIp) {
-        flagReason = 'SAME_IP_SUBNET';
-        severity = 'MEDIUM';
-        suspiciousCount++;
-      }
-
-      return {
-        inviteeId: r.id,
-        inviteeEmail: r.email ?? 'Wallet Miner',
-        inviteeIsBlocked: r.isBlocked,
-        inviterId: r.referredById!,
-        inviterEmail: r.referredBy?.email ?? 'Unknown Inviter',
-        inviteeFingerprint: r.devices[0]?.fingerprint ?? 'None',
-        inviteeIp: r.devices[0]?.lastIp ?? 'None',
-        inviterFingerprint: r.referredBy?.devices[0]?.fingerprint ?? 'None',
-        inviterIp: r.referredBy?.devices[0]?.lastIp ?? 'None',
-        flagReason,
-        severity,
-        joinedAt: r.createdAt.toISOString(),
-      };
+      return [
+        {
+          inviteeId: r.id,
+          inviteeEmail: r.email ?? 'Wallet Miner',
+          inviteeIsBlocked: r.isBlocked,
+          inviterId: r.referredById!,
+          inviterEmail: r.referredBy?.email ?? 'Unknown Inviter',
+          inviterIsBlocked: r.referredBy?.isBlocked ?? false,
+          inviteeFingerprint: invitee?.fingerprint ?? 'None',
+          inviteeIp: invitee?.lastIp ?? 'None',
+          inviterFingerprint: inviter?.fingerprint ?? 'None',
+          inviterIp: inviter?.lastIp ?? 'None',
+          flagReason,
+          severity,
+          joinedAt: r.createdAt.toISOString(),
+        },
+      ];
     });
+
+    const total = totals?.total ?? 0;
+    const suspicious = (totals?.same_device ?? 0) + (totals?.same_ip_only ?? 0);
 
     return {
       totalMiners,
-      totalReferralLinks: referrals.length,
-      cleanReferralsCount: referrals.length - suspiciousCount,
-      suspiciousReferralsCount: suspiciousCount,
+      totalReferralLinks: total,
+      cleanReferralsCount: total - suspicious,
+      suspiciousReferralsCount: suspicious,
+      sameDeviceCount: totals?.same_device ?? 0,
+      sameIpCount: totals?.same_ip_only ?? 0,
       integrityScore:
-        referrals.length > 0
-          ? Number((((referrals.length - suspiciousCount) / referrals.length) * 100).toFixed(1))
-          : 100,
+        total > 0 ? Number((((total - suspicious) / total) * 100).toFixed(1)) : 100,
+      page,
+      pageSize,
+      filter,
+      /** Referrals matching the current filter and search, across all pages. */
+      matched: pageRows[0]?.matched ?? 0,
       auditLogs,
+    };
+  }
+
+  /**
+   * Inviters ranked by how many of their referrals share a device or an IP
+   * with them — the accounts most likely farming referral rewards.
+   *
+   * Same-device is strong evidence; same-IP alone can be a shared household
+   * or a mobile carrier that puts many customers behind one address, so the
+   * two are reported separately rather than as one score.
+   */
+  async referralOffenders(limit = OFFENDERS_DEFAULT) {
+    const take = Math.min(OFFENDERS_MAX, Math.max(1, Math.trunc(limit) || OFFENDERS_DEFAULT));
+    const rows = await this.prisma.$queryRaw<
+      {
+        inviter_id: string;
+        email: string | null;
+        is_blocked: boolean;
+        total_referrals: number;
+        same_device: number;
+        same_ip_only: number;
+        flagged: number;
+        flagged_blocked: number;
+        total_offenders: number;
+      }[]
+    >`
+      WITH f AS (${FLAGGED_REFERRALS})
+      SELECT f.inviter_id,
+             i.email,
+             i."isBlocked" AS is_blocked,
+             count(*)::int AS total_referrals,
+             (count(*) FILTER (WHERE f.same_device))::int AS same_device,
+             (count(*) FILTER (WHERE f.same_ip AND NOT f.same_device))::int AS same_ip_only,
+             (count(*) FILTER (WHERE f.same_device OR f.same_ip))::int AS flagged,
+             (count(*) FILTER (WHERE (f.same_device OR f.same_ip) AND invitee."isBlocked"))::int AS flagged_blocked,
+             (count(*) OVER ())::int AS total_offenders
+      FROM f
+      JOIN "User" i ON i.id = f.inviter_id
+      JOIN "User" invitee ON invitee.id = f.id
+      GROUP BY f.inviter_id, i.email, i."isBlocked"
+      HAVING count(*) FILTER (WHERE f.same_device OR f.same_ip) > 0
+      ORDER BY flagged DESC, total_referrals DESC, f.inviter_id
+      LIMIT ${take}
+    `;
+
+    return {
+      /** Inviters with at least one flagged referral, before the limit. */
+      totalOffenders: rows[0]?.total_offenders ?? 0,
+      offenders: rows.map((r) => ({
+        inviterId: r.inviter_id,
+        inviterEmail: r.email ?? 'Wallet Miner',
+        inviterIsBlocked: r.is_blocked,
+        totalReferrals: r.total_referrals,
+        sameDevice: r.same_device,
+        sameIp: r.same_ip_only,
+        flagged: r.flagged,
+        /** Flagged invitees already suspended. */
+        flaggedBlocked: r.flagged_blocked,
+        flaggedPct: pct(r.flagged, r.total_referrals),
+      })),
     };
   }
 
@@ -629,13 +808,40 @@ export class AdminService {
     return attach(byParent.get(rootId) ?? []);
   }
 
-  async setBlocked(userId: string, blocked: boolean) {
+  /**
+   * Suspend or reinstate a miner, and email them about it.
+   *
+   * The status change is the action; the email is best effort. A failed send
+   * (e.g. the SMTP provider's hourly cap) is reported back as `emailed:
+   * false` rather than undoing a suspension the admin asked for. No email
+   * goes out when the status did not actually change, so a double click
+   * doesn't mail the user twice.
+   */
+  async setBlocked(userId: string, blocked: boolean, reason?: string) {
+    const before = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { isBlocked: true, email: true },
+    });
     const u = await this.prisma.user.update({
       where: { id: userId },
       data: { isBlocked: blocked },
       select: { id: true, isBlocked: true },
     });
-    return u;
+
+    let emailed = false;
+    if (before.isBlocked !== blocked && before.email) {
+      try {
+        emailed = await this.email.sendAccountStatusEmail(before.email, {
+          suspended: blocked,
+          reason,
+        });
+      } catch (err) {
+        this.logger.warn(
+          `[ACCOUNT STATUS EMAIL FAILED] user=${userId}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+    return { ...u, emailed, hasEmail: !!before.email };
   }
 
   /** Manual hash-rate override (SPEC §6). */
@@ -747,97 +953,111 @@ export class AdminService {
     ] = await Promise.all([
       // All-time money, summed from the price pinned on each purchase so no
       // per-row scan is needed and repricing a plan cannot rewrite history.
-      this.prisma.boosterPurchase.groupBy({
-        by: ['status', 'planId'],
-        _count: { _all: true },
-        _sum: { priceUsd: true },
-      }),
+      this.gate(() =>
+        this.prisma.boosterPurchase.groupBy({
+          by: ['status', 'planId'],
+          _count: { _all: true },
+          _sum: { priceUsd: true },
+        }),
+      ),
       // Rows written before purchases pinned their price. `_sum` skips their
       // NULL, so they are counted here and valued at their plan's price —
       // exactly the behaviour they had before this column existed.
-      this.prisma.boosterPurchase.groupBy({
-        by: ['status', 'planId'],
-        where: { priceUsd: null },
-        _count: { _all: true },
-      }),
-      this.payerAggregates(priceOf),
+      this.gate(() =>
+        this.prisma.boosterPurchase.groupBy({
+          by: ['status', 'planId'],
+          where: { priceUsd: null },
+          _count: { _all: true },
+        }),
+      ),
+      this.gate(() => this.payerAggregates(priceOf)),
       // Only CONFIRMED rows inside the window, and only the columns the
       // buckets need. `confirmedAt` is what a payment is dated by; the
       // `createdAt` arm keeps a row whose confirmation was backfilled.
       // Ordered so that hitting the cap drops the oldest, not an arbitrary
       // slice the caller cannot reason about.
-      this.prisma.boosterPurchase.findMany({
-        where: {
-          status: 'CONFIRMED',
-          OR: [
-            { confirmedAt: { gte: windowStart } },
-            { confirmedAt: null, createdAt: { gte: windowStart } },
-          ],
-        },
-        select: {
-          userId: true,
-          planId: true,
-          priceUsd: true,
-          tokenSymbol: true,
-          confirmedAt: true,
-          createdAt: true,
-        },
-        orderBy: { confirmedAt: { sort: 'desc', nulls: 'last' } },
-        take: SERIES_ROW_CAP,
-      }),
-      this.prisma.booster.groupBy({
-        by: ['planId'],
-        where: { expiresAt: { gt: now } },
-        _count: { _all: true },
-      }),
-      this.prisma.user.count(),
-      this.prisma.boosterPurchase.findMany({
-        // Scoped to the default collector: this list surfaces a per-row
-        // txHash, and a non-default collector's transactions are only
-        // readable through the finance module (CRYPTO_PAYMENT_VIEW). The
-        // *total* revenue figures elsewhere on this same response are
-        // deliberately NOT scoped this way — every collector's money is
-        // real platform revenue.
-        where: { status: 'CONFIRMED', collectorId: 'default' },
-        // Postgres sorts NULLs first on DESC. Both confirmation paths do
-        // stamp `confirmedAt`, but a row that somehow missed one must not
-        // therefore lead the "latest payments" list.
-        orderBy: { confirmedAt: { sort: 'desc', nulls: 'last' } },
-        take: 12,
-        select: {
-          id: true,
-          userId: true,
-          planId: true,
-          priceUsd: true,
-          tokenSymbol: true,
-          expectedAmount: true,
-          txHash: true,
-          confirmedAt: true,
-          createdAt: true,
-          user: { select: { email: true, countryCode: true } },
-        },
-      }),
+      this.gate(() =>
+        this.prisma.boosterPurchase.findMany({
+          where: {
+            status: 'CONFIRMED',
+            OR: [
+              { confirmedAt: { gte: windowStart } },
+              { confirmedAt: null, createdAt: { gte: windowStart } },
+            ],
+          },
+          select: {
+            userId: true,
+            planId: true,
+            priceUsd: true,
+            tokenSymbol: true,
+            confirmedAt: true,
+            createdAt: true,
+          },
+          orderBy: { confirmedAt: { sort: 'desc', nulls: 'last' } },
+          take: SERIES_ROW_CAP,
+        }),
+      ),
+      this.gate(() =>
+        this.prisma.booster.groupBy({
+          by: ['planId'],
+          where: { expiresAt: { gt: now } },
+          _count: { _all: true },
+        }),
+      ),
+      this.gate(() => this.prisma.user.count()),
+      this.gate(() =>
+        this.prisma.boosterPurchase.findMany({
+          // Scoped to the default collector: this list surfaces a per-row
+          // txHash, and a non-default collector's transactions are only
+          // readable through the finance module (CRYPTO_PAYMENT_VIEW). The
+          // *total* revenue figures elsewhere on this same response are
+          // deliberately NOT scoped this way — every collector's money is
+          // real platform revenue.
+          where: { status: 'CONFIRMED', collectorId: 'default' },
+          // Postgres sorts NULLs first on DESC. Both confirmation paths do
+          // stamp `confirmedAt`, but a row that somehow missed one must not
+          // therefore lead the "latest payments" list.
+          orderBy: { confirmedAt: { sort: 'desc', nulls: 'last' } },
+          take: 12,
+          select: {
+            id: true,
+            userId: true,
+            planId: true,
+            priceUsd: true,
+            tokenSymbol: true,
+            expectedAmount: true,
+            txHash: true,
+            confirmedAt: true,
+            createdAt: true,
+            user: { select: { email: true, countryCode: true } },
+          },
+        }),
+      ),
       // Intents a miner could still pay right now.
       //
       // An unpaid quote is only ever flipped to EXPIRED when that same miner
       // re-submits against it, and nothing sweeps the rest, so every
       // abandoned checkout sits in AWAITING_PAYMENT forever. Summing the
       // status alone would report years of dead quotes as money in flight.
-      this.prisma.boosterPurchase.aggregate({
-        where: { status: 'AWAITING_PAYMENT', expiresAt: { gt: now } },
-        _count: { _all: true },
-        _sum: { priceUsd: true },
-      }),
+      this.gate(() =>
+        this.prisma.boosterPurchase.aggregate({
+          where: { status: 'AWAITING_PAYMENT', expiresAt: { gt: now } },
+          _count: { _all: true },
+          _sum: { priceUsd: true },
+        }),
+      ),
       // A live quote older than this deploy carries no pinned price.
-      this.prisma.boosterPurchase.groupBy({
-        by: ['planId'],
-        where: {
-          status: 'AWAITING_PAYMENT',
-          expiresAt: { gt: now },
-          priceUsd: null,
-        },
-        _count: { _all: true },
-      }),
+      this.gate(() =>
+        this.prisma.boosterPurchase.groupBy({
+          by: ['planId'],
+          where: {
+            status: 'AWAITING_PAYMENT',
+            expiresAt: { gt: now },
+            priceUsd: null,
+          },
+          _count: { _all: true },
+        }),
+      ),
     ]);
 
     // ── All-time totals, and the per-plan status split ──
@@ -1092,20 +1312,24 @@ export class AdminService {
    */
   private async payerAggregates(priceOf: Map<string, number>) {
     const [groups, unpriced] = await Promise.all([
-      this.prisma.boosterPurchase.groupBy({
-        by: ['userId', 'planId'],
-        where: { status: 'CONFIRMED' },
-        _count: { _all: true },
-        _sum: { priceUsd: true },
-        _min: { confirmedAt: true },
-        _max: { confirmedAt: true },
-      }),
+      this.gate(() =>
+        this.prisma.boosterPurchase.groupBy({
+          by: ['userId', 'planId'],
+          where: { status: 'CONFIRMED' },
+          _count: { _all: true },
+          _sum: { priceUsd: true },
+          _min: { confirmedAt: true },
+          _max: { confirmedAt: true },
+        }),
+      ),
       // Purchases predating the pinned price, valued at their plan's price.
-      this.prisma.boosterPurchase.groupBy({
-        by: ['userId', 'planId'],
-        where: { status: 'CONFIRMED', priceUsd: null },
-        _count: { _all: true },
-      }),
+      this.gate(() =>
+        this.prisma.boosterPurchase.groupBy({
+          by: ['userId', 'planId'],
+          where: { status: 'CONFIRMED', priceUsd: null },
+          _count: { _all: true },
+        }),
+      ),
     ]);
 
     const unpricedOf = new Map(
@@ -1267,20 +1491,22 @@ export class AdminService {
       referralsCount,
       payers,
     ] = await Promise.all([
-      this.prisma.user.count(),
-      this.prisma.ledgerEntry.count(),
-      this.prisma.withdrawal.count(),
-      this.prisma.kycRecord.count(),
-      this.prisma.boosterPurchase.count(),
-      this.prisma.user.count({ where: { referredById: { not: null } } }),
+      this.gate(() => this.prisma.user.count()),
+      this.gate(() => this.prisma.ledgerEntry.count()),
+      this.gate(() => this.prisma.withdrawal.count()),
+      this.gate(() => this.prisma.kycRecord.count()),
+      this.gate(() => this.prisma.boosterPurchase.count()),
+      this.gate(() => this.prisma.user.count({ where: { referredById: { not: null } } })),
       // Row count of the per-user export. `groupBy` would return one row per
       // paying account just to have its length read; this is the same number
       // in constant memory.
-      this.prisma.$queryRaw<{ count: bigint }[]>`
-        SELECT COUNT(DISTINCT "userId")::bigint AS count
-        FROM "BoosterPurchase"
-        WHERE "status" = 'CONFIRMED'
-      `,
+      this.gate(() =>
+        this.prisma.$queryRaw<{ count: bigint }[]>`
+          SELECT COUNT(DISTINCT "userId")::bigint AS count
+          FROM "BoosterPurchase"
+          WHERE "status" = 'CONFIRMED'
+        `,
+      ),
     ]);
 
     return {

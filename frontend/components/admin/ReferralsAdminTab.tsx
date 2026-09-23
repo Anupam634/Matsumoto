@@ -1,34 +1,89 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getReferralAudit,
+  getReferralOffenders,
   ApiError,
+  type ReferralAuditFilter,
   type ReferralAuditResult,
+  type ReferralOffender,
 } from '../../lib/admin-api';
+import { BanUserModal, type BanTarget } from './modals/BanUserModal';
+
+const PAGE_SIZE = 50;
+const SEARCH_DEBOUNCE_MS = 300;
 
 export function ReferralsAdminTab() {
   const [audit, setAudit] = useState<ReferralAuditResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'ALL' | 'SUSPICIOUS' | 'CLEAN'>('ALL');
+  const [filter, setFilter] = useState<ReferralAuditFilter>('ALL');
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [query, setQuery] = useState('');
+  // Responses can land out of order while paging or typing; only the latest wins.
+  const latest = useRef(0);
+  const [offenders, setOffenders] = useState<ReferralOffender[] | null>(null);
+  const [totalOffenders, setTotalOffenders] = useState(0);
+  const [banTarget, setBanTarget] = useState<BanTarget | null>(null);
+  const logRef = useRef<HTMLDivElement>(null);
 
-  const loadAudit = useCallback(async () => {
-    setBusy(true);
+  const loadOffenders = useCallback(async () => {
     try {
-      const data = await getReferralAudit();
-      setAudit(data);
-      setError(null);
+      const data = await getReferralOffenders();
+      setOffenders(data.offenders);
+      setTotalOffenders(data.totalOffenders);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to fetch referral audit.');
-    } finally {
-      setBusy(false);
+      setError(err instanceof ApiError ? err.message : 'Failed to fetch referral offenders.');
     }
   }, []);
 
   useEffect(() => {
+    loadOffenders();
+  }, [loadOffenders]);
+
+  /** Narrow the audit log to one inviter's flagged referrals. */
+  function viewInviter(email: string) {
+    setSearch(email);
+    setFilter('SUSPICIOUS');
+    setPage(1);
+    logRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setQuery(search.trim());
+      setPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const loadAudit = useCallback(async () => {
+    const id = ++latest.current;
+    setBusy(true);
+    try {
+      const data = await getReferralAudit({ page, pageSize: PAGE_SIZE, filter, search: query });
+      if (id !== latest.current) return;
+      setAudit(data);
+      setError(null);
+    } catch (err) {
+      if (id !== latest.current) return;
+      setError(err instanceof ApiError ? err.message : 'Failed to fetch referral audit.');
+    } finally {
+      if (id === latest.current) setBusy(false);
+    }
+  }, [page, filter, query]);
+
+  useEffect(() => {
     loadAudit();
   }, [loadAudit]);
+
+  const logs = audit?.auditLogs ?? [];
+  const matched = audit?.matched ?? 0;
+  const totalPages = Math.max(1, Math.ceil(matched / PAGE_SIZE));
+  const firstRow = matched === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const lastRow = Math.min(page * PAGE_SIZE, matched);
 
   const tiers = [
     { level: 1, invites: '1 – 4 Direct Invites', multiplier: '1.0× Base Rate', bonusCommission: '10% Tier 1' },
@@ -38,12 +93,6 @@ export function ReferralsAdminTab() {
     { level: 5, invites: '50 – 99 Direct Invites', multiplier: '2.2× Boost Multiplier', bonusCommission: '22% Tier 1 + 8% Tier 2 + 5% Tier 3' },
     { level: 6, invites: '100+ Direct Invites (VIP)', multiplier: '3.0× Maximum Multiplier', bonusCommission: '25% Tier 1 + 10% Tier 2 + 6% Tier 3' },
   ];
-
-  const filteredLogs = (audit?.auditLogs ?? []).filter((log) => {
-    if (filter === 'SUSPICIOUS') return log.severity !== 'CLEAN';
-    if (filter === 'CLEAN') return log.severity === 'CLEAN';
-    return true;
-  });
 
   return (
     <div className="space-y-6">
@@ -64,7 +113,10 @@ export function ReferralsAdminTab() {
         </div>
 
         <button
-          onClick={loadAudit}
+          onClick={() => {
+            loadAudit();
+            loadOffenders();
+          }}
           disabled={busy}
           className="rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs font-bold text-slate-300 hover:border-amber-500 hover:text-amber-400 transition"
         >
@@ -120,7 +172,9 @@ export function ReferralsAdminTab() {
             {audit?.suspiciousReferralsCount ?? 0}
           </div>
           <div className="mt-1 text-xs text-red-400/80 font-bold">
-            Shared device or subnet flagged
+            {audit
+              ? `${audit.sameDeviceCount} same device · ${audit.sameIpCount} same IP`
+              : 'Shared device or subnet flagged'}
           </div>
         </div>
       </div>
@@ -146,7 +200,92 @@ export function ReferralsAdminTab() {
         </div>
       </div>
 
+      {/* ───────────────── Inviters ranked by flagged referrals ───────────────── */}
+      <div className="card overflow-hidden border-slate-800 bg-slate-900/80 shadow-2xl">
+        <div className="border-b border-white/[0.08] bg-slate-950/80 p-4">
+          <h3 className="text-sm font-black uppercase tracking-wider text-white">
+            🚩 Top Suspected Referral Farmers
+          </h3>
+          <p className="text-xs text-slate-400">
+            Inviters ranked by how many of their referrals share their device or IP.{' '}
+            <span className="text-red-300">Same device</span> is strong evidence;{' '}
+            <span className="text-amber-300">same IP</span> alone can be a shared home or mobile network.
+            {offenders && totalOffenders > offenders.length &&
+              ` Showing the top ${offenders.length} of ${totalOffenders.toLocaleString()} flagged inviters.`}
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-300">
+            <thead className="border-b border-white/[0.08] bg-slate-950 text-[10px] font-bold uppercase text-slate-400">
+              <tr>
+                <th className="p-3">#</th>
+                <th className="p-3">Inviter</th>
+                <th className="p-3 text-right">Referrals</th>
+                <th className="p-3 text-right">Same device</th>
+                <th className="p-3 text-right">Same IP</th>
+                <th className="p-3 text-right">Flagged</th>
+                <th className="p-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/80">
+              {offenders === null ? (
+                <tr>
+                  <td colSpan={7} className="p-6 text-center text-slate-500">Loading…</td>
+                </tr>
+              ) : offenders.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-6 text-center text-slate-500">
+                    No inviter has a flagged referral.
+                  </td>
+                </tr>
+              ) : (
+                offenders.map((o, i) => (
+                  <tr key={o.inviterId} className="transition hover:bg-slate-800/40">
+                    <td className="p-3 tabular-nums text-slate-500">{i + 1}</td>
+                    <td className="p-3">
+                      <div className="font-bold text-white">{o.inviterEmail}</div>
+                      {o.inviterIsBlocked && <BlockedBadge />}
+                    </td>
+                    <td className="p-3 text-right tabular-nums">{o.totalReferrals.toLocaleString()}</td>
+                    <td className="p-3 text-right tabular-nums font-bold text-red-300">{o.sameDevice.toLocaleString()}</td>
+                    <td className="p-3 text-right tabular-nums font-bold text-amber-300">{o.sameIp.toLocaleString()}</td>
+                    <td className="p-3 text-right tabular-nums">
+                      <div className="font-black text-white">
+                        {o.flagged.toLocaleString()}{' '}
+                        <span className="font-semibold text-slate-400">({o.flaggedPct}%)</span>
+                      </div>
+                      {o.flaggedBlocked > 0 && (
+                        <div className="text-[10px] text-slate-500">{o.flaggedBlocked} already suspended</div>
+                      )}
+                    </td>
+                    <td className="p-3 text-right">
+                      <div className="flex justify-end gap-1.5 whitespace-nowrap">
+                        <button
+                          onClick={() => viewInviter(o.inviterEmail)}
+                          className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1 text-[11px] font-bold text-slate-300 hover:border-amber-500 hover:text-amber-300"
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={() =>
+                            setBanTarget({ id: o.inviterId, email: o.inviterEmail, isBlocked: o.inviterIsBlocked })
+                          }
+                          className={blockButtonClass(o.inviterIsBlocked)}
+                        >
+                          {o.inviterIsBlocked ? 'Unblock' : 'Block'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* ───────────────── Real-Time Anti-Bypass & Sybil Audit Scanner ───────────────── */}
+      <div ref={logRef} className="scroll-mt-4" />
       <div className="card overflow-hidden border-slate-800 bg-slate-900/80 shadow-2xl">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] bg-slate-950/80 p-4">
           <div>
@@ -158,11 +297,24 @@ export function ReferralsAdminTab() {
             </p>
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search invitee or inviter email…"
+              aria-label="Search referrals by email"
+              autoComplete="off"
+              spellCheck={false}
+              className="w-60 rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs text-slate-100 placeholder-slate-600 outline-none focus:border-amber-500"
+            />
             {(['ALL', 'SUSPICIOUS', 'CLEAN'] as const).map((f) => (
               <button
                 key={f}
-                onClick={() => setFilter(f)}
+                onClick={() => {
+                  setFilter(f);
+                  setPage(1);
+                }}
                 className={`rounded-lg px-3 py-1.5 font-bold uppercase transition ${
                   filter === f
                     ? 'bg-amber-500 text-slate-950 shadow-sm'
@@ -188,22 +340,34 @@ export function ReferralsAdminTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/80 font-mono text-[11px]">
-              {filteredLogs.length === 0 ? (
+              {logs.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-8 text-center text-slate-500 font-sans">
                     {busy ? 'Analyzing referral graphs…' : 'No referral logs matching filter.'}
                   </td>
                 </tr>
               ) : (
-                filteredLogs.map((log, idx) => (
-                  <tr key={idx} className="hover:bg-slate-800/40 transition">
+                logs.map((log) => (
+                  <tr key={log.inviteeId} className="hover:bg-slate-800/40 transition">
                     <td className="p-3.5 font-sans">
                       <div className="font-bold text-white">{log.inviteeEmail}</div>
                       <div className="text-[10px] text-slate-500">{log.inviteeId.slice(0, 10)}…</div>
+                      <RowBlockAction
+                        blocked={log.inviteeIsBlocked}
+                        onClick={() =>
+                          setBanTarget({ id: log.inviteeId, email: log.inviteeEmail, isBlocked: log.inviteeIsBlocked })
+                        }
+                      />
                     </td>
                     <td className="p-3.5 font-sans">
                       <div className="font-bold text-slate-300">{log.inviterEmail}</div>
                       <div className="text-[10px] text-slate-500">{log.inviterId.slice(0, 10)}…</div>
+                      <RowBlockAction
+                        blocked={log.inviterIsBlocked}
+                        onClick={() =>
+                          setBanTarget({ id: log.inviterId, email: log.inviterEmail, isBlocked: log.inviterIsBlocked })
+                        }
+                      />
                     </td>
                     <td className="p-3.5">
                       <div className="font-bold text-slate-200">{log.inviteeIp}</div>
@@ -249,7 +413,92 @@ export function ReferralsAdminTab() {
             </tbody>
           </table>
         </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.08] bg-slate-950/80 px-4 py-3 text-xs text-slate-400">
+          <span>
+            {matched === 0
+              ? 'No results'
+              : `Showing ${firstRow.toLocaleString()}–${lastRow.toLocaleString()} of ${matched.toLocaleString()}`}
+            {busy && ' · loading…'}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(1)}
+              disabled={busy || page <= 1}
+              className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 font-bold text-slate-300 transition hover:border-amber-500 disabled:opacity-40"
+            >
+              « First
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={busy || page <= 1}
+              className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 font-bold text-slate-300 transition hover:border-amber-500 disabled:opacity-40"
+            >
+              ‹ Prev
+            </button>
+            <span className="px-1 font-bold text-slate-200 tabular-nums">
+              Page {page.toLocaleString()} / {totalPages.toLocaleString()}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={busy || page >= totalPages}
+              className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 font-bold text-slate-300 transition hover:border-amber-500 disabled:opacity-40"
+            >
+              Next ›
+            </button>
+            <button
+              onClick={() => setPage(totalPages)}
+              disabled={busy || page >= totalPages}
+              className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 font-bold text-slate-300 transition hover:border-amber-500 disabled:opacity-40"
+            >
+              Last »
+            </button>
+          </div>
+        </div>
       </div>
+
+      {banTarget && (
+        <BanUserModal
+          user={banTarget}
+          onClose={() => setBanTarget(null)}
+          onSuccess={() => {
+            setBanTarget(null);
+            loadAudit();
+            loadOffenders();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function blockButtonClass(blocked: boolean) {
+  return blocked
+    ? 'rounded-lg border border-emerald-500/40 bg-emerald-950/30 px-2.5 py-1 text-[11px] font-bold text-emerald-300 hover:bg-emerald-900/40'
+    : 'rounded-lg border border-red-500/40 bg-red-950/30 px-2.5 py-1 text-[11px] font-bold text-red-300 hover:bg-red-900/40';
+}
+
+function BlockedBadge() {
+  return (
+    <span className="mt-1 inline-block rounded bg-red-950 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-red-300 border border-red-500/30">
+      Suspended
+    </span>
+  );
+}
+
+/** Suspend/reinstate link under an email in the audit log. */
+function RowBlockAction({ blocked, onClick }: { blocked: boolean; onClick: () => void }) {
+  return (
+    <div className="mt-1 flex items-center gap-1.5">
+      {blocked && <BlockedBadge />}
+      <button
+        onClick={onClick}
+        className={`text-[10px] font-bold underline-offset-2 hover:underline ${
+          blocked ? 'text-emerald-400' : 'text-red-400'
+        }`}
+      >
+        {blocked ? 'Unblock' : 'Block'}
+      </button>
     </div>
   );
 }
