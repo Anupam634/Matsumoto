@@ -34,6 +34,7 @@ export async function register(params: {
       referralCode: params.referralCode || undefined,
       countryCode: params.countryCode,
       otp: params.otp || undefined,
+      platform: 'mobile',
       deviceFingerprint: await deviceFingerprint(),
     }),
   });
@@ -45,6 +46,8 @@ export async function login(params: {
   email: string;
   password: string;
   otp?: string;
+  /** Turnstile solution; required on the first step when the server asks. */
+  captchaToken?: string | null;
 }): Promise<AuthResponse> {
   const data = await apiFetch<AuthResponse>('/auth/login', {
     method: 'POST',
@@ -52,6 +55,8 @@ export async function login(params: {
       email: params.email,
       password: params.password,
       otp: params.otp || undefined,
+      captchaToken: params.captchaToken || undefined,
+      platform: 'mobile',
       deviceFingerprint: await deviceFingerprint(),
     }),
   });
@@ -59,19 +64,30 @@ export async function login(params: {
   return data;
 }
 
-export const sendOtp = (
+export const sendOtp = async (
   email: string,
   purpose: 'signup' | 'login' | 'forgot_password' = 'signup',
+  captchaToken?: string | null,
 ) =>
   apiFetch<{ success: boolean; message: string }>('/auth/send-otp', {
     method: 'POST',
-    body: JSON.stringify({ email, purpose }),
+    body: JSON.stringify({
+      email,
+      purpose,
+      captchaToken: captchaToken || undefined,
+      platform: 'mobile',
+      deviceFingerprint: await deviceFingerprint(),
+    }),
   });
 
-export const forgotPassword = (email: string) =>
+export const forgotPassword = (email: string, captchaToken?: string | null) =>
   apiFetch<{ success: boolean; message: string }>('/auth/forgot-password', {
     method: 'POST',
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({
+      email,
+      captchaToken: captchaToken || undefined,
+      platform: 'mobile',
+    }),
   });
 
 export const resetPassword = (params: {

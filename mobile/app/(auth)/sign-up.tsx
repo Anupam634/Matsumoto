@@ -20,6 +20,7 @@ import { useT } from '../../src/i18n';
 import { useSession } from '../../src/store/session';
 import { useFeedback } from '../../src/lib/feedback';
 import { register, sendOtp } from '../../src/api/endpoints';
+import { useCaptcha } from '../../src/components/common/Captcha';
 import { errorMessage } from '../../src/api/client';
 import { EMAIL_RE } from '../../src/lib/format';
 
@@ -43,6 +44,7 @@ export default function SignUp() {
   const passwordRef = useRef<TextInput>(null);
   const referralRef = useRef<TextInput>(null);
 
+  const captcha = useCaptcha();
   const [step, setStep] = useState<'form' | 'otp'>('form');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -100,7 +102,7 @@ export default function SignUp() {
 
     setBusy(true);
     try {
-      const res = await sendOtp(cleanEmail, 'signup');
+      const res = await sendOtp(cleanEmail, 'signup', await captcha.solve('signup'));
       setInfo(res.message);
       setStep('otp');
       startResendCooldown();
@@ -117,7 +119,7 @@ export default function SignUp() {
     setError(null);
     setResending(true);
     try {
-      const res = await sendOtp(cleanEmail, 'signup');
+      const res = await sendOtp(cleanEmail, 'signup', await captcha.solve('signup'));
       setInfo(res.message);
       startResendCooldown();
     } catch (err) {
@@ -212,6 +214,7 @@ export default function SignUp() {
             onPress={() => void resendCode()}
           />
         </View>
+      {captcha.sheet}
       </AuthShell>
     );
   }

@@ -10,6 +10,7 @@ import { useT } from '../../src/i18n';
 import { useSession } from '../../src/store/session';
 import { useFeedback } from '../../src/lib/feedback';
 import { login } from '../../src/api/endpoints';
+import { useCaptcha } from '../../src/components/common/Captcha';
 import { errorMessage } from '../../src/api/client';
 import { EMAIL_RE } from '../../src/lib/format';
 
@@ -26,6 +27,7 @@ export default function SignIn() {
 
   const passwordRef = useRef<TextInput>(null);
 
+  const captcha = useCaptcha();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -43,7 +45,11 @@ export default function SignIn() {
 
     setBusy(true);
     try {
-      await login({ email: cleanEmail, password });
+      await login({
+        email: cleanEmail,
+        password,
+        captchaToken: await captcha.solve('login'),
+      });
       feedback.success();
       await signIn();
     } catch (err) {
@@ -121,6 +127,7 @@ export default function SignIn() {
         fullWidth
         size="lg"
       />
+    {captcha.sheet}
     </AuthShell>
   );
 }
