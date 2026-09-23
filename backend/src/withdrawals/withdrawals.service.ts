@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
+import { assertHuman } from '../common/turnstile';
+import { CAPTCHA_ACTIONS } from '../auth/auth.service';
 import { WalletService } from '../wallet/wallet.service';
 import { EmailService } from '../email/email.service';
 import { pointsToToken } from '../mining/mining.engine';
@@ -86,7 +88,19 @@ export class WithdrawalsService {
    * EmailService's own exception (mapped to a raw 502) reach the client
    * looking like the API itself is down.
    */
-  async sendWithdrawalOtp(userId: string) {
+  async sendWithdrawalOtp(
+    userId: string,
+    ctx: { captchaToken?: string; platform?: 'web' | 'mobile'; ip?: string } = {},
+  ) {
+    // This is the step that spends an email, so it is the one worth gating.
+    // The confirm that follows carries the mailed code, which no script has.
+    if (ctx.platform === 'web') {
+      await assertHuman(ctx.captchaToken, {
+        ip: ctx.ip,
+        action: CAPTCHA_ACTIONS.withdrawal,
+      });
+    }
+
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { email: true },

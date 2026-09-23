@@ -78,6 +78,12 @@ export class LoginDto {
   @IsIn(['web', 'mobile'])
   platform?: 'web' | 'mobile';
 
+  /** Turnstile solution, required from the website on the first step. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  captchaToken?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(128)

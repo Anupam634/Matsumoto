@@ -16,6 +16,7 @@ import {
   type Profile,
   type WithdrawalDto,
 } from '../../../lib/api';
+import { Turnstile, turnstileConfigured } from '../../../components/Turnstile';
 import { AppHeader } from '../../../components/AppHeader';
 import { MobileTabBar } from '../../../components/MobileTabBar';
 import { BnbBadge, BnbLogo } from '../../../components/BnbLogo';
@@ -126,6 +127,17 @@ function RequestForm({
   const [step, setStep] = useState<'form' | 'otp'>('form');
   const [otp, setOtp] = useState('');
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
+  // Guards the step that mails the confirmation code. The confirm after it
+  // carries that code, so it needs no second solve.
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaNonce, setCaptchaNonce] = useState(0);
+  const captchaMissing = turnstileConfigured && !captchaToken;
+
+  function spendCaptcha() {
+    if (!turnstileConfigured) return;
+    setCaptchaToken(null);
+    setCaptchaNonce((n) => n + 1);
+  }
 
   const balance = profile.pointsBalance;
 
@@ -164,7 +176,7 @@ function RequestForm({
     } catch (err) {
       if (err instanceof ApiError && err.code === 'OTP_REQUIRED') {
         try {
-          const res = await sendWithdrawalOtp();
+          const res = await sendWithdrawalOtp(captchaToken ?? undefined);
           setInfoMsg(res.message || 'A confirmation code has been sent to your email.');
           setStep('otp');
         } catch (sendErr) {
@@ -174,6 +186,7 @@ function RequestForm({
         setError(err instanceof ApiError ? err.message : t('offline'));
       }
     } finally {
+      spendCaptcha();
       setBusy(false);
     }
   }
@@ -206,11 +219,12 @@ function RequestForm({
     setBusy(true);
     setError(null);
     try {
-      const res = await sendWithdrawalOtp();
+      const res = await sendWithdrawalOtp(captchaToken ?? undefined);
       setInfoMsg(res.message || 'A new confirmation code has been sent to your email.');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('offline'));
     } finally {
+      spendCaptcha();
       setBusy(false);
     }
   }
@@ -304,6 +318,15 @@ function RequestForm({
             {busy ? '⏳ Confirming…' : 'Confirm Withdrawal'}
           </button>
 
+          {turnstileConfigured && (
+            <Turnstile
+              action="withdrawal"
+              resetKey={captchaNonce}
+              onToken={setCaptchaToken}
+              onError={setError}
+            />
+          )}
+
           <div className="flex items-center justify-between pt-1 text-xs">
             <button
               type="button"
@@ -320,7 +343,7 @@ function RequestForm({
             <button
               type="button"
               onClick={resendOtp}
-              disabled={busy}
+              disabled={busy || captchaMissing}
               className="font-bold text-indigo-300 transition hover:text-indigo-200 disabled:opacity-40"
             >
               Resend Code
@@ -390,9 +413,18 @@ function RequestForm({
           </p>
         )}
 
+          {turnstileConfigured && (
+            <Turnstile
+              action="withdrawal"
+              resetKey={captchaNonce}
+              onToken={setCaptchaToken}
+              onError={setError}
+            />
+          )}
+
         <button
           type="submit"
-          disabled={blocked || busy || !amountValid || !addressValid}
+          disabled={blocked || busy || !amountValid || !addressValid || captchaMissing}
           className="btn-primary flex w-full items-center justify-center gap-2 py-3.5 text-center text-sm font-black uppercase tracking-wider text-white shadow-lg transition-all disabled:opacity-50"
         >
           {busy ? (

@@ -85,15 +85,87 @@ describe('sendOtp guards for signup', () => {
     expect(emailService.sendOtpEmail).toHaveBeenCalled();
   });
 
-  it('does not ask a login resend for a captcha', async () => {
+  it('asks a login resend for a captcha too — it mails a known address', async () => {
     process.env.TURNSTILE_SECRET_KEY = 'secret';
     const { service, emailService } = buildService();
-    const prismaUser = { isBlocked: false };
-    (service as any).prisma.user.findUnique = jest.fn(async () => prismaUser);
+    (service as any).prisma.user.findUnique = jest.fn(async () => ({ isBlocked: false }));
 
     await expect(
       service.sendOtp('known@example.com', 'login', { platform: 'web' }),
+    ).rejects.toThrow(/anti-bot/i);
+    expect(emailService.sendOtpEmail).not.toHaveBeenCalled();
+
+    global.fetch = jest.fn(async () => ({
+      json: async () => ({ success: true, action: 'login' }),
+    })) as any;
+    await expect(
+      service.sendOtp('known@example.com', 'login', { platform: 'web', captchaToken: 'tok' }),
     ).resolves.toEqual({ success: true });
     expect(emailService.sendOtpEmail).toHaveBeenCalledWith('known@example.com', 'login_2fa');
+  });
+});
+
+describe('login captcha', () => {
+  const savedSecret = process.env.TURNSTILE_SECRET_KEY;
+  const realFetch = global.fetch;
+
+  afterEach(() => {
+    process.env.TURNSTILE_SECRET_KEY = savedSecret;
+    global.fetch = realFetch;
+  });
+
+  function loginService() {
+    const user = {
+      id: 'u1',
+      email: 'a@b.com',
+      passwordHash: null,
+      isBlocked: false,
+      referralCode: 'C',
+    };
+    const prisma = { user: { findUnique: jest.fn(async () => user) } };
+    const emailService = { sendOtpEmail: jest.fn(async () => ({ success: true })) };
+    const service = new AuthService(
+      prisma as any,
+      { signAsync: jest.fn(async () => 'token') } as any,
+      { recordDevice: jest.fn(async () => undefined) } as any,
+      emailService as any,
+      { get: jest.fn(() => undefined) } as any,
+    );
+    return { service, prisma, emailService };
+  }
+
+  it('is required on the first step, before the password is even checked', async () => {
+    process.env.TURNSTILE_SECRET_KEY = 'secret';
+    const { service, prisma } = loginService();
+
+    await expect(
+      service.login({ email: 'a@b.com', password: 'guess', platform: 'web' } as any, {}),
+    ).rejects.toThrow(/anti-bot/i);
+    // Refused before the account was even looked up.
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('is not asked again on the step that carries the mailed code', async () => {
+    process.env.TURNSTILE_SECRET_KEY = 'secret';
+    const { service, prisma } = loginService();
+
+    // No captcha token, but an OTP: it gets as far as the password check.
+    await expect(
+      service.login(
+        { email: 'a@b.com', password: 'wrong', otp: '123456', platform: 'web' } as any,
+        {},
+      ),
+    ).rejects.toThrow(/invalid email or password/i);
+    expect(prisma.user.findUnique).toHaveBeenCalled();
+  });
+
+  it('leaves the mobile app alone', async () => {
+    process.env.TURNSTILE_SECRET_KEY = 'secret';
+    const { service, prisma } = loginService();
+
+    await expect(
+      service.login({ email: 'a@b.com', password: 'wrong' } as any, {}),
+    ).rejects.toThrow(/invalid email or password/i);
+    expect(prisma.user.findUnique).toHaveBeenCalled();
   });
 });
