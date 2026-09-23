@@ -1,4 +1,9 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
@@ -82,6 +87,15 @@ const SERIES_ROW_CAP = 200_000;
  * start a transaction in the given time".
  */
 const DASHBOARD_QUERY_CONCURRENCY = 4;
+
+/**
+ * Every booster-money read on the general admin surface is scoped to this.
+ *
+ * Another collector's payments belong to the finance module
+ * (CRYPTO_PAYMENT_VIEW) and must not surface here at all — not as a row, and
+ * not inside a total, which is why the aggregates carry it too.
+ */
+const GENERAL_ADMIN_COLLECTOR = { collectorId: 'default' } as const;
 
 /** Money and percentages are display values — two decimals, never a float tail. */
 function round2(n: number): number {
@@ -232,7 +246,12 @@ export class AdminService {
     });
     return {
       accessToken,
-      admin: { id: admin.id, email: admin.email, role: admin.role },
+      admin: {
+        id: admin.id,
+        email: admin.email,
+        role: admin.role,
+        permissions: admin.permissions,
+      },
     };
   }
 
@@ -304,7 +323,16 @@ export class AdminService {
         this.prisma.ledgerEntry.findMany({
           take: 8,
           orderBy: { createdAt: 'desc' },
-          include: { user: { select: { email: true } } },
+          // No `meta`: a BOOSTER_PURCHASE row carries the purchase's txHash
+          // and price in there, which would hand over exactly what the
+          // collector scoping above withholds.
+          select: {
+            id: true,
+            reason: true,
+            deltaMilli: true,
+            createdAt: true,
+            user: { select: { email: true } },
+          },
         }),
       ),
       // Only the signup dates are needed, to bucket them by day. This is the
@@ -507,6 +535,14 @@ export class AdminService {
           where: { userId },
           orderBy: { createdAt: 'desc' },
           take: 20,
+          // Same reason as the dashboard feed: `meta` would carry a booster
+          // purchase's txHash past the collector scoping.
+          select: {
+            id: true,
+            reason: true,
+            deltaMilli: true,
+            createdAt: true,
+          },
         }),
       ),
       this.gate(() =>
@@ -946,6 +982,7 @@ export class AdminService {
       this.gate(() =>
         this.prisma.boosterPurchase.groupBy({
           by: ['status', 'planId'],
+          where: GENERAL_ADMIN_COLLECTOR,
           _count: { _all: true },
           _sum: { priceUsd: true },
         }),
@@ -956,7 +993,7 @@ export class AdminService {
       this.gate(() =>
         this.prisma.boosterPurchase.groupBy({
           by: ['status', 'planId'],
-          where: { priceUsd: null },
+          where: { ...GENERAL_ADMIN_COLLECTOR, priceUsd: null },
           _count: { _all: true },
         }),
       ),
@@ -969,6 +1006,7 @@ export class AdminService {
       this.gate(() =>
         this.prisma.boosterPurchase.findMany({
           where: {
+            ...GENERAL_ADMIN_COLLECTOR,
             status: 'CONFIRMED',
             OR: [
               { confirmedAt: { gte: windowStart } },
@@ -997,7 +1035,13 @@ export class AdminService {
       this.gate(() => this.prisma.user.count()),
       this.gate(() =>
         this.prisma.boosterPurchase.findMany({
-          where: { status: 'CONFIRMED' },
+          // Scoped to the default collector: this list surfaces a per-row
+          // txHash, and a non-default collector's transactions are only
+          // readable through the finance module (CRYPTO_PAYMENT_VIEW). The
+          // *total* revenue figures elsewhere on this same response are
+          // deliberately NOT scoped this way — every collector's money is
+          // real platform revenue.
+          where: { status: 'CONFIRMED', collectorId: 'default' },
           // Postgres sorts NULLs first on DESC. Both confirmation paths do
           // stamp `confirmedAt`, but a row that somehow missed one must not
           // therefore lead the "latest payments" list.
@@ -1025,7 +1069,11 @@ export class AdminService {
       // status alone would report years of dead quotes as money in flight.
       this.gate(() =>
         this.prisma.boosterPurchase.aggregate({
-          where: { status: 'AWAITING_PAYMENT', expiresAt: { gt: now } },
+          where: {
+            ...GENERAL_ADMIN_COLLECTOR,
+            status: 'AWAITING_PAYMENT',
+            expiresAt: { gt: now },
+          },
           _count: { _all: true },
           _sum: { priceUsd: true },
         }),
@@ -1035,6 +1083,7 @@ export class AdminService {
         this.prisma.boosterPurchase.groupBy({
           by: ['planId'],
           where: {
+            ...GENERAL_ADMIN_COLLECTOR,
             status: 'AWAITING_PAYMENT',
             expiresAt: { gt: now },
             priceUsd: null,
@@ -1299,7 +1348,7 @@ export class AdminService {
       this.gate(() =>
         this.prisma.boosterPurchase.groupBy({
           by: ['userId', 'planId'],
-          where: { status: 'CONFIRMED' },
+          where: { ...GENERAL_ADMIN_COLLECTOR, status: 'CONFIRMED' },
           _count: { _all: true },
           _sum: { priceUsd: true },
           _min: { confirmedAt: true },
@@ -1310,7 +1359,7 @@ export class AdminService {
       this.gate(() =>
         this.prisma.boosterPurchase.groupBy({
           by: ['userId', 'planId'],
-          where: { status: 'CONFIRMED', priceUsd: null },
+          where: { ...GENERAL_ADMIN_COLLECTOR, status: 'CONFIRMED', priceUsd: null },
           _count: { _all: true },
         }),
       ),
@@ -1479,7 +1528,9 @@ export class AdminService {
       this.gate(() => this.prisma.ledgerEntry.count()),
       this.gate(() => this.prisma.withdrawal.count()),
       this.gate(() => this.prisma.kycRecord.count()),
-      this.gate(() => this.prisma.boosterPurchase.count()),
+      this.gate(() =>
+        this.prisma.boosterPurchase.count({ where: GENERAL_ADMIN_COLLECTOR }),
+      ),
       this.gate(() => this.prisma.user.count({ where: { referredById: { not: null } } })),
       // Row count of the per-user export. `groupBy` would return one row per
       // paying account just to have its length read; this is the same number
@@ -1671,6 +1722,12 @@ export class AdminService {
 
   async exportRevenueCsv(): Promise<string> {
     const purchases = await this.prisma.boosterPurchase.findMany({
+      // Same default-collector scope as listBoosterPurchases: this sheet
+      // has a Transaction Hash column per row. A non-default collector's
+      // purchases still count in every revenue total; they are just not
+      // handed out here as individual transactions. Full CSV export across
+      // every collector belongs to the finance module, not this one.
+      where: { collectorId: 'default' },
       orderBy: { createdAt: 'desc' },
       take: CSV_MAX_ROWS,
       include: {
@@ -1849,7 +1906,12 @@ export class AdminService {
   }
 
   async listBoosterPurchases(query?: { status?: string; search?: string }) {
-    const where: any = {};
+    // General admin view: scoped to the default collector wallet. A
+    // purchase routed to another collector (see boosters/collectors.ts) is
+    // only visible in the finance module, behind CRYPTO_PAYMENT_VIEW — this
+    // list shows a wallet and a tx hash per row, which is exactly the detail
+    // that stays out of the general admin surface for those purchases.
+    const where: any = { collectorId: 'default' };
 
     if (query?.status && query.status !== 'ALL') {
       where.status = query.status;
@@ -1901,6 +1963,16 @@ export class AdminService {
       where: { id: purchaseId },
       include: { plan: true },
     });
+
+    // General admin surface is scoped to the default collector everywhere
+    // else (listBoosterPurchases, exportRevenueCsv, the dashboard's recent
+    // payments); a mutating action must not have a wider reach than the
+    // read paths that would let an admin discover the id in the first
+    // place. NotFoundException, not Forbidden — this id simply isn't part
+    // of the general admin's booster-purchase surface.
+    if (purchase.collectorId !== 'default') {
+      throw new NotFoundException('Booster purchase not found.');
+    }
 
     if (purchase.status === 'CONFIRMED') {
       return { success: true, message: 'Purchase is already confirmed.' };

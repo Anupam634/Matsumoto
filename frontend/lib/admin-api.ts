@@ -12,19 +12,47 @@ import { ApiError } from './api';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
 const ADMIN_TOKEN_KEY = 'matsumoto_admin_token';
+const ADMIN_INFO_KEY = 'matsumoto_admin_info';
 
 export { ApiError };
+
+export interface AdminSelf {
+  id: string;
+  email: string;
+  role: string;
+  permissions: string[];
+}
 
 export function getAdminToken(): string | null {
   if (typeof window === 'undefined') return null;
   return window.localStorage.getItem(ADMIN_TOKEN_KEY);
 }
 
-export function adminLogout() {
-  window.localStorage.removeItem(ADMIN_TOKEN_KEY);
+/**
+ * The logged-in admin's own role/permissions, as returned at login. Purely
+ * a UI convenience for deciding what to render (e.g. whether to show a link
+ * into the finance module) — every route that actually matters re-checks
+ * this server-side (AdminAuthGuard + PermissionGuard), so a stale or
+ * tampered copy here cannot grant real access.
+ */
+export function getAdminInfo(): AdminSelf | null {
+  if (typeof window === 'undefined') return null;
+  const raw = window.localStorage.getItem(ADMIN_INFO_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as AdminSelf;
+  } catch {
+    return null;
+  }
 }
 
-async function adminFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+export function adminLogout() {
+  window.localStorage.removeItem(ADMIN_TOKEN_KEY);
+  window.localStorage.removeItem(ADMIN_INFO_KEY);
+}
+
+/** Exported so other admin-only API modules (e.g. finance-api.ts) share the same token and error handling instead of reimplementing it. */
+export async function adminFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getAdminToken();
   const res = await fetch(`${API}/admin${path}`, {
     ...init,
@@ -222,9 +250,10 @@ export interface AdminWithdrawal {
 export async function adminLogin(email: string, password: string) {
   const data = await adminFetch<{
     accessToken: string;
-    admin: { id: string; email: string; role: string };
+    admin: AdminSelf;
   }>('/login', { method: 'POST', body: JSON.stringify({ email, password }) });
   window.localStorage.setItem(ADMIN_TOKEN_KEY, data.accessToken);
+  window.localStorage.setItem(ADMIN_INFO_KEY, JSON.stringify(data.admin));
   return data;
 }
 

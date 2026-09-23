@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { ethers } from 'ethers';
 import { PrismaService } from '../prisma.service';
 import { ChainReaderService } from './chain-reader.service';
+import { CollectorService } from './collector.service';
 import { verifyPayment, DEFAULT_POLICY, type Policy } from './payment.rules';
 
 /** How long a quoted purchase stays payable before it must be re-quoted. */
@@ -21,6 +22,7 @@ export class BoostersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly chain: ChainReaderService,
+    private readonly collectors: CollectorService,
     cfg: ConfigService,
   ) {
     this.policy = {
@@ -138,6 +140,12 @@ export class BoostersService {
     }
 
     const units = this.chain.expectedUnits(plan.priceUsd);
+    // Which wallet this purchase is quoted to pay: a capped collector if one
+    // still has headroom for today, otherwise the default treasury. Decided
+    // once, here, and pinned on the row — the same reason every other term
+    // of the quote (price, expected amount) is pinned rather than
+    // recomputed later.
+    const collector = await this.collectors.pickCollector(plan.priceUsd);
     const purchase = await this.prisma.boosterPurchase.create({
       data: {
         userId,
@@ -146,7 +154,8 @@ export class BoostersService {
         expectedUnits: units.toString(),
         expectedAmount: this.chain.humanAmount(units),
         priceUsd: plan.priceUsd,
-        payToAddress: this.chain.config.payToAddress,
+        payToAddress: collector.walletAddress,
+        collectorId: collector.id,
         fromAddress: ethers.getAddress(fromAddress),
         expiresAt: new Date(Date.now() + INTENT_TTL_MS),
       },
@@ -191,7 +200,11 @@ export class BoostersService {
       );
     }
 
-    const observed = await this.chain.observe(txHash);
+    // Look for the transfer on the wallet *this* purchase was quoted to pay
+    // (purchase.payToAddress), not whatever the global config default is —
+    // a purchase routed to a shareholder collector must be checked against
+    // that collector's wallet.
+    const observed = await this.chain.observe(txHash, purchase.payToAddress);
     if (!observed) {
       throw new BadRequestException(
         'That transaction could not be found on chain yet. Wait a moment and try again.',
