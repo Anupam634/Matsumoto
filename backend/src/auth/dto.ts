@@ -87,6 +87,15 @@ export class LoginDto {
 export class ForgotPasswordDto {
   @IsEmail()
   email!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  captchaToken?: string;
+
+  @IsOptional()
+  @IsIn(['web', 'mobile'])
+  platform?: 'web' | 'mobile';
 }
 
 export class ResetPasswordDto {
@@ -116,4 +125,24 @@ export class SendOtpDto {
   @IsOptional()
   @IsIn(['signup', 'login', 'forgot_password'])
   purpose?: 'signup' | 'login' | 'forgot_password';
+
+  /**
+   * Cloudflare Turnstile solution. Required for `signup` and
+   * `forgot_password` from the website once TURNSTILE_SECRET_KEY is set —
+   * both mail an address nobody has authenticated against.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  captchaToken?: string;
+
+  @IsOptional()
+  @IsIn(['web', 'mobile'])
+  platform?: 'web' | 'mobile';
+
+  /** Feeds the per-device signup cap, which now runs before any mail is sent. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  deviceFingerprint?: string;
 }

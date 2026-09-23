@@ -54,7 +54,8 @@ function connectSources() {
 
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  // challenges.cloudflare.com is the Turnstile anti-bot widget on signup.
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
   "style-src 'self' 'unsafe-inline'",
   // qrserver renders the referral QR; the wallet/chain logos and KYC previews
   // arrive as data:/blob: URIs.
@@ -62,7 +63,7 @@ const csp = [
   "font-src 'self' data:",
   `connect-src ${connectSources()}`,
   // The YouTube task modal.
-  "frame-src https://www.youtube-nocookie.com https://www.youtube.com",
+  "frame-src https://www.youtube-nocookie.com https://www.youtube.com https://challenges.cloudflare.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

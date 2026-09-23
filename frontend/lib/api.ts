@@ -138,20 +138,31 @@ export async function login(params: {
   return data;
 }
 
+/** `captchaToken` is required for signup and password reset once Turnstile is configured. */
 export async function sendOtp(
   email: string,
   purpose: 'signup' | 'login' | 'forgot_password' = 'signup',
+  captchaToken?: string,
 ): Promise<{ success: boolean; message: string }> {
   return apiFetch('/auth/send-otp', {
     method: 'POST',
-    body: JSON.stringify({ email, purpose }),
+    body: JSON.stringify({
+      email,
+      purpose,
+      captchaToken,
+      platform: 'web',
+      deviceFingerprint: deviceFingerprint(),
+    }),
   });
 }
 
-export async function forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+export async function forgotPassword(
+  email: string,
+  captchaToken?: string,
+): Promise<{ success: boolean; message: string }> {
   return apiFetch('/auth/forgot-password', {
     method: 'POST',
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, captchaToken, platform: 'web' }),
   });
 }
 
