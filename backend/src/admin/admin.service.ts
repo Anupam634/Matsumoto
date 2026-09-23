@@ -88,6 +88,15 @@ const SERIES_ROW_CAP = 200_000;
  */
 const DASHBOARD_QUERY_CONCURRENCY = 4;
 
+/**
+ * Every booster-money read on the general admin surface is scoped to this.
+ *
+ * Another collector's payments belong to the finance module
+ * (CRYPTO_PAYMENT_VIEW) and must not surface here at all — not as a row, and
+ * not inside a total, which is why the aggregates carry it too.
+ */
+const GENERAL_ADMIN_COLLECTOR = { collectorId: 'default' } as const;
+
 /** Money and percentages are display values — two decimals, never a float tail. */
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -314,7 +323,16 @@ export class AdminService {
         this.prisma.ledgerEntry.findMany({
           take: 8,
           orderBy: { createdAt: 'desc' },
-          include: { user: { select: { email: true } } },
+          // No `meta`: a BOOSTER_PURCHASE row carries the purchase's txHash
+          // and price in there, which would hand over exactly what the
+          // collector scoping above withholds.
+          select: {
+            id: true,
+            reason: true,
+            deltaMilli: true,
+            createdAt: true,
+            user: { select: { email: true } },
+          },
         }),
       ),
       // Only the signup dates are needed, to bucket them by day. This is the
@@ -517,6 +535,14 @@ export class AdminService {
           where: { userId },
           orderBy: { createdAt: 'desc' },
           take: 20,
+          // Same reason as the dashboard feed: `meta` would carry a booster
+          // purchase's txHash past the collector scoping.
+          select: {
+            id: true,
+            reason: true,
+            deltaMilli: true,
+            createdAt: true,
+          },
         }),
       ),
       this.gate(() =>
@@ -956,6 +982,7 @@ export class AdminService {
       this.gate(() =>
         this.prisma.boosterPurchase.groupBy({
           by: ['status', 'planId'],
+          where: GENERAL_ADMIN_COLLECTOR,
           _count: { _all: true },
           _sum: { priceUsd: true },
         }),
@@ -966,7 +993,7 @@ export class AdminService {
       this.gate(() =>
         this.prisma.boosterPurchase.groupBy({
           by: ['status', 'planId'],
-          where: { priceUsd: null },
+          where: { ...GENERAL_ADMIN_COLLECTOR, priceUsd: null },
           _count: { _all: true },
         }),
       ),
@@ -979,6 +1006,7 @@ export class AdminService {
       this.gate(() =>
         this.prisma.boosterPurchase.findMany({
           where: {
+            ...GENERAL_ADMIN_COLLECTOR,
             status: 'CONFIRMED',
             OR: [
               { confirmedAt: { gte: windowStart } },
@@ -1041,7 +1069,11 @@ export class AdminService {
       // status alone would report years of dead quotes as money in flight.
       this.gate(() =>
         this.prisma.boosterPurchase.aggregate({
-          where: { status: 'AWAITING_PAYMENT', expiresAt: { gt: now } },
+          where: {
+            ...GENERAL_ADMIN_COLLECTOR,
+            status: 'AWAITING_PAYMENT',
+            expiresAt: { gt: now },
+          },
           _count: { _all: true },
           _sum: { priceUsd: true },
         }),
@@ -1051,6 +1083,7 @@ export class AdminService {
         this.prisma.boosterPurchase.groupBy({
           by: ['planId'],
           where: {
+            ...GENERAL_ADMIN_COLLECTOR,
             status: 'AWAITING_PAYMENT',
             expiresAt: { gt: now },
             priceUsd: null,
@@ -1315,7 +1348,7 @@ export class AdminService {
       this.gate(() =>
         this.prisma.boosterPurchase.groupBy({
           by: ['userId', 'planId'],
-          where: { status: 'CONFIRMED' },
+          where: { ...GENERAL_ADMIN_COLLECTOR, status: 'CONFIRMED' },
           _count: { _all: true },
           _sum: { priceUsd: true },
           _min: { confirmedAt: true },
@@ -1326,7 +1359,7 @@ export class AdminService {
       this.gate(() =>
         this.prisma.boosterPurchase.groupBy({
           by: ['userId', 'planId'],
-          where: { status: 'CONFIRMED', priceUsd: null },
+          where: { ...GENERAL_ADMIN_COLLECTOR, status: 'CONFIRMED', priceUsd: null },
           _count: { _all: true },
         }),
       ),
@@ -1495,7 +1528,9 @@ export class AdminService {
       this.gate(() => this.prisma.ledgerEntry.count()),
       this.gate(() => this.prisma.withdrawal.count()),
       this.gate(() => this.prisma.kycRecord.count()),
-      this.gate(() => this.prisma.boosterPurchase.count()),
+      this.gate(() =>
+        this.prisma.boosterPurchase.count({ where: GENERAL_ADMIN_COLLECTOR }),
+      ),
       this.gate(() => this.prisma.user.count({ where: { referredById: { not: null } } })),
       // Row count of the per-user export. `groupBy` would return one row per
       // paying account just to have its length read; this is the same number
