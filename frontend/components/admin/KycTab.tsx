@@ -129,6 +129,7 @@ export function KycTab({ onUnauthorized }: KycTabProps) {
                 <th className="p-3.5">Submitted</th>
                 <th className="p-3.5">Applicant</th>
                 <th className="p-3.5">Full Legal Name</th>
+                <th className="p-3.5">Network</th>
                 <th className="p-3.5">Document</th>
                 <th className="p-3.5">Status</th>
                 {/* Pinned so the one action on the row never scrolls off-screen. */}
@@ -140,7 +141,7 @@ export function KycTab({ onUnauthorized }: KycTabProps) {
             <tbody className="divide-y divide-slate-800/80">
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-slate-500">
+                  <td colSpan={7} className="p-8 text-center text-slate-500">
                     {busy
                       ? 'Loading KYC applicants…'
                       : query
@@ -163,6 +164,13 @@ export function KycTab({ onUnauthorized }: KycTabProps) {
                       </div>
                     </td>
                     <td className="p-3.5 font-semibold text-slate-200">{r.fullName ?? '—'}</td>
+                    <td className="p-3.5">
+                      <NetworkCell
+                        ip={r.lastIp}
+                        sameIp={r.sameIpAccounts}
+                        sameSubnet={r.sameSubnetAccounts}
+                      />
+                    </td>
                     <td className="p-3.5">
                       <div className="font-bold text-amber-300">{r.documentType ?? '—'}</div>
                       <div className="mt-0.5 font-mono text-slate-400">{r.documentNumber ?? '—'}</div>
@@ -203,6 +211,51 @@ export function KycTab({ onUnauthorized }: KycTabProps) {
           onDecide={handleDecide}
         />
       )}
+    </div>
+  );
+}
+
+/** How many accounts on one /24 counts as a farm rather than a household. */
+const SUBNET_FARM_THRESHOLD = 10;
+/** Accounts on a single address before it stops looking like one family. */
+const IP_SHARED_THRESHOLD = 3;
+
+/**
+ * Where this applicant signed in from, and how crowded that address and its
+ * /24 are.
+ *
+ * A reviewer cannot tell a farm's document from a real one by looking, but
+ * "112 accounts on this range" decides it at a glance — the farms seen so far
+ * spread a hundred-odd accounts across one rented /24 while keeping each
+ * address nearly empty, which is why the range matters more than the address.
+ */
+function NetworkCell({
+  ip,
+  sameIp,
+  sameSubnet,
+}: {
+  ip?: string | null;
+  sameIp?: number;
+  sameSubnet?: number;
+}) {
+  if (!ip) return <span className="text-slate-600">—</span>;
+
+  const subnet = sameSubnet ?? 0;
+  const onIp = sameIp ?? 0;
+  const farm = subnet >= SUBNET_FARM_THRESHOLD;
+  const shared = !farm && onIp >= IP_SHARED_THRESHOLD;
+
+  return (
+    <div className="whitespace-nowrap">
+      <div className="font-mono text-[11px] text-slate-300">{ip}</div>
+      <div
+        className={`mt-0.5 text-[10px] font-bold ${
+          farm ? 'text-red-400' : shared ? 'text-amber-400' : 'text-slate-500'
+        }`}
+      >
+        {farm && '⚠ '}
+        {subnet.toLocaleString()} on /24 · {onIp.toLocaleString()} on IP
+      </div>
     </div>
   );
 }

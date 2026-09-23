@@ -27,6 +27,22 @@ export interface KycStatusDto {
  * live in the database as base64 — acceptable for manual review at this
  * scale, but a real deployment should move them to object storage.
  */
+/** Crowding around one applicant's address, shown to the reviewer. */
+export interface AbuseSignals {
+  /** Most recent address this account was seen on. */
+  lastIp: string | null;
+  /** Accounts sharing that exact address, including this one. */
+  sameIpAccounts: number;
+  /** Accounts sharing its /24, including this one. */
+  sameSubnetAccounts: number;
+}
+
+const EMPTY_SIGNALS: AbuseSignals = {
+  lastIp: null,
+  sameIpAccounts: 0,
+  sameSubnetAccounts: 0,
+};
+
 @Injectable()
 export class KycService {
   constructor(private readonly prisma: PrismaService) {}
@@ -113,6 +129,7 @@ export class KycService {
 
   // ───────────────────── Admin review ─────────────────────
 
+
   /**
    * Review queue. Deliberately excludes image payloads.
    *
@@ -136,6 +153,8 @@ export class KycService {
         _count: { select: { documents: true } },
       },
     });
+    const signals = await this.abuseSignals(rows.map((r) => r.userId));
+
     return rows.map((r) => ({
       userId: r.userId,
       userEmail: r.user.email,
@@ -151,7 +170,58 @@ export class KycService {
       submittedAt: r.submittedAt,
       reviewedAt: r.reviewedAt,
       reviewerNote: r.reviewerNote,
+      ...(signals.get(r.userId) ?? EMPTY_SIGNALS),
     }));
+  }
+
+  /**
+   * How crowded each applicant's address and /24 are.
+   *
+   * A reviewer facing thousands of applications cannot tell a real document
+   * from a farm's by looking at it, but "112 other accounts on this range"
+   * settles it in a glance — and the farms observed so far put a hundred-odd
+   * accounts on one rented /24 while keeping each address nearly empty.
+   *
+   * Two grouped queries for the whole page, not one per row.
+   */
+  private async abuseSignals(userIds: string[]): Promise<Map<string, AbuseSignals>> {
+    const out = new Map<string, AbuseSignals>();
+    if (userIds.length === 0) return out;
+
+    const devices = await this.prisma.deviceFingerprint.findMany({
+      where: { userId: { in: userIds }, lastIp: { not: null } },
+      select: { userId: true, lastIp: true, seenAt: true },
+      orderBy: { seenAt: 'desc' },
+    });
+
+    // One address per applicant: the most recent one seen.
+    const ipOf = new Map<string, string>();
+    for (const d of devices) {
+      if (d.lastIp && !ipOf.has(d.userId)) ipOf.set(d.userId, d.lastIp);
+    }
+    const ips = Array.from(new Set(ipOf.values()));
+    if (ips.length === 0) return out;
+
+    const counts = await this.prisma.$queryRaw<
+      { ip: string; same_ip: number; same_subnet: number }[]
+    >`
+      SELECT ip,
+             (SELECT count(DISTINCT "userId")::int FROM "DeviceFingerprint" WHERE "lastIp" = ip) AS same_ip,
+             (SELECT count(DISTINCT "userId")::int FROM "DeviceFingerprint"
+               WHERE "lastIp" LIKE regexp_replace(ip, '\\.[0-9]+$', '.') || '%') AS same_subnet
+      FROM unnest(${ips}::text[]) AS ip
+    `;
+    const byIp = new Map(counts.map((c) => [c.ip, c]));
+
+    for (const [userId, ip] of ipOf) {
+      const c = byIp.get(ip);
+      out.set(userId, {
+        lastIp: ip,
+        sameIpAccounts: c?.same_ip ?? 1,
+        sameSubnetAccounts: c?.same_subnet ?? 1,
+      });
+    }
+    return out;
   }
 
   /** Full applicant view — the only place image payloads are returned. */
