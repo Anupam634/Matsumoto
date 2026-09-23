@@ -99,7 +99,12 @@ function AuthForm() {
 
   const captchaBlock = needsCaptcha ? (
     <div>
-      <Turnstile resetKey={captchaNonce} onToken={setCaptchaToken} onError={setError} />
+      <Turnstile
+        action={mode === 'forgot' ? 'password-reset' : 'signup'}
+        resetKey={captchaNonce}
+        onToken={setCaptchaToken}
+        onError={setError}
+      />
       <p className="mt-1.5 text-center text-[11px] text-slate-500">
         This check keeps automated sign-ups out.
       </p>
