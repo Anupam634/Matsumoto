@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { assertHuman, turnstileEnabled } from './turnstile';
+import { assertHuman, captchaApplies, turnstileEnabled } from './turnstile';
 
 describe('turnstile', () => {
   const realFetch = global.fetch;
@@ -101,5 +101,39 @@ describe('turnstile action and hostname checks', () => {
     delete process.env.TURNSTILE_HOSTNAMES;
     verifyReturns({ success: true, action: 'signup', hostname: 'anything.example' });
     await expect(assertHuman('tok', { action: 'signup' })).resolves.toBeUndefined();
+  });
+});
+
+describe('captchaApplies', () => {
+  const savedSecret = process.env.TURNSTILE_SECRET_KEY;
+  const savedAll = process.env.CAPTCHA_ALL_PLATFORMS;
+
+  afterEach(() => {
+    process.env.TURNSTILE_SECRET_KEY = savedSecret;
+    process.env.CAPTCHA_ALL_PLATFORMS = savedAll;
+  });
+
+  it('applies to nobody while no secret is configured', () => {
+    delete process.env.TURNSTILE_SECRET_KEY;
+    process.env.CAPTCHA_ALL_PLATFORMS = 'true';
+    expect(captchaApplies('web')).toBe(false);
+    expect(captchaApplies(undefined)).toBe(false);
+  });
+
+  it('applies to the website only, by default', () => {
+    process.env.TURNSTILE_SECRET_KEY = 'secret';
+    delete process.env.CAPTCHA_ALL_PLATFORMS;
+    expect(captchaApplies('web')).toBe(true);
+    // The hole the flood came through: claim nothing, skip the check.
+    expect(captchaApplies(undefined)).toBe(false);
+    expect(captchaApplies('mobile')).toBe(false);
+  });
+
+  it('applies to every caller once CAPTCHA_ALL_PLATFORMS is on', () => {
+    process.env.TURNSTILE_SECRET_KEY = 'secret';
+    process.env.CAPTCHA_ALL_PLATFORMS = 'true';
+    expect(captchaApplies('web')).toBe(true);
+    expect(captchaApplies(undefined)).toBe(true);
+    expect(captchaApplies('mobile')).toBe(true);
   });
 });
