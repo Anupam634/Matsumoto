@@ -169,3 +169,79 @@ describe('login captcha', () => {
     expect(prisma.user.findUnique).toHaveBeenCalled();
   });
 });
+
+describe('login stays reachable for app builds without a widget', () => {
+  const saved = {
+    secret: process.env.TURNSTILE_SECRET_KEY,
+    all: process.env.CAPTCHA_ALL_PLATFORMS,
+    allLogin: process.env.CAPTCHA_ALL_PLATFORMS_LOGIN,
+  };
+  const realFetch = global.fetch;
+
+  beforeEach(() => {
+    process.env.TURNSTILE_SECRET_KEY = 'secret';
+    // The production setting that locked old builds out.
+    process.env.CAPTCHA_ALL_PLATFORMS = 'true';
+    delete process.env.CAPTCHA_ALL_PLATFORMS_LOGIN;
+  });
+  afterEach(() => {
+    process.env.TURNSTILE_SECRET_KEY = saved.secret;
+    process.env.CAPTCHA_ALL_PLATFORMS = saved.all;
+    process.env.CAPTCHA_ALL_PLATFORMS_LOGIN = saved.allLogin;
+    global.fetch = realFetch;
+  });
+
+  function svc() {
+    const prisma = {
+      user: {
+        findUnique: jest.fn(async () => ({
+          id: 'u1',
+          email: 'a@b.com',
+          passwordHash: null,
+          isBlocked: false,
+          referralCode: 'C',
+        })),
+      },
+    };
+    const emailService = { sendOtpEmail: jest.fn(async () => ({ success: true })) };
+    const service = new AuthService(
+      prisma as any,
+      { signAsync: jest.fn(async () => 'token') } as any,
+      { recordDevice: jest.fn(async () => undefined), assertSignupAllowed: jest.fn() } as any,
+      emailService as any,
+      { get: jest.fn(() => undefined) } as any,
+    );
+    return { service, prisma, emailService };
+  }
+
+  it('lets an app with no platform reach the password check', async () => {
+    const { service, prisma } = svc();
+    await expect(service.login({ email: 'a@b.com', password: 'x' } as any, {})).rejects.toThrow(
+      /invalid email or password/i,
+    );
+    expect(prisma.user.findUnique).toHaveBeenCalled();
+  });
+
+  it('still demands one from the website', async () => {
+    const { service, prisma } = svc();
+    await expect(
+      service.login({ email: 'a@b.com', password: 'x', platform: 'web' } as any, {}),
+    ).rejects.toThrow(/anti-bot/i);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('but sign-up is still gated for everyone', async () => {
+    const { service, emailService } = svc();
+    await expect(service.sendOtp('new@example.com', 'signup', {})).rejects.toThrow(/anti-bot/i);
+    expect(emailService.sendOtpEmail).not.toHaveBeenCalled();
+  });
+
+  it('covers login once CAPTCHA_ALL_PLATFORMS_LOGIN is set as well', async () => {
+    process.env.CAPTCHA_ALL_PLATFORMS_LOGIN = 'true';
+    const { service, prisma } = svc();
+    await expect(service.login({ email: 'a@b.com', password: 'x' } as any, {})).rejects.toThrow(
+      /anti-bot/i,
+    );
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+});
