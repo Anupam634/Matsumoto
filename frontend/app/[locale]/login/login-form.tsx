@@ -22,6 +22,17 @@ import { ThemeToggle } from '../../../components/ThemeToggle';
 type Mode = 'login' | 'register' | 'forgot';
 type Step = 'form' | 'otp';
 
+/**
+ * The captcha action per mode. These strings must match CAPTCHA_ACTIONS on
+ * the backend, which refuses a token issued for a different action — the
+ * screen's own mode name ('register') is not one of them.
+ */
+const CAPTCHA_ACTION: Record<Mode, string> = {
+  login: 'login',
+  register: 'signup',
+  forgot: 'password-reset',
+};
+
 const STAT_KEYS = ['baseRate', 'conversion', 'minWithdrawal', 'boosterDuration'] as const;
 const STAT_VALUES: Record<(typeof STAT_KEYS)[number], string> = {
   baseRate: '0.90 /h',
@@ -102,7 +113,7 @@ function AuthForm() {
   const captchaBlock = needsCaptcha ? (
     <div>
       <Turnstile
-        action={mode === 'forgot' ? 'password-reset' : mode}
+        action={CAPTCHA_ACTION[mode]}
         resetKey={captchaNonce}
         onToken={setCaptchaToken}
         onError={setError}
