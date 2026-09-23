@@ -41,14 +41,19 @@ export class AuthController {
    */
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('send-otp')
-  sendOtp(@Body() dto: SendOtpDto) {
-    return this.auth.sendOtp(dto.email, dto.purpose ?? 'signup');
+  sendOtp(@Body() dto: SendOtpDto, @Req() req: any) {
+    return this.auth.sendOtp(dto.email, dto.purpose ?? 'signup', {
+      captchaToken: dto.captchaToken,
+      platform: dto.platform,
+      ip: clientIp(req),
+      fingerprint: dto.deviceFingerprint,
+    });
   }
 
   /** POST /api/auth/forgot-password — initiate password recovery. */
   @Post('forgot-password')
-  forgotPassword(@Body() dto: ForgotPasswordDto) {
-    return this.auth.forgotPassword(dto);
+  forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: any) {
+    return this.auth.forgotPassword(dto, clientIp(req));
   }
 
   /**

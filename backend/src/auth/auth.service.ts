@@ -23,6 +23,17 @@ import {
 import { referralTierFor } from '../mining/mining.engine';
 import { canonicalizeEmail } from '../common/canonical-email';
 import { isDisposableEmail } from '../common/disposable-email';
+import { assertHuman } from '../common/turnstile';
+
+/**
+ * The `action` each widget is rendered with, checked against what Cloudflare
+ * reports so a solution from one flow cannot be spent on another. The
+ * frontend renders the same strings.
+ */
+export const CAPTCHA_ACTIONS = {
+  signup: 'signup',
+  forgot_password: 'password-reset',
+} as const;
 
 function assertNotDisposable(email: string) {
   if (isDisposableEmail(email)) {
@@ -36,6 +47,12 @@ function assertNotDisposable(email: string) {
 export interface SignupSignals {
   ip?: string;
   fingerprint?: string;
+}
+
+/** What `sendOtp` needs beyond the address: abuse signals and the captcha. */
+export interface SendOtpContext extends SignupSignals {
+  captchaToken?: string;
+  platform?: 'web' | 'mobile';
 }
 
 @Injectable()
@@ -159,13 +176,36 @@ export class AuthService {
    * Request OTP verification code for Signup, 2FA, or Password Reset.
    * Validates user existence / uniqueness BEFORE sending email.
    */
-  async sendOtp(email: string, purpose: 'signup' | 'login' | 'forgot_password' = 'signup') {
+  async sendOtp(
+    email: string,
+    purpose: 'signup' | 'login' | 'forgot_password' = 'signup',
+    ctx: SendOtpContext = {},
+  ) {
     const cleanEmail = email.trim().toLowerCase();
+
+    // Both of these mail an address nobody has proved they control, so they
+    // are what a script points at to burn the sending quota. `login` is left
+    // out: it is bounded by the per-address cap, and the sign-in screen's
+    // resend has no widget to solve.
+    if (ctx.platform === 'web' && (purpose === 'signup' || purpose === 'forgot_password')) {
+      await assertHuman(ctx.captchaToken, {
+        ip: ctx.ip,
+        action: CAPTCHA_ACTIONS[purpose],
+      });
+    }
 
     if (purpose === 'signup') {
       // Checked before anything is mailed: a throwaway inbox would otherwise
       // cost a real OTP send, which is the volume this exists to stop.
       assertNotDisposable(cleanEmail);
+
+      // The per-device and per-IP caps used to run only in `register`, by
+      // which point the code had already been mailed — so a caller past the
+      // cap still cost an email every time they tried.
+      await this.antiabuse.assertSignupAllowed({
+        fingerprint: ctx.fingerprint,
+        ip: ctx.ip,
+      });
 
       // Mailbox-level, not string-level: a Gmail dot or +tag variant of a
       // registered address reaches an inbox that already has an account, and
@@ -197,8 +237,12 @@ export class AuthService {
   /**
    * Request password reset OTP.
    */
-  async forgotPassword(dto: ForgotPasswordDto) {
+  async forgotPassword(dto: ForgotPasswordDto, ip?: string) {
     const email = dto.email.trim().toLowerCase();
+
+    if (dto.platform === 'web') {
+      await assertHuman(dto.captchaToken, { ip, action: CAPTCHA_ACTIONS.forgot_password });
+    }
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) {
       throw new BadRequestException('No account found with this email address.');
