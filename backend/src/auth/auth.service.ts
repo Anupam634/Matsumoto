@@ -23,7 +23,12 @@ import {
 import { referralTierFor } from '../mining/mining.engine';
 import { canonicalizeEmail } from '../common/canonical-email';
 import { isDisposableEmail } from '../common/disposable-email';
-import { assertHuman, captchaApplies, turnstileEnabled } from '../common/turnstile';
+import {
+  assertHuman,
+  captchaApplies,
+  captchaAppliesToLogin,
+  turnstileEnabled,
+} from '../common/turnstile';
 
 /**
  * The `action` each widget is rendered with, checked against what Cloudflare
@@ -187,7 +192,11 @@ export class AuthService {
 
     // Every purpose here mails somebody, so every one is a way to spend the
     // sending quota from outside.
-    if (captchaApplies(ctx.platform)) {
+    const required =
+      purpose === 'login'
+        ? captchaAppliesToLogin(ctx.platform)
+        : captchaApplies(ctx.platform);
+    if (required) {
       await assertHuman(ctx.captchaToken, {
         ip: ctx.ip,
         action: CAPTCHA_ACTIONS[purpose],
@@ -388,7 +397,7 @@ export class AuthService {
     // Only the first step: the second carries an OTP that was mailed after
     // this same check, so a scripted caller can never reach it. Placed ahead
     // of the password check so credential stuffing pays the captcha too.
-    if (!dto.otp && captchaApplies(dto.platform)) {
+    if (!dto.otp && captchaAppliesToLogin(dto.platform)) {
       await assertHuman(dto.captchaToken, {
         ip: signals.ip,
         action: CAPTCHA_ACTIONS.login,

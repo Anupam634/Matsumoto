@@ -36,6 +36,20 @@ export function captchaApplies(platform?: string): boolean {
   return process.env.CAPTCHA_ALL_PLATFORMS === 'true' || platform === 'web';
 }
 
+/**
+ * Same question for sign-in, which has its own switch.
+ *
+ * Turning CAPTCHA_ALL_PLATFORMS on locks out every app build that predates
+ * the in-app widget — including from *signing in*, which is far worse than
+ * losing sign-ups, and sign-in is not where the flood comes from anyway.
+ * So login stays web-only until CAPTCHA_ALL_PLATFORMS_LOGIN is set too,
+ * which is safe once the new app is in users' hands.
+ */
+export function captchaAppliesToLogin(platform?: string): boolean {
+  if (!turnstileEnabled()) return false;
+  return process.env.CAPTCHA_ALL_PLATFORMS_LOGIN === 'true' || platform === 'web';
+}
+
 /** Hostnames a solution may come from. Unset means any — see `assertHuman`. */
 function allowedHostnames(): string[] {
   return (process.env.TURNSTILE_HOSTNAMES ?? '')
