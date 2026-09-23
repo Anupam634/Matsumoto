@@ -68,12 +68,14 @@ function AuthForm() {
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Turnstile token for the two flows that mail an unverified address. It is
-  // single use, so `captchaNonce` re-renders the widget for a fresh one after
-  // every attempt, successful or not.
+  // Turnstile token for whichever flow is on screen. It is single use, so
+  // `captchaNonce` asks the widget for a fresh one after every attempt,
+  // successful or not.
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaNonce, setCaptchaNonce] = useState(0);
-  const needsCaptcha = turnstileConfigured && (mode === 'register' || mode === 'forgot');
+  // Login needs one too: it is what a credential-stuffing script hits, and
+  // a successful password guess mails a code.
+  const needsCaptcha = turnstileConfigured;
   const captchaMissing = needsCaptcha && !captchaToken;
 
   useEffect(() => {
@@ -100,13 +102,13 @@ function AuthForm() {
   const captchaBlock = needsCaptcha ? (
     <div>
       <Turnstile
-        action={mode === 'forgot' ? 'password-reset' : 'signup'}
+        action={mode === 'forgot' ? 'password-reset' : mode}
         resetKey={captchaNonce}
         onToken={setCaptchaToken}
         onError={setError}
       />
       <p className="mt-1.5 text-center text-[11px] text-slate-500">
-        This check keeps automated sign-ups out.
+        This check keeps automated traffic out.
       </p>
     </div>
   ) : null;
@@ -127,6 +129,7 @@ function AuthForm() {
         await login({
           email: email.trim().toLowerCase(),
           password,
+          captchaToken: captchaToken ?? undefined,
         });
         router.push(`/${params.locale}/dashboard`);
       } catch (err) {
@@ -138,6 +141,7 @@ function AuthForm() {
           setError(err instanceof ApiError ? err.message : 'Invalid email or password.');
         }
       } finally {
+        spendCaptcha();
         setBusy(false);
       }
       return;

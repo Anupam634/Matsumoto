@@ -1,4 +1,4 @@
-import { IsIn, IsNumber, IsOptional, IsString, Length, Min } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, IsString, Length, MaxLength, Min } from 'class-validator';
 
 export class RequestWithdrawalDto {
   /** Amount in whole/decimal Matsumoto Points (min 100 — SPEC §4). */
@@ -21,6 +21,18 @@ export class RequestWithdrawalDto {
   otp?: string;
 
   /** Same caveat as LoginDto.platform: a client-declared signal, not proof. */
+  @IsOptional()
+  @IsIn(['web', 'mobile'])
+  platform?: 'web' | 'mobile';
+}
+
+/** Body of `POST /withdrawals/send-otp`. */
+export class SendWithdrawalOtpDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  captchaToken?: string;
+
   @IsOptional()
   @IsIn(['web', 'mobile'])
   platform?: 'web' | 'mobile';

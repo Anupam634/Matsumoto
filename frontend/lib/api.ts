@@ -124,6 +124,8 @@ export async function login(params: {
   email: string;
   password: string;
   otp?: string;
+  /** Required on the first step from the website once Turnstile is configured. */
+  captchaToken?: string;
 }): Promise<AuthResponse> {
   const data = await apiFetch<AuthResponse>('/auth/login', {
     method: 'POST',
@@ -557,9 +559,10 @@ export const WITHDRAWAL_COOLDOWN_DAYS = 7;
 export const getWithdrawals = () => apiFetch<WithdrawalDto[]>('/withdrawals');
 
 /** Mails a confirmation code to the caller's own address, for `requestWithdrawal`. */
-export const sendWithdrawalOtp = () =>
+export const sendWithdrawalOtp = (captchaToken?: string) =>
   apiFetch<{ success: boolean; message: string }>('/withdrawals/send-otp', {
     method: 'POST',
+    body: JSON.stringify({ captchaToken, platform: 'web' }),
   });
 
 export const requestWithdrawal = (
