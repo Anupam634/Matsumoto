@@ -32,7 +32,9 @@ import { assertHuman } from '../common/turnstile';
  */
 export const CAPTCHA_ACTIONS = {
   signup: 'signup',
+  login: 'login',
   forgot_password: 'password-reset',
+  withdrawal: 'withdrawal',
 } as const;
 
 function assertNotDisposable(email: string) {
@@ -183,11 +185,9 @@ export class AuthService {
   ) {
     const cleanEmail = email.trim().toLowerCase();
 
-    // Both of these mail an address nobody has proved they control, so they
-    // are what a script points at to burn the sending quota. `login` is left
-    // out: it is bounded by the per-address cap, and the sign-in screen's
-    // resend has no widget to solve.
-    if (ctx.platform === 'web' && (purpose === 'signup' || purpose === 'forgot_password')) {
+    // Every purpose here mails somebody, so every one is a way to spend the
+    // sending quota from outside.
+    if (ctx.platform === 'web') {
       await assertHuman(ctx.captchaToken, {
         ip: ctx.ip,
         action: CAPTCHA_ACTIONS[purpose],
@@ -375,6 +375,16 @@ export class AuthService {
 
   async login(dto: LoginDto, signals: SignupSignals) {
     const email = dto.email.trim().toLowerCase();
+
+    // Only the first step: the second carries an OTP that was mailed after
+    // this same check, so a scripted caller can never reach it. Placed ahead
+    // of the password check so credential stuffing pays the captcha too.
+    if (dto.platform === 'web' && !dto.otp) {
+      await assertHuman(dto.captchaToken, {
+        ip: signals.ip,
+        action: CAPTCHA_ACTIONS.login,
+      });
+    }
 
     const user = await this.prisma.user.findUnique({
       where: { email },

@@ -4,11 +4,12 @@ import {
   Controller,
   Get,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { WithdrawalsService } from './withdrawals.service';
-import { RequestWithdrawalDto } from './dto';
+import { RequestWithdrawalDto, SendWithdrawalOtpDto } from './dto';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 
@@ -19,8 +20,16 @@ export class WithdrawalsController {
 
   /** POST /api/withdrawals/send-otp — mail a confirmation code to self. */
   @Post('send-otp')
-  sendOtp(@CurrentUser('id') userId: string) {
-    return this.withdrawals.sendWithdrawalOtp(userId);
+  sendOtp(
+    @CurrentUser('id') userId: string,
+    @Body() dto: SendWithdrawalOtpDto,
+    @Req() req: any,
+  ) {
+    return this.withdrawals.sendWithdrawalOtp(userId, {
+      captchaToken: dto.captchaToken,
+      platform: dto.platform,
+      ip: req?.ip ?? req?.socket?.remoteAddress,
+    });
   }
 
   /** POST /api/withdrawals — request a payout (min 100 pts, 1/week, KYC). */
