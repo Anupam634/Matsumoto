@@ -22,6 +22,20 @@ export function turnstileEnabled(): boolean {
   return !!process.env.TURNSTILE_SECRET_KEY?.trim();
 }
 
+/**
+ * Whether a caller claiming `platform` has to solve a captcha.
+ *
+ * `platform` is client-declared, so gating on `web` alone means a script that
+ * simply omits the field is waved through — which is how the sign-up flood
+ * kept arriving after the widget went up. CAPTCHA_ALL_PLATFORMS=true closes
+ * that by requiring a solution from every caller, at the cost of the mobile
+ * app's sign-up until it ships a widget of its own.
+ */
+export function captchaApplies(platform?: string): boolean {
+  if (!turnstileEnabled()) return false;
+  return process.env.CAPTCHA_ALL_PLATFORMS === 'true' || platform === 'web';
+}
+
 /** Hostnames a solution may come from. Unset means any — see `assertHuman`. */
 function allowedHostnames(): string[] {
   return (process.env.TURNSTILE_HOSTNAMES ?? '')

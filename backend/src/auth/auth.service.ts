@@ -23,7 +23,7 @@ import {
 import { referralTierFor } from '../mining/mining.engine';
 import { canonicalizeEmail } from '../common/canonical-email';
 import { isDisposableEmail } from '../common/disposable-email';
-import { assertHuman } from '../common/turnstile';
+import { assertHuman, captchaApplies, turnstileEnabled } from '../common/turnstile';
 
 /**
  * The `action` each widget is rendered with, checked against what Cloudflare
@@ -187,7 +187,7 @@ export class AuthService {
 
     // Every purpose here mails somebody, so every one is a way to spend the
     // sending quota from outside.
-    if (ctx.platform === 'web') {
+    if (captchaApplies(ctx.platform)) {
       await assertHuman(ctx.captchaToken, {
         ip: ctx.ip,
         action: CAPTCHA_ACTIONS[purpose],
@@ -195,6 +195,15 @@ export class AuthService {
     }
 
     if (purpose === 'signup') {
+      // A signup that claims no platform skips the captcha unless
+      // CAPTCHA_ALL_PLATFORMS is on. Logged so the size of that hole is
+      // visible: the real mobile app is a trickle, a flood here is scripts.
+      if (turnstileEnabled() && !captchaApplies(ctx.platform)) {
+        this.logger.warn(
+          `[SIGNUP WITHOUT CAPTCHA] platform=${ctx.platform ?? 'none'} ip=${ctx.ip ?? 'unknown'} domain=${cleanEmail.split('@')[1] ?? '?'}`,
+        );
+      }
+
       // Checked before anything is mailed: a throwaway inbox would otherwise
       // cost a real OTP send, which is the volume this exists to stop.
       assertNotDisposable(cleanEmail);
@@ -240,7 +249,7 @@ export class AuthService {
   async forgotPassword(dto: ForgotPasswordDto, ip?: string) {
     const email = dto.email.trim().toLowerCase();
 
-    if (dto.platform === 'web') {
+    if (captchaApplies(dto.platform)) {
       await assertHuman(dto.captchaToken, { ip, action: CAPTCHA_ACTIONS.forgot_password });
     }
     const user = await this.prisma.user.findUnique({ where: { email } });
@@ -379,7 +388,7 @@ export class AuthService {
     // Only the first step: the second carries an OTP that was mailed after
     // this same check, so a scripted caller can never reach it. Placed ahead
     // of the password check so credential stuffing pays the captcha too.
-    if (dto.platform === 'web' && !dto.otp) {
+    if (!dto.otp && captchaApplies(dto.platform)) {
       await assertHuman(dto.captchaToken, {
         ip: signals.ip,
         action: CAPTCHA_ACTIONS.login,

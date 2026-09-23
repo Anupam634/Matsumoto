@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
-import { assertHuman } from '../common/turnstile';
+import { assertHuman, captchaApplies } from '../common/turnstile';
 import { CAPTCHA_ACTIONS } from '../auth/auth.service';
 import { WalletService } from '../wallet/wallet.service';
 import { EmailService } from '../email/email.service';
@@ -94,7 +94,7 @@ export class WithdrawalsService {
   ) {
     // This is the step that spends an email, so it is the one worth gating.
     // The confirm that follows carries the mailed code, which no script has.
-    if (ctx.platform === 'web') {
+    if (captchaApplies(ctx.platform)) {
       await assertHuman(ctx.captchaToken, {
         ip: ctx.ip,
         action: CAPTCHA_ACTIONS.withdrawal,
