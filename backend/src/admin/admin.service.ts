@@ -12,6 +12,7 @@ import {
   type Grain,
 } from '../common/revenue-buckets';
 import { TtlCache } from '../common/ttl-cache';
+import { createGate } from '../common/concurrency';
 import { verifyPassword } from '../auth/password';
 import {
   effectiveRateMilli,
@@ -70,6 +71,17 @@ const TOP_PAYERS_LIMIT = 100;
  * arbitrary slice — and the response says when it happened.
  */
 const SERIES_ROW_CAP = 200_000;
+
+/**
+ * Queries one dashboard read may have in flight at once.
+ *
+ * Below the connection pool's size (see PrismaService), so a fan-out here
+ * leaves room for the transactions the rest of the app is running. These
+ * reads used to ask for a dozen connections in one `Promise.all` and starve
+ * everything else — including themselves, which then failed with "Unable to
+ * start a transaction in the given time".
+ */
+const DASHBOARD_QUERY_CONCURRENCY = 4;
 
 /** Money and percentages are display values — two decimals, never a float tail. */
 function round2(n: number): number {
@@ -192,6 +204,9 @@ export class AdminService {
    */
   private readonly revenueCache = new TtlCache(60_000, 4);
 
+  /** Caps how many queries one dashboard read has open at a time. */
+  private readonly gate = createGate(DASHBOARD_QUERY_CONCURRENCY);
+
   private readonly logger = new Logger(AdminService.name);
 
   constructor(
@@ -258,41 +273,51 @@ export class AdminService {
       usersPast30Days,
       pointsMintedPerDay,
     ] = await Promise.all([
-      this.prisma.user.count(),
-      this.prisma.user.count({ where: { lastMineAt: { gte: activeSince } } }),
-      this.prisma.user.count({ where: { isBlocked: true } }),
-      this.prisma.user.aggregate({ _sum: { pointsBalance: true } }),
-      this.prisma.user.groupBy({
-        by: ['countryCode'],
-        _count: { _all: true },
-        orderBy: { _count: { countryCode: 'desc' } },
-      }),
-      this.prisma.withdrawal.groupBy({
-        by: ['status'],
-        _count: { _all: true },
-      }),
-      this.prisma.user.count({ where: { createdAt: { gte: dayAgo } } }),
-      this.prisma.user.count({ where: { createdAt: { gte: weekAgo } } }),
-      this.prisma.user.count({ where: { createdAt: { gte: monthAgo } } }),
-      this.prisma.kycRecord.groupBy({
-        by: ['status'],
-        _count: { _all: true },
-      }),
-      this.prisma.booster.count({ where: { expiresAt: { gt: new Date() } } }),
-      this.prisma.ledgerEntry.findMany({
-        take: 8,
-        orderBy: { createdAt: 'desc' },
-        include: { user: { select: { email: true } } },
-      }),
+      this.gate(() => this.prisma.user.count()),
+      this.gate(() => this.prisma.user.count({ where: { lastMineAt: { gte: activeSince } } })),
+      this.gate(() => this.prisma.user.count({ where: { isBlocked: true } })),
+      this.gate(() => this.prisma.user.aggregate({ _sum: { pointsBalance: true } })),
+      this.gate(() =>
+        this.prisma.user.groupBy({
+          by: ['countryCode'],
+          _count: { _all: true },
+          orderBy: { _count: { countryCode: 'desc' } },
+        }),
+      ),
+      this.gate(() =>
+        this.prisma.withdrawal.groupBy({
+          by: ['status'],
+          _count: { _all: true },
+        }),
+      ),
+      this.gate(() => this.prisma.user.count({ where: { createdAt: { gte: dayAgo } } })),
+      this.gate(() => this.prisma.user.count({ where: { createdAt: { gte: weekAgo } } })),
+      this.gate(() => this.prisma.user.count({ where: { createdAt: { gte: monthAgo } } })),
+      this.gate(() =>
+        this.prisma.kycRecord.groupBy({
+          by: ['status'],
+          _count: { _all: true },
+        }),
+      ),
+      this.gate(() => this.prisma.booster.count({ where: { expiresAt: { gt: new Date() } } })),
+      this.gate(() =>
+        this.prisma.ledgerEntry.findMany({
+          take: 8,
+          orderBy: { createdAt: 'desc' },
+          include: { user: { select: { email: true } } },
+        }),
+      ),
       // Only the signup dates are needed, to bucket them by day. This is the
       // one query here that grows without bound as the userbase does; the
       // cache is what keeps it off the hot path.
-      this.prisma.user.findMany({
-        where: { createdAt: { gte: monthAgo } },
-        select: { createdAt: true },
-        orderBy: { createdAt: 'desc' },
-        take: 100_000,
-      }),
+      this.gate(() =>
+        this.prisma.user.findMany({
+          where: { createdAt: { gte: monthAgo } },
+          select: { createdAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: 100_000,
+        }),
+      ),
       // Points actually minted per day. Summed in the database because the
       // ledger is the one table that grows with every tap, and the dashboard
       // only ever needs 30 numbers out of it.
@@ -302,13 +327,15 @@ export class AdminService {
       // keys the signup buckets above use. Casting it with `AT TIME ZONE`
       // would hand `date_trunc` a `timestamptz` and split days on whatever
       // the database server's local zone happens to be.
-      this.prisma.$queryRaw<{ day: string; milli: bigint }[]>`
-        SELECT to_char(date_trunc('day', "createdAt"), 'YYYY-MM-DD') AS day,
-               COALESCE(SUM("deltaMilli"), 0)::bigint AS milli
-        FROM "LedgerEntry"
-        WHERE "createdAt" >= ${monthAgo} AND "deltaMilli" > 0
-        GROUP BY 1
-      `,
+      this.gate(() =>
+        this.prisma.$queryRaw<{ day: string; milli: bigint }[]>`
+          SELECT to_char(date_trunc('day', "createdAt"), 'YYYY-MM-DD') AS day,
+                 COALESCE(SUM("deltaMilli"), 0)::bigint AS milli
+          FROM "LedgerEntry"
+          WHERE "createdAt" >= ${monthAgo} AND "deltaMilli" > 0
+          GROUP BY 1
+        `,
+      ),
     ]);
 
     // Build 7-day and 30-day time-series daily buckets
@@ -391,19 +418,21 @@ export class AdminService {
       : {};
 
     const [total, rows] = await Promise.all([
-      this.prisma.user.count({ where }),
-      this.prisma.user.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        include: {
-          kyc: true,
-          boosters: { include: { plan: true } },
-          devices: { orderBy: { seenAt: 'desc' }, take: 2 },
-          _count: { select: { referrals: true } },
-        },
-      }),
+      this.gate(() => this.prisma.user.count({ where })),
+      this.gate(() =>
+        this.prisma.user.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          include: {
+            kyc: true,
+            boosters: { include: { plan: true } },
+            devices: { orderBy: { seenAt: 'desc' }, take: 2 },
+            _count: { select: { referrals: true } },
+          },
+        }),
+      ),
     ]);
 
     return {
@@ -472,17 +501,21 @@ export class AdminService {
     });
 
     const [tree, ledger, withdrawals] = await Promise.all([
-      this.referralTree(userId),
-      this.prisma.ledgerEntry.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      }),
-      this.prisma.withdrawal.findMany({
-        where: { userId },
-        orderBy: { requestedAt: 'desc' },
-        take: 10,
-      }),
+      this.gate(() => this.referralTree(userId)),
+      this.gate(() =>
+        this.prisma.ledgerEntry.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        }),
+      ),
+      this.gate(() =>
+        this.prisma.withdrawal.findMany({
+          where: { userId },
+          orderBy: { requestedAt: 'desc' },
+          take: 10,
+        }),
+      ),
     ]);
 
     return {
@@ -541,29 +574,33 @@ export class AdminService {
       : Prisma.empty;
 
     const [totalMiners, [totals], pageRows] = await Promise.all([
-      this.prisma.user.count(),
-      this.prisma.$queryRaw<
-        { total: number; same_device: number; same_ip_only: number }[]
-      >`
-        WITH f AS (${FLAGGED_REFERRALS})
-        SELECT
-          count(*)::int AS total,
-          (count(*) FILTER (WHERE same_device))::int AS same_device,
-          (count(*) FILTER (WHERE same_ip AND NOT same_device))::int AS same_ip_only
-        FROM f
-      `,
-      this.prisma.$queryRaw<
-        { id: string; same_device: boolean; same_ip: boolean; matched: number }[]
-      >`
-        WITH f AS (${FLAGGED_REFERRALS})
-        SELECT f.id, f.same_device, f.same_ip, (count(*) OVER ())::int AS matched
-        FROM f
-        JOIN "User" u ON u.id = f.id
-        LEFT JOIN "User" r ON r.id = u."referredById"
-        ${whereSql}
-        ORDER BY u."createdAt" DESC, u.id
-        LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
-      `,
+      this.gate(() => this.prisma.user.count()),
+      this.gate(() =>
+        this.prisma.$queryRaw<
+          { total: number; same_device: number; same_ip_only: number }[]
+        >`
+          WITH f AS (${FLAGGED_REFERRALS})
+          SELECT
+            count(*)::int AS total,
+            (count(*) FILTER (WHERE same_device))::int AS same_device,
+            (count(*) FILTER (WHERE same_ip AND NOT same_device))::int AS same_ip_only
+          FROM f
+        `,
+      ),
+      this.gate(() =>
+        this.prisma.$queryRaw<
+          { id: string; same_device: boolean; same_ip: boolean; matched: number }[]
+        >`
+          WITH f AS (${FLAGGED_REFERRALS})
+          SELECT f.id, f.same_device, f.same_ip, (count(*) OVER ())::int AS matched
+          FROM f
+          JOIN "User" u ON u.id = f.id
+          LEFT JOIN "User" r ON r.id = u."referredById"
+          ${whereSql}
+          ORDER BY u."createdAt" DESC, u.id
+          LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
+        `,
+      ),
     ]);
 
     const details = pageRows.length
@@ -906,91 +943,105 @@ export class AdminService {
     ] = await Promise.all([
       // All-time money, summed from the price pinned on each purchase so no
       // per-row scan is needed and repricing a plan cannot rewrite history.
-      this.prisma.boosterPurchase.groupBy({
-        by: ['status', 'planId'],
-        _count: { _all: true },
-        _sum: { priceUsd: true },
-      }),
+      this.gate(() =>
+        this.prisma.boosterPurchase.groupBy({
+          by: ['status', 'planId'],
+          _count: { _all: true },
+          _sum: { priceUsd: true },
+        }),
+      ),
       // Rows written before purchases pinned their price. `_sum` skips their
       // NULL, so they are counted here and valued at their plan's price —
       // exactly the behaviour they had before this column existed.
-      this.prisma.boosterPurchase.groupBy({
-        by: ['status', 'planId'],
-        where: { priceUsd: null },
-        _count: { _all: true },
-      }),
-      this.payerAggregates(priceOf),
+      this.gate(() =>
+        this.prisma.boosterPurchase.groupBy({
+          by: ['status', 'planId'],
+          where: { priceUsd: null },
+          _count: { _all: true },
+        }),
+      ),
+      this.gate(() => this.payerAggregates(priceOf)),
       // Only CONFIRMED rows inside the window, and only the columns the
       // buckets need. `confirmedAt` is what a payment is dated by; the
       // `createdAt` arm keeps a row whose confirmation was backfilled.
       // Ordered so that hitting the cap drops the oldest, not an arbitrary
       // slice the caller cannot reason about.
-      this.prisma.boosterPurchase.findMany({
-        where: {
-          status: 'CONFIRMED',
-          OR: [
-            { confirmedAt: { gte: windowStart } },
-            { confirmedAt: null, createdAt: { gte: windowStart } },
-          ],
-        },
-        select: {
-          userId: true,
-          planId: true,
-          priceUsd: true,
-          tokenSymbol: true,
-          confirmedAt: true,
-          createdAt: true,
-        },
-        orderBy: { confirmedAt: { sort: 'desc', nulls: 'last' } },
-        take: SERIES_ROW_CAP,
-      }),
-      this.prisma.booster.groupBy({
-        by: ['planId'],
-        where: { expiresAt: { gt: now } },
-        _count: { _all: true },
-      }),
-      this.prisma.user.count(),
-      this.prisma.boosterPurchase.findMany({
-        where: { status: 'CONFIRMED' },
-        // Postgres sorts NULLs first on DESC. Both confirmation paths do
-        // stamp `confirmedAt`, but a row that somehow missed one must not
-        // therefore lead the "latest payments" list.
-        orderBy: { confirmedAt: { sort: 'desc', nulls: 'last' } },
-        take: 12,
-        select: {
-          id: true,
-          userId: true,
-          planId: true,
-          priceUsd: true,
-          tokenSymbol: true,
-          expectedAmount: true,
-          txHash: true,
-          confirmedAt: true,
-          createdAt: true,
-          user: { select: { email: true, countryCode: true } },
-        },
-      }),
+      this.gate(() =>
+        this.prisma.boosterPurchase.findMany({
+          where: {
+            status: 'CONFIRMED',
+            OR: [
+              { confirmedAt: { gte: windowStart } },
+              { confirmedAt: null, createdAt: { gte: windowStart } },
+            ],
+          },
+          select: {
+            userId: true,
+            planId: true,
+            priceUsd: true,
+            tokenSymbol: true,
+            confirmedAt: true,
+            createdAt: true,
+          },
+          orderBy: { confirmedAt: { sort: 'desc', nulls: 'last' } },
+          take: SERIES_ROW_CAP,
+        }),
+      ),
+      this.gate(() =>
+        this.prisma.booster.groupBy({
+          by: ['planId'],
+          where: { expiresAt: { gt: now } },
+          _count: { _all: true },
+        }),
+      ),
+      this.gate(() => this.prisma.user.count()),
+      this.gate(() =>
+        this.prisma.boosterPurchase.findMany({
+          where: { status: 'CONFIRMED' },
+          // Postgres sorts NULLs first on DESC. Both confirmation paths do
+          // stamp `confirmedAt`, but a row that somehow missed one must not
+          // therefore lead the "latest payments" list.
+          orderBy: { confirmedAt: { sort: 'desc', nulls: 'last' } },
+          take: 12,
+          select: {
+            id: true,
+            userId: true,
+            planId: true,
+            priceUsd: true,
+            tokenSymbol: true,
+            expectedAmount: true,
+            txHash: true,
+            confirmedAt: true,
+            createdAt: true,
+            user: { select: { email: true, countryCode: true } },
+          },
+        }),
+      ),
       // Intents a miner could still pay right now.
       //
       // An unpaid quote is only ever flipped to EXPIRED when that same miner
       // re-submits against it, and nothing sweeps the rest, so every
       // abandoned checkout sits in AWAITING_PAYMENT forever. Summing the
       // status alone would report years of dead quotes as money in flight.
-      this.prisma.boosterPurchase.aggregate({
-        where: { status: 'AWAITING_PAYMENT', expiresAt: { gt: now } },
-        _count: { _all: true },
-        _sum: { priceUsd: true },
-      }),
+      this.gate(() =>
+        this.prisma.boosterPurchase.aggregate({
+          where: { status: 'AWAITING_PAYMENT', expiresAt: { gt: now } },
+          _count: { _all: true },
+          _sum: { priceUsd: true },
+        }),
+      ),
       // A live quote older than this deploy carries no pinned price.
-      this.prisma.boosterPurchase.groupBy({
-        by: ['planId'],
-        where: {
-          status: 'AWAITING_PAYMENT',
-          expiresAt: { gt: now },
-          priceUsd: null,
-        },
-        _count: { _all: true },
-      }),
+      this.gate(() =>
+        this.prisma.boosterPurchase.groupBy({
+          by: ['planId'],
+          where: {
+            status: 'AWAITING_PAYMENT',
+            expiresAt: { gt: now },
+            priceUsd: null,
+          },
+          _count: { _all: true },
+        }),
+      ),
     ]);
 
     // ── All-time totals, and the per-plan status split ──
@@ -1245,20 +1296,24 @@ export class AdminService {
    */
   private async payerAggregates(priceOf: Map<string, number>) {
     const [groups, unpriced] = await Promise.all([
-      this.prisma.boosterPurchase.groupBy({
-        by: ['userId', 'planId'],
-        where: { status: 'CONFIRMED' },
-        _count: { _all: true },
-        _sum: { priceUsd: true },
-        _min: { confirmedAt: true },
-        _max: { confirmedAt: true },
-      }),
+      this.gate(() =>
+        this.prisma.boosterPurchase.groupBy({
+          by: ['userId', 'planId'],
+          where: { status: 'CONFIRMED' },
+          _count: { _all: true },
+          _sum: { priceUsd: true },
+          _min: { confirmedAt: true },
+          _max: { confirmedAt: true },
+        }),
+      ),
       // Purchases predating the pinned price, valued at their plan's price.
-      this.prisma.boosterPurchase.groupBy({
-        by: ['userId', 'planId'],
-        where: { status: 'CONFIRMED', priceUsd: null },
-        _count: { _all: true },
-      }),
+      this.gate(() =>
+        this.prisma.boosterPurchase.groupBy({
+          by: ['userId', 'planId'],
+          where: { status: 'CONFIRMED', priceUsd: null },
+          _count: { _all: true },
+        }),
+      ),
     ]);
 
     const unpricedOf = new Map(
@@ -1420,20 +1475,22 @@ export class AdminService {
       referralsCount,
       payers,
     ] = await Promise.all([
-      this.prisma.user.count(),
-      this.prisma.ledgerEntry.count(),
-      this.prisma.withdrawal.count(),
-      this.prisma.kycRecord.count(),
-      this.prisma.boosterPurchase.count(),
-      this.prisma.user.count({ where: { referredById: { not: null } } }),
+      this.gate(() => this.prisma.user.count()),
+      this.gate(() => this.prisma.ledgerEntry.count()),
+      this.gate(() => this.prisma.withdrawal.count()),
+      this.gate(() => this.prisma.kycRecord.count()),
+      this.gate(() => this.prisma.boosterPurchase.count()),
+      this.gate(() => this.prisma.user.count({ where: { referredById: { not: null } } })),
       // Row count of the per-user export. `groupBy` would return one row per
       // paying account just to have its length read; this is the same number
       // in constant memory.
-      this.prisma.$queryRaw<{ count: bigint }[]>`
-        SELECT COUNT(DISTINCT "userId")::bigint AS count
-        FROM "BoosterPurchase"
-        WHERE "status" = 'CONFIRMED'
-      `,
+      this.gate(() =>
+        this.prisma.$queryRaw<{ count: bigint }[]>`
+          SELECT COUNT(DISTINCT "userId")::bigint AS count
+          FROM "BoosterPurchase"
+          WHERE "status" = 'CONFIRMED'
+        `,
+      ),
     ]);
 
     return {
