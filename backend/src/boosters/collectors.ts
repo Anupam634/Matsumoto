@@ -21,7 +21,8 @@ export interface CollectorConfig {
    * Maximum USD this wallet may be assigned across a UTC calendar day,
    * counting only CONFIRMED purchases. `null` means uncapped — the
    * catch-all a purchase falls back to once every capped collector for the
-   * day is full.
+   * day is full. `0` switches the wallet off: nothing routes to it, while it
+   * stays visible in the finance module with its history intact.
    */
   dailyCapUsd: number | null;
 }
@@ -41,7 +42,10 @@ export const COLLECTORS: readonly CollectorConfig[] = [
     walletAddress: ethers.getAddress(
       '0x14542e192DFC617f394B63C3BA635818dC9B1927',
     ),
-    dailyCapUsd: 20,
+    // Switched off for now: every purchase goes to the treasury instead.
+    // Raise it back to route a share of each UTC day here again — the
+    // wallet, its id and its past payments are all untouched by this.
+    dailyCapUsd: 0,
   },
 ];
 
