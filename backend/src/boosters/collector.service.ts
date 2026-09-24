@@ -43,7 +43,11 @@ export class CollectorService {
    */
   async pickCollector(priceUsd: number): Promise<CollectorConfig> {
     for (const c of COLLECTORS) {
-      if (c.dailyCapUsd == null) continue;
+      if (c.dailyCapUsd == null) continue; // the uncapped fallback below
+      // A cap of 0 means the wallet is switched off. Checked before the
+      // arithmetic because a zero-priced purchase would otherwise satisfy
+      // `0 + 0 <= 0` and route there.
+      if (c.dailyCapUsd <= 0) continue;
       const collected = await this.collectedTodayUsd(c.id);
       if (collected + priceUsd <= c.dailyCapUsd) return c;
     }
