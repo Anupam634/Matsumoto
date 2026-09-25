@@ -719,5 +719,36 @@
     "integrityTitle": "How ranks are calculated",
     "integrityBody": "Rankings are computed from the same ledger that pays you: credits only, so withdrawing never costs you rank. Blocked accounts are excluded, ties share a rank, and figures refresh about every 30 seconds.",
     "nav": "Leaderboard"
+  },
+  "deleteAccount": {
+    "title": "Delete your BONDKOIN account",
+    "backHome": "Back to home",
+    "intro": "How to ask BONDKOIN Labs to delete your BONDKOIN account and the data tied to it.",
+    "q": {
+      "app": {
+        "q": "Request deletion in the app",
+        "a": "1. Open the BONDKOIN app and sign in.\n2. Go to Settings → Account → Delete account.\n3. Confirm. This sends a deletion request to our support team."
+      },
+      "web": {
+        "q": "Request deletion on the website",
+        "a": "If you no longer have the app installed:\n1. Sign in at bondkoinlabs.com.\n2. Open Support and create a new ticket.\n3. Use the subject \"Account deletion request\" and send it from the account you want deleted."
+      },
+      "deleted": {
+        "q": "What we delete",
+        "a": "Your account and profile: email address, country, device fingerprint, mining and reward history, tasks, referrals and booster purchases. Identity verification documents and selfies are deleted unless we are legally required to keep them."
+      },
+      "kept": {
+        "q": "What we keep",
+        "a": "Records tied to payouts (withdrawal requests and the related verification data) are kept for as long as the law requires, then deleted. Withdrawals already written to the blockchain are public and permanent, and cannot be removed by anyone."
+      },
+      "timing": {
+        "q": "How long it takes",
+        "a": "We confirm your request through the support ticket and complete the deletion within 30 days."
+      },
+      "partial": {
+        "q": "Delete some data but keep your account",
+        "a": "You can ask us to delete specific data, such as your identity verification documents, selfie or support history, without closing your account. Open a support ticket from the app or at bondkoinlabs.com with the subject \"Data deletion request\" and say what you want removed. Records tied to payouts are kept as described above."
+      }
+    }
   }
 }
