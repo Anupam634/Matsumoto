@@ -120,10 +120,19 @@ export async function register(params: {
   return data;
 }
 
+/**
+ * Sign in. The first call carries the password only; the server answers
+ * 401 `OTP_REQUIRED` (it mailed a code) or `TOTP_REQUIRED` (the account has
+ * an authenticator app), and the second call repeats the password with
+ * `otp` or `totp` respectively.
+ */
 export async function login(params: {
   email: string;
   password: string;
+  /** The emailed sign-in code. */
   otp?: string;
+  /** The current code from the account's authenticator app. */
+  totp?: string;
   /** Required on the first step from the website once Turnstile is configured. */
   captchaToken?: string;
 }): Promise<AuthResponse> {
@@ -132,6 +141,7 @@ export async function login(params: {
     body: JSON.stringify({
       ...params,
       otp: params.otp || undefined,
+      totp: params.totp || undefined,
       platform: 'web',
       deviceFingerprint: deviceFingerprint(),
     }),
@@ -189,10 +199,48 @@ export interface Profile {
   referralCount: number;
   referralTier: { level: number; multiplier: number };
   kycStatus: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
+  /** Authenticator-app 2FA is on: sign-in and withdrawals need its code. */
+  twoFactorEnabled: boolean;
   createdAt: string;
 }
 
 export const getProfile = () => apiFetch<Profile>('/auth/me');
+
+// ──────────────── Two-factor authentication (authenticator app) ────────────────
+
+/** A secret waiting to be confirmed, as returned by `setupTwoFactor`. */
+export interface TwoFactorSetup {
+  /** Base32 key, for typing into the app by hand. */
+  secret: string;
+  /** `otpauth://` link — rendered locally as the QR code the app scans. */
+  otpauthUrl: string;
+  issuer: string;
+  account: string;
+}
+
+/** Start (or restart) setup. Nothing is enforced until `enableTwoFactor`. */
+export const setupTwoFactor = () =>
+  apiFetch<TwoFactorSetup>('/auth/2fa/setup', { method: 'POST' });
+
+/**
+ * Turning 2FA on or off signs every other session out, including the token
+ * this browser held — the response carries a fresh one, which replaces it so
+ * this tab stays signed in.
+ */
+async function changeTwoFactor(path: 'enable' | 'disable', code: string, password: string) {
+  const data = await apiFetch<{ enabled: boolean; accessToken: string }>(`/auth/2fa/${path}`, {
+    method: 'POST',
+    body: JSON.stringify({ code, password }),
+  });
+  setToken(data.accessToken);
+  return data;
+}
+
+export const enableTwoFactor = (code: string, password: string) =>
+  changeTwoFactor('enable', code, password);
+
+export const disableTwoFactor = (code: string, password: string) =>
+  changeTwoFactor('disable', code, password);
 
 // ────────────────────────── Referrals ──────────────────────────
 
@@ -565,14 +613,27 @@ export const sendWithdrawalOtp = (captchaToken?: string) =>
     body: JSON.stringify({ captchaToken, platform: 'web' }),
   });
 
+/**
+ * Request a payout. Confirmed with the authenticator code (`totp`) when the
+ * account has 2FA on, otherwise with the emailed code from
+ * `sendWithdrawalOtp` (`otp`). Sent without either, the server answers 400
+ * with `TOTP_REQUIRED`, `OTP_REQUIRED` or `TOTP_SETUP_REQUIRED`.
+ */
 export const requestWithdrawal = (
   points: number,
   toAddress: string,
-  otp?: string,
+  codes: { otp?: string; totp?: string } = {},
 ) =>
   apiFetch<WithdrawalDto>('/withdrawals', {
     method: 'POST',
-    body: JSON.stringify({ points, toAddress, otp, platform: 'web' }),
+    body: JSON.stringify({
+      points,
+      toAddress,
+      otp: codes.otp || undefined,
+      totp: codes.totp || undefined,
+      platform: 'web',
+      deviceFingerprint: deviceFingerprint(),
+    }),
   });
 
 // ─────────────────────────── Support ────────────────────────

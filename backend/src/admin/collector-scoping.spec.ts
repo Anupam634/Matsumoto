@@ -49,6 +49,11 @@ function build() {
     prisma as any,
     { signAsync: jest.fn() } as any,
     { sendAccountStatusEmail: jest.fn() } as any,
+    // Config, audit, 2FA and security events — none of them touch revenue.
+    { get: jest.fn() } as any,
+    {} as any,
+    {} as any,
+    {} as any,
   );
   const boosterQueries = () => calls.filter((c) => c.model === 'boosterPurchase');
   const ledgerQueries = () => calls.filter((c) => c.model === 'ledgerEntry');

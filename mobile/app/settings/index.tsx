@@ -17,6 +17,7 @@ import { NavBar, Screen } from '../../src/components/ui/Chrome';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { LOCALE_LABELS, systemLocale, useI18n, useT } from '../../src/i18n';
 import { useSettings } from '../../src/store/settings';
+import { useSession } from '../../src/store/session';
 import { useNotifications } from '../../src/store/notifications';
 import { useToast } from '../../src/components/ui/Toast';
 import { createSupportTicket } from '../../src/api/endpoints';
@@ -39,6 +40,7 @@ export default function SettingsScreen() {
   const toast = useToast();
 
   const { settings, update, reset } = useSettings();
+  const { profile } = useSession();
   const { clear, resetForNewSession } = useNotifications();
 
   const [biometricsAvailable, setBiometricsAvailable] = useState(true);
@@ -267,6 +269,14 @@ export default function SettingsScreen() {
         <Animated.View entering={enter()}>
           <SectionLabel>{t('settings.account')}</SectionLabel>
           <ListGroup>
+            <ListRow
+              icon="shield-checkmark-outline"
+              tone="success"
+              title={t('twoFactor.title')}
+              subtitle={t('twoFactor.rowBody')}
+              value={profile?.twoFactorEnabled ? t('app.enabled') : t('app.disabled')}
+              onPress={() => router.push('/settings/two-factor')}
+            />
             <ListRow
               icon="key-outline"
               tone="brand"

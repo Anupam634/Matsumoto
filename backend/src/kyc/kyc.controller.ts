@@ -3,6 +3,7 @@ import { KycService } from './kyc.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AdminAuthGuard } from '../admin/admin.guard';
+import { AuditRead } from '../security/admin-audit.interceptor';
 import { KycDecisionDto, SubmitKycDto } from './dto';
 
 /** Miner-facing: submit documents and check your own status. */
@@ -36,7 +37,8 @@ export class KycAdminController {
     return this.kyc.adminList(status, search);
   }
 
-  /** GET /api/admin/kyc/:userId — includes the document images. */
+  /** GET /api/admin/kyc/:userId — includes the document images, so it is audited. */
+  @AuditRead()
   @Get(':userId')
   detail(@Param('userId') userId: string) {
     return this.kyc.adminDetail(userId);

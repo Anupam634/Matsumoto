@@ -25,6 +25,8 @@ function buildService(overrides: { assertSignupAllowed?: jest.Mock } = {}) {
     antiabuse as any,
     emailService as any,
     { get: jest.fn(() => undefined) } as any,
+    {} as any, // TwoFactorService — sign-up never reaches it
+    { record: jest.fn(async () => undefined) } as any,
   );
   return { service, emailService, antiabuse };
 }
@@ -130,6 +132,8 @@ describe('login captcha', () => {
       { recordDevice: jest.fn(async () => undefined) } as any,
       emailService as any,
       { get: jest.fn(() => undefined) } as any,
+      {} as any, // TwoFactorService — these never get past the password
+      { record: jest.fn(async () => undefined) } as any,
     );
     return { service, prisma, emailService };
   }
@@ -159,7 +163,7 @@ describe('login captcha', () => {
     expect(prisma.user.findUnique).toHaveBeenCalled();
   });
 
-  it('leaves the mobile app alone', async () => {
+  it('leaves the mobile app alone (the captcha, that is — not the second factor)', async () => {
     process.env.TURNSTILE_SECRET_KEY = 'secret';
     const { service, prisma } = loginService();
 

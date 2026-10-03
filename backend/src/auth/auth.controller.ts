@@ -1,15 +1,18 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
+import { TwoFactorService } from './two-factor.service';
 import {
   ForgotPasswordDto,
   LoginDto,
   RegisterDto,
   ResetPasswordDto,
   SendOtpDto,
+  TotpConfirmDto,
 } from './dto';
 import { JwtAuthGuard } from './jwt.guard';
 import { CurrentUser } from './current-user.decorator';
+import { requestContext } from '../security/request-context';
 
 /**
  * Client IP as Express resolved it.
@@ -27,7 +30,10 @@ function clientIp(req: any): string | undefined {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly twoFactor: TwoFactorService,
+  ) {}
 
   // The SMTP diagnostic that used to live here sent real mail from the
   // company address to any recipient a caller named, unauthenticated. It is
@@ -64,8 +70,8 @@ export class AuthController {
    */
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('reset-password')
-  resetPassword(@Body() dto: ResetPasswordDto) {
-    return this.auth.resetPassword(dto);
+  resetPassword(@Body() dto: ResetPasswordDto, @Req() req: any) {
+    return this.auth.resetPassword(dto, requestContext(req));
   }
 
   /** POST /api/auth/register — free signup (SPEC §1). */
@@ -84,6 +90,7 @@ export class AuthController {
     return this.auth.login(dto, {
       ip: clientIp(req),
       fingerprint: dto.deviceFingerprint,
+      userAgent: requestContext(req).userAgent,
     });
   }
 
@@ -92,5 +99,48 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser('id') userId: string) {
     return this.auth.me(userId);
+  }
+
+  // ─────────────── Authenticator app (two-factor) ───────────────
+
+  /**
+   * POST /api/auth/2fa/setup — a new secret and its otpauth:// link, for the
+   * QR code. Changes nothing yet; `enable` does, once a code proves the app
+   * has the secret.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('2fa/setup')
+  setupTwoFactor(@CurrentUser('id') userId: string) {
+    return this.twoFactor.beginSetup(userId);
+  }
+
+  /**
+   * POST /api/auth/2fa/enable — `{ code, password }`. Signs every other
+   * session out, so the response carries a fresh token for this one.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('2fa/enable')
+  async enableTwoFactor(
+    @CurrentUser('id') userId: string,
+    @Body() dto: TotpConfirmDto,
+    @Req() req: any,
+  ) {
+    await this.twoFactor.enable(userId, dto.code, dto.password, requestContext(req));
+    return { enabled: true, accessToken: await this.auth.tokenFor(userId) };
+  }
+
+  /** POST /api/auth/2fa/disable — `{ code, password }`. Same token handling as enable. */
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('2fa/disable')
+  async disableTwoFactor(
+    @CurrentUser('id') userId: string,
+    @Body() dto: TotpConfirmDto,
+    @Req() req: any,
+  ) {
+    await this.twoFactor.disable(userId, dto.code, dto.password, requestContext(req));
+    return { enabled: false, accessToken: await this.auth.tokenFor(userId) };
   }
 }

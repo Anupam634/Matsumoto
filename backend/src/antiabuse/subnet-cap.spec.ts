@@ -1,5 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 import { AntiabuseService } from './antiabuse.service';
+import { SecuritySettingsService } from '../security/security-settings.service';
 
 /**
  * The farm rents a block of addresses and spreads accounts across it —
@@ -20,9 +21,13 @@ function build(env: Record<string, string>, rows: { userId: string; lastIp: stri
       }),
     },
   };
-  const service = new AntiabuseService(prisma as any, {
-    get: (k: string) => env[k],
-  } as any);
+  // The real settings service over env values and an empty AppSetting table,
+  // so these tests also cover how the caps are read.
+  const settings = new SecuritySettingsService(
+    { appSetting: { findMany: jest.fn(async () => []) } } as any,
+    { get: (k: string) => env[k] } as any,
+  );
+  const service = new AntiabuseService(prisma as any, settings);
   return { service, prisma };
 }
 

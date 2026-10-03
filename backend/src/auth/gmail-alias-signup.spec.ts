@@ -60,6 +60,8 @@ function buildService(registered: string[]) {
     antiabuse as any,
     emailService as any,
     config as any,
+    {} as any, // TwoFactorService — sign-up never reaches it
+    { record: jest.fn(async () => undefined) } as any,
   );
   return { service, prisma, emailService };
 }

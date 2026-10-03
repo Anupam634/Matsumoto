@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
+import { TwoFactorService } from './two-factor.service';
 import { AuthController } from './auth.controller';
 import { JwtAuthGuard } from './jwt.guard';
 import { AntiabuseModule } from '../antiabuse/antiabuse.module';
@@ -35,7 +36,7 @@ import { checkJwtSecret } from '../common/jwt-secret';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard],
-  exports: [JwtAuthGuard, JwtModule, AuthService],
+  providers: [AuthService, TwoFactorService, JwtAuthGuard],
+  exports: [JwtAuthGuard, JwtModule, AuthService, TwoFactorService],
 })
 export class AuthModule {}

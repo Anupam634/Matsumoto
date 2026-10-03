@@ -16,6 +16,22 @@ const ADMIN_INFO_KEY = 'matsumoto_admin_info';
 
 export { ApiError };
 
+/**
+ * An ApiError from an admin route. Adds the one extra field the sign-in
+ * screen needs from a refusal: the masked inboxes the code went to, which
+ * arrives with `code: 'OTP_REQUIRED'`.
+ */
+export class AdminApiError extends ApiError {
+  constructor(
+    message: string,
+    status: number,
+    code?: string,
+    readonly sentTo?: string[],
+  ) {
+    super(message, status, code);
+  }
+}
+
 export interface AdminSelf {
   id: string;
   email: string;
@@ -64,16 +80,25 @@ export async function adminFetch<T>(path: string, init: RequestInit = {}): Promi
   });
 
   if (!res.ok) {
+    // Nest error bodies are { message: string | string[], statusCode }, plus
+    // `code` (e.g. OTP_REQUIRED, PASSWORD_PUBLISHED) and, on the sign-in
+    // code step, `sentTo` on the structured ones.
     let message = res.statusText;
+    let code: string | undefined;
+    let sentTo: string[] | undefined;
     try {
       const body = await res.json();
       message = Array.isArray(body.message)
         ? body.message.join(', ')
         : (body.message ?? message);
+      code = typeof body.code === 'string' ? body.code : undefined;
+      sentTo = Array.isArray(body.sentTo)
+        ? body.sentTo.filter((s: unknown): s is string => typeof s === 'string')
+        : undefined;
     } catch {
       /* non-JSON error body — keep the status text */
     }
-    throw new ApiError(message, res.status);
+    throw new AdminApiError(message, res.status, code, sentTo);
   }
   return res.json() as Promise<T>;
 }
@@ -137,6 +162,26 @@ export interface TreeNode {
   children: TreeNode[];
 }
 
+/**
+ * One entry in a miner's security trail: a sign-in, a failed code, a 2FA
+ * change, a withdrawal request. `detail` depends on `type` — e.g. `method`
+ * on LOGIN_SUCCEEDED, `reason` on LOGIN_FAILED, `toAddress` on
+ * WITHDRAWAL_REQUESTED.
+ */
+export interface UserSecurityEvent {
+  id: string;
+  type: string;
+  ip: string | null;
+  fingerprint: string | null;
+  platform: string | null;
+  userAgent: string | null;
+  detail: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+/** What confirmed a withdrawal request. Null on requests from before it was recorded. */
+export type WithdrawalSecondFactor = 'totp' | 'email' | 'none';
+
 export interface AdminUserDetail {
   user: AdminUserRow;
   devices?: {
@@ -145,14 +190,26 @@ export interface AdminUserDetail {
     lastIp: string | null;
     seenAt: string;
   }[];
+  /** Optional so a panel deployed ahead of the API still renders. */
+  security?: {
+    twoFactorEnabled: boolean;
+    twoFactorEnabledAt: string | null;
+    /** Set while a run of wrong authenticator codes has the check locked. */
+    twoFactorLockedUntil: string | null;
+    /** Newest first. */
+    events: UserSecurityEvent[];
+  };
   referralTree: TreeNode[];
   ledger: { id: string; reason: string; points: number; createdAt: string }[];
   withdrawals: {
     id: string;
     points: number;
     tokenAmount: string;
+    toAddress?: string;
     status: string;
     requestedAt: string;
+    requestIp?: string | null;
+    secondFactor?: WithdrawalSecondFactor | null;
   }[];
 }
 
@@ -243,15 +300,107 @@ export interface AdminWithdrawal {
   adminNote: string | null;
   requestedAt: string;
   resolvedAt: string | null;
+  // Risk signals for the reviewer. Optional so a panel deployed ahead of the
+  // API still renders; null on requests made before they were recorded.
+  requestIp?: string | null;
+  requestPlatform?: string | null;
+  secondFactor?: WithdrawalSecondFactor | null;
+  /** Whether the miner has an authenticator app on. */
+  twoFactorEnabled?: boolean;
+  /** Paid to this address before, not counting this request itself. */
+  addressPaidBefore?: boolean;
+}
+
+// ─────────────────────────── Security ───────────────────────────
+
+/** Where a setting's current value came from. */
+export type SecuritySettingSource = 'admin' | 'env' | 'default';
+
+export interface SecuritySettingView<T extends number | boolean> {
+  /** What the server enforces right now. */
+  value: T;
+  source: SecuritySettingSource;
+  /** What it goes back to when the panel override is reset (env, else built-in). */
+  defaultValue: T;
+  min?: number;
+  max?: number;
+  /** Set only when the value comes from the panel. */
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
+export interface AdminSecuritySettings {
+  maxAccountsPerDevice: SecuritySettingView<number>;
+  maxAccountsPerIp: SecuritySettingView<number>;
+  /** 0 turns the /24 check off. */
+  maxAccountsPerSubnet: SecuritySettingView<number>;
+  requireTotpForWithdrawal: SecuritySettingView<boolean>;
+}
+
+export type SecuritySettingName = keyof AdminSecuritySettings;
+
+/** Switches that live in the server env only, shown read-only. */
+export interface AdminSecurityEnforcement {
+  adminLoginCode: boolean;
+  /** Masked inboxes the admin sign-in code is mailed to. */
+  adminLoginCodeSentTo: string[];
+  /** e.g. "12h". */
+  adminSessionTtl: string;
+  userLoginCode: boolean;
+  withdrawalCode: boolean;
+  /** False means authenticator secrets are keyed off JWT_SECRET. */
+  authenticatorKeyConfigured: boolean;
+}
+
+export interface AdminSecurityConfig {
+  settings: AdminSecuritySettings;
+  enforcement: AdminSecurityEnforcement;
+}
+
+/** Only the fields being changed; `null` resets one to its default. */
+export type SecuritySettingsPatch = {
+  [K in SecuritySettingName]?: AdminSecuritySettings[K]['value'] | null;
+};
+
+export type AuditOutcome = 'ok' | 'error' | 'denied';
+
+export interface AdminAuditEntry {
+  id: string;
+  adminId: string | null;
+  adminEmail: string;
+  /** "ADMIN_LOGIN_*" for sign-in steps, else "METHOD /admin/route/:param". */
+  action: string;
+  target: string | null;
+  outcome: AuditOutcome;
+  detail: unknown;
+  ip: string | null;
+  userAgent: string | null;
+  createdAt: string;
+}
+
+export interface AdminAuditPage {
+  total: number;
+  page: number;
+  pageSize: number;
+  rows: AdminAuditEntry[];
 }
 
 // ────────────────────────── Calls ────────────────────────────
 
-export async function adminLogin(email: string, password: string) {
+/**
+ * Sign in. Without `otp` the server mails the code to the operator inbox and
+ * rejects with an AdminApiError carrying `code: 'OTP_REQUIRED'` and `sentTo`;
+ * call again with the code to finish. Nothing is stored until a token comes
+ * back.
+ */
+export async function adminLogin(email: string, password: string, otp?: string) {
   const data = await adminFetch<{
     accessToken: string;
     admin: AdminSelf;
-  }>('/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+  }>('/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password, otp: otp || undefined }),
+  });
   window.localStorage.setItem(ADMIN_TOKEN_KEY, data.accessToken);
   window.localStorage.setItem(ADMIN_INFO_KEY, JSON.stringify(data.admin));
   return data;
@@ -299,6 +448,53 @@ export const airdrop = (id: string, points: number, note?: string) =>
     `/users/${id}/airdrop`,
     { method: 'POST', body: JSON.stringify({ points, note }) },
   );
+
+/**
+ * Remove a miner's authenticator app (lost phone). Signs them out everywhere
+ * and emails them; `emailed` is false when that mail could not be sent.
+ */
+export const resetUserTwoFactor = (id: string) =>
+  adminFetch<{ reset: boolean; emailed: boolean }>(`/users/${id}/2fa/reset`, {
+    method: 'POST',
+  });
+
+/** Sign a miner out of every device. */
+export const revokeUserSessions = (id: string) =>
+  adminFetch<{ revoked: boolean }>(`/users/${id}/sessions/revoke`, {
+    method: 'POST',
+  });
+
+export const getSecuritySettings = () =>
+  adminFetch<AdminSecurityConfig>('/security/settings');
+
+export const updateSecuritySettings = (patch: SecuritySettingsPatch) =>
+  adminFetch<AdminSecurityConfig>('/security/settings', {
+    method: 'POST',
+    body: JSON.stringify(patch),
+  });
+
+/** The audit trail, newest first. `action` matches as a prefix (e.g. "ADMIN_LOGIN", "POST"). */
+export const getAuditLog = (params: {
+  page?: number;
+  pageSize?: number;
+  /** Exact admin email. */
+  adminEmail?: string;
+  action?: string;
+} = {}) => {
+  const q = new URLSearchParams();
+  if (params.page) q.set('page', String(params.page));
+  if (params.pageSize) q.set('pageSize', String(params.pageSize));
+  if (params.adminEmail?.trim()) q.set('adminEmail', params.adminEmail.trim());
+  if (params.action?.trim()) q.set('action', params.action.trim());
+  const qs = q.toString();
+  return adminFetch<AdminAuditPage>(`/security/audit${qs ? `?${qs}` : ''}`);
+};
+
+/** Every admin, on every device — the caller included — has to sign in again. */
+export const revokeAllAdminSessions = () =>
+  adminFetch<{ revoked: number }>('/security/sessions/revoke-all', {
+    method: 'POST',
+  });
 
 export const listWithdrawals = (status?: string) =>
   adminFetch<AdminWithdrawal[]>(

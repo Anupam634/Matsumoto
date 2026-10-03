@@ -1,4 +1,13 @@
-import { IsIn, IsNumber, IsOptional, IsString, Length, MaxLength, Min } from 'class-validator';
+import {
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Length,
+  Matches,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class RequestWithdrawalDto {
   /** Amount in whole/decimal Matsumoto Points (min 100 — SPEC §4). */
@@ -11,19 +20,36 @@ export class RequestWithdrawalDto {
   toAddress!: string;
 
   /**
-   * Confirmation code from `POST /withdrawals/send-otp`. Required when
-   * `platform` is `web` (see WithdrawalsService.request) — mirrors the login
-   * OTP so a stolen session token alone can't move funds through the site.
+   * Confirmation code from `POST /withdrawals/send-otp`. Required on every
+   * platform for an account without an authenticator app (see
+   * WithdrawalsService.confirmSecondFactor), so a stolen session token alone
+   * cannot move funds.
    */
   @IsOptional()
   @IsString()
   @Length(6, 6)
   otp?: string;
 
-  /** Same caveat as LoginDto.platform: a client-declared signal, not proof. */
+  /** Current authenticator-app code; required instead of `otp` when 2FA is on. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'Enter the 6-digit code from your authenticator app.' })
+  totp?: string;
+
+  /**
+   * Which client is calling. Recorded on the request for the reviewer and
+   * used for the captcha decision on send-otp; never for whether a code is
+   * required — the caller writes it.
+   */
   @IsOptional()
   @IsIn(['web', 'mobile'])
   platform?: 'web' | 'mobile';
+
+  /** Recorded on the request so the reviewer can see which device asked. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  deviceFingerprint?: string;
 }
 
 /** Body of `POST /withdrawals/send-otp`. */

@@ -25,6 +25,7 @@
  */
 const { PrismaClient } = require('@prisma/client');
 const { hashPassword } = require('../dist/auth/password');
+const { isPublishedAdminPassword } = require('../dist/admin/published-passwords');
 
 const prisma = new PrismaClient();
 
@@ -38,6 +39,11 @@ async function main() {
   }
   if (password.length < 12) {
     throw new Error('Password must be at least 12 characters.');
+  }
+  if (isPublishedAdminPassword(password)) {
+    throw new Error(
+      'That password was published in the public repository. Choose another one (e.g. `openssl rand -base64 24`).',
+    );
   }
 
   const passwordHash = await hashPassword(password);
@@ -53,7 +59,8 @@ async function main() {
 
   const admin = await prisma.adminUser.upsert({
     where: { email },
-    update: data,
+    // A reset password signs out every session opened with the old one.
+    update: { ...data, sessionVersion: { increment: 1 } },
     create: { email, ...data },
   });
 

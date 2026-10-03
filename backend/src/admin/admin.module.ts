@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminBootstrapService } from './admin-bootstrap.service';
 import { AdminController, AdminSecureController } from './admin.controller';
+import { SecurityAdminController } from './security-admin.controller';
 import { AdminAuthGuard } from './admin.guard';
 import { AuthModule } from '../auth/auth.module';
 import { WithdrawalsModule } from '../withdrawals/withdrawals.module';
@@ -14,7 +15,7 @@ import { TasksService } from '../tasks/tasks.service';
  */
 @Module({
   imports: [AuthModule, WithdrawalsModule],
-  controllers: [AdminController, AdminSecureController],
+  controllers: [AdminController, AdminSecureController, SecurityAdminController],
   providers: [
     AdminService,
     AdminAuthGuard,

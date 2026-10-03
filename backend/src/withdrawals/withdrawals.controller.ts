@@ -12,6 +12,7 @@ import { WithdrawalsService } from './withdrawals.service';
 import { RequestWithdrawalDto, SendWithdrawalOtpDto } from './dto';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { requestContext } from '../security/request-context';
 
 @UseGuards(JwtAuthGuard)
 @Controller('withdrawals')
@@ -32,9 +33,17 @@ export class WithdrawalsController {
     });
   }
 
-  /** POST /api/withdrawals — request a payout (min 100 pts, 1/week, KYC). */
+  /**
+   * POST /api/withdrawals — request a payout (min 100 pts, 1/week, KYC), with
+   * the authenticator code (`totp`) if the account has 2FA on, otherwise the
+   * emailed code (`otp`).
+   */
   @Post()
-  request(@CurrentUser('id') userId: string, @Body() dto: RequestWithdrawalDto) {
+  request(
+    @CurrentUser('id') userId: string,
+    @Body() dto: RequestWithdrawalDto,
+    @Req() req: any,
+  ) {
     if (!ethers.isAddress(dto.toAddress)) {
       throw new BadRequestException('Not a valid BNB Chain address.');
     }
@@ -42,7 +51,8 @@ export class WithdrawalsController {
     const pointsMilli = Math.round(dto.points * 1000);
     return this.withdrawals.request(userId, dto.toAddress, pointsMilli, {
       otp: dto.otp,
-      platform: dto.platform,
+      totp: dto.totp,
+      ...requestContext(req, { fingerprint: dto.deviceFingerprint, platform: dto.platform }),
     });
   }
 

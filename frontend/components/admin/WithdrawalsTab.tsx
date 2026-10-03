@@ -30,6 +30,34 @@ const STATUS_FILTERS: { key: string; label: string; hint: string }[] = [
   { key: 'ALL', label: 'All', hint: 'Every request, any status.' },
 ];
 
+const FACTOR_BADGE: Record<string, { label: string; className: string }> = {
+  totp: {
+    label: 'Confirmed: Authenticator',
+    className: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-400',
+  },
+  email: {
+    label: 'Confirmed: Email code',
+    className: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300',
+  },
+  none: {
+    label: 'Confirmed: None',
+    className: 'border-red-500/40 bg-red-500/15 text-red-400',
+  },
+};
+
+/**
+ * What a reviewer should weigh before paying, as short warnings. A takeover
+ * withdrawal typically goes to an address the owner has never been paid at.
+ * "2FA off" is shown as a badge rather than warned about here: most miners
+ * have not set it up yet, and a warning on every approval stops being read.
+ */
+function riskWarnings(w: AdminWithdrawal): string[] {
+  const warnings: string[] = [];
+  if (w.addressPaidBefore === false) warnings.push('This address has never been paid for this miner before.');
+  if (w.secondFactor === 'none') warnings.push('The request was not confirmed with any second factor.');
+  return warnings;
+}
+
 export function WithdrawalsTab({
   onChanged,
   onUnauthorized,
@@ -72,7 +100,13 @@ export function WithdrawalsTab({
   }, [load]);
 
   async function handleApprove(w: AdminWithdrawal) {
-    if (!confirm(`Confirm on-chain payout of ${w.tokenAmount} $BONDKOIN to wallet ${w.toAddress}?`)) {
+    const warnings = riskWarnings(w);
+    const message =
+      `Confirm on-chain payout of ${w.tokenAmount} $BONDKOIN to wallet ${w.toAddress}?` +
+      (warnings.length
+        ? `\n\n⚠ Before you approve:\n${warnings.map((x) => `• ${x}`).join('\n')}\n\nIf in doubt, check the miner's security activity in the Miners tab first.`
+        : '');
+    if (!confirm(message)) {
       return;
     }
     setBusy(true);
@@ -160,15 +194,28 @@ export function WithdrawalsTab({
                     <td className="p-3.5 text-slate-400">
                       {new Date(w.requestedAt).toLocaleString()}
                     </td>
-                    <td className="p-3.5 font-sans font-bold text-white">
-                      {w.userEmail ?? w.userId.slice(0, 8)}
+                    <td className="p-3.5 font-sans">
+                      <div className="font-bold text-white">{w.userEmail ?? w.userId.slice(0, 8)}</div>
+                      <RiskBadges w={w} />
                     </td>
                     <td className="p-3.5 font-bold text-amber-400">{w.points} PTS</td>
                     <td className="p-3.5 font-bold text-cyan-400">
                       {w.tokenAmount} $BONDKOIN
                     </td>
-                    <td className="p-3.5 text-slate-400 truncate max-w-xs" title={w.toAddress}>
-                      {w.toAddress}
+                    <td className="p-3.5 text-slate-400 max-w-xs" title={w.toAddress}>
+                      <div className="truncate">{w.toAddress}</div>
+                      {w.addressPaidBefore === false && (
+                        <span
+                          className={`mt-1 inline-block rounded-full border px-2 py-0.5 font-sans text-[10px] font-bold ${
+                            w.status === 'PENDING'
+                              ? 'border-red-500/40 bg-red-500/15 text-red-300'
+                              : 'border-slate-700 bg-slate-800/80 text-slate-400'
+                          }`}
+                          title="No earlier PAID withdrawal from this miner went to this address."
+                        >
+                          {w.status === 'PAID' ? 'First payout to this address' : '⚠ New address — never paid here before'}
+                        </span>
+                      )}
                     </td>
                     <td className="p-3.5 font-sans">
                       <span
@@ -295,6 +342,47 @@ export function WithdrawalsTab({
               </button>
             </div>
           </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 2FA state, what confirmed the request, and where it came from — under the applicant. */
+function RiskBadges({ w }: { w: AdminWithdrawal }) {
+  // Rows from before these were recorded carry none of them.
+  if (w.twoFactorEnabled === undefined && w.secondFactor === undefined && w.requestIp === undefined) {
+    return null;
+  }
+  const factor = w.secondFactor ? FACTOR_BADGE[w.secondFactor] : undefined;
+  return (
+    <div className="mt-1.5 space-y-1">
+      <div className="flex flex-wrap gap-1">
+        {w.twoFactorEnabled !== undefined && (
+          <span
+            className={`rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${
+              w.twoFactorEnabled
+                ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-400'
+                : 'border-amber-500/40 bg-amber-500/15 text-amber-300'
+            }`}
+          >
+            2FA {w.twoFactorEnabled ? 'on' : 'off'}
+          </span>
+        )}
+        {factor ? (
+          <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${factor.className}`}>
+            {factor.label}
+          </span>
+        ) : (
+          <span className="rounded-full border border-slate-700 bg-slate-800/80 px-1.5 py-0.5 text-[10px] font-bold text-slate-400">
+            Confirmation not recorded
+          </span>
+        )}
+      </div>
+      {(w.requestIp || w.requestPlatform) && (
+        <div className="font-mono text-[10px] text-slate-500">
+          {w.requestIp ?? 'IP unknown'}
+          {w.requestPlatform && <> · {w.requestPlatform}</>}
         </div>
       )}
     </div>

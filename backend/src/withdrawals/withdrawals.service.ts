@@ -12,11 +12,26 @@ import { assertHuman, captchaApplies } from '../common/turnstile';
 import { CAPTCHA_ACTIONS } from '../auth/auth.service';
 import { WalletService } from '../wallet/wallet.service';
 import { EmailService } from '../email/email.service';
+import { TwoFactorService } from '../auth/two-factor.service';
+import { SecuritySettingsService } from '../security/security-settings.service';
+import { SecurityEventsService } from '../security/security-events.service';
+import type { RequestContext } from '../security/request-context';
 import { pointsToToken } from '../mining/mining.engine';
 import { lockUserRow } from '../common/row-lock';
 
 const MIN_WITHDRAWAL_MILLI = 100 * 1000; // 100 points (SPEC §4)
 const COOLDOWN_MS = 7 * 24 * 3_600_000; // 1 per week
+
+/** What confirmed a withdrawal request, stored on the row for the reviewer. */
+export type WithdrawalSecondFactor = 'totp' | 'email' | 'none';
+
+/** What the caller sent to confirm a request, and where it came from. */
+export interface WithdrawalConfirmation extends RequestContext {
+  /** Code from `POST /withdrawals/send-otp`. */
+  otp?: string;
+  /** Code from the account's authenticator app. */
+  totp?: string;
+}
 
 /** Shape returned to clients — BigInt milli-points become decimal points. */
 export interface WithdrawalDto {
@@ -69,11 +84,15 @@ export class WithdrawalsService {
     private readonly wallet: WalletService,
     private readonly emailService: EmailService,
     private readonly config: ConfigService,
+    private readonly twoFactor: TwoFactorService,
+    private readonly settings: SecuritySettingsService,
+    private readonly events: SecurityEventsService,
   ) {}
 
   /**
-   * Emergency off-switch for the web withdrawal OTP requirement — same
-   * escape hatch and same reasoning as AuthService.loginOtpEnforced.
+   * Emergency off-switch for the emailed withdrawal code — same escape hatch
+   * and same reasoning as AuthService.loginOtpEnforced. It does not touch the
+   * authenticator-app check: an account with 2FA on always needs its code.
    */
   private withdrawalOtpEnforced(): boolean {
     return this.config.get<string>('WITHDRAWAL_OTP_ENFORCED') !== 'false';
@@ -125,6 +144,63 @@ export class WithdrawalsService {
   }
 
   /**
+   * Check the second factor for a withdrawal, and say which one it was.
+   *
+   * Runs before the escrow transaction, not inside it: a wrong authenticator
+   * code has to count towards the lockout, and a failure counter incremented
+   * inside a transaction that then throws is rolled back with it.
+   *
+   * Applies to every platform. It used to be required only when the client
+   * sent `platform: 'web'`, so a request that left the field out moved funds
+   * with nothing but a bearer token.
+   */
+  private async confirmSecondFactor(
+    userId: string,
+    confirmation: WithdrawalConfirmation,
+  ): Promise<WithdrawalSecondFactor> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { email: true, totpEnabledAt: true },
+    });
+
+    if (user.totpEnabledAt) {
+      if (!confirmation.totp) {
+        throw new BadRequestException({
+          statusCode: 400,
+          code: 'TOTP_REQUIRED',
+          message: 'Enter the 6-digit code from your authenticator app to confirm this withdrawal.',
+        });
+      }
+      await this.twoFactor.assertCode(userId, confirmation.totp, confirmation);
+      return 'totp';
+    }
+
+    const { requireTotpForWithdrawal } = await this.settings.effective();
+    if (requireTotpForWithdrawal) {
+      throw new BadRequestException({
+        statusCode: 400,
+        code: 'TOTP_SETUP_REQUIRED',
+        message: 'Turn on two-factor authentication (Google Authenticator) in your profile before withdrawing.',
+      });
+    }
+
+    if (!this.withdrawalOtpEnforced()) return 'none';
+
+    if (!confirmation.otp) {
+      throw new BadRequestException({
+        statusCode: 400,
+        code: 'OTP_REQUIRED',
+        message: 'Request a confirmation code (POST /withdrawals/send-otp) and include it to submit this withdrawal.',
+      });
+    }
+    const validOtp = await this.emailService.verifyOtp(user.email ?? '', confirmation.otp, 'withdrawal');
+    if (!validOtp) {
+      throw new BadRequestException('Invalid or expired verification code. Please request a new OTP.');
+    }
+    return 'email';
+  }
+
+  /**
    * Escrow points and queue a payout for admin review.
    *
    * The eligibility checks and the debit run inside one transaction behind a
@@ -137,11 +213,16 @@ export class WithdrawalsService {
     userId: string,
     toAddress: string,
     pointsMilli: number,
-    confirmation: { otp?: string; platform?: 'web' | 'mobile' } = {},
+    confirmation: WithdrawalConfirmation = {},
   ) {
     if (pointsMilli < MIN_WITHDRAWAL_MILLI) {
       throw new BadRequestException('Minimum withdrawal is 100 points.');
     }
+
+    // Two requests racing with one emailed code both pass here (the store's
+    // read and delete are not atomic); the one-per-week check inside the
+    // transaction below is what lets only one of them through.
+    const secondFactor = await this.confirmSecondFactor(userId, confirmation);
 
     const amount = BigInt(pointsMilli);
     const tokenAmount = pointsToToken(pointsMilli).toString();
@@ -153,27 +234,6 @@ export class WithdrawalsService {
         where: { id: userId },
         include: { kyc: true },
       });
-
-      // Step-up check: a bearer token alone must not be enough to move
-      // funds. Verified before the KYC/balance/cooldown checks below so a
-      // stolen-but-otherwise-blocked request doesn't burn the code for
-      // nothing.
-      if (confirmation.otp) {
-        const validOtp = await this.emailService.verifyOtp(
-          user.email ?? '',
-          confirmation.otp,
-          'withdrawal',
-        );
-        if (!validOtp) {
-          throw new BadRequestException('Invalid or expired verification code. Please request a new OTP.');
-        }
-      } else if (confirmation.platform === 'web' && this.withdrawalOtpEnforced()) {
-        throw new BadRequestException({
-          statusCode: 400,
-          code: 'OTP_REQUIRED',
-          message: 'Request a confirmation code (POST /withdrawals/send-otp) and include it to submit this withdrawal.',
-        });
-      }
 
       if (user.kyc?.status !== 'APPROVED') {
         throw new BadRequestException('KYC must be approved before withdrawal.');
@@ -205,6 +265,10 @@ export class WithdrawalsService {
           tokenAmount,
           toAddress,
           status: 'PENDING',
+          requestIp: confirmation.ip ?? null,
+          requestFingerprint: confirmation.fingerprint?.slice(0, 128) ?? null,
+          requestPlatform: confirmation.platform ?? null,
+          secondFactor,
         },
       });
       await tx.ledgerEntry.create({
@@ -215,10 +279,35 @@ export class WithdrawalsService {
           meta: { toAddress, tokenAmount },
         },
       });
-      return created;
+      return { created, email: user.email };
     });
 
-    return toDto(withdrawal);
+    const { created, email } = withdrawal;
+    await this.events.record(userId, 'WITHDRAWAL_REQUESTED', confirmation, {
+      withdrawalId: created.id,
+      points: pointsMilli / 1000,
+      toAddress,
+      secondFactor,
+    });
+    // The owner hears about it while it is still waiting for review, which
+    // is the window in which a stolen-account withdrawal can still be stopped.
+    if (email) {
+      void this.emailService.sendSecurityNotice(email, {
+        subject: 'Withdrawal requested from your BONDKOIN account',
+        title: 'Withdrawal requested',
+        lead: 'A withdrawal was requested from your BONDKOIN account. It is waiting for review by our team before anything is paid out.',
+        rows: [
+          ['Amount', `${(pointsMilli / 1000).toLocaleString('en-US')} points (${tokenAmount} $BONDKOIN)`],
+          ['To address', toAddress],
+          ['When', created.requestedAt.toISOString().replace('T', ' ').slice(0, 19) + ' UTC'],
+          ...(confirmation.ip ? ([['IP address', confirmation.ip]] as [string, string][]) : []),
+        ],
+        warning:
+          "If you didn't request this, reply to this email right away so we can stop it before it is approved, then reset your password and turn on two-factor authentication.",
+      });
+    }
+
+    return toDto(created);
   }
 
   /**

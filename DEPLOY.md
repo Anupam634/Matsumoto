@@ -137,7 +137,12 @@ run by hand, and nothing breaks if a start command is later edited.
 
    To reach the admin panel, also set:
      - `ADMIN_EMAIL` → the login you want, e.g. `ops@yourdomain.com`
-     - `ADMIN_PASSWORD` → at least 12 characters
+     - `ADMIN_PASSWORD` → at least 12 characters, generated
+       (`openssl rand -base64 24`) — never one from `.env.example`, which is
+       public; every value that file has ever held is refused at sign-in
+     - `ADMIN_OTP_EMAIL` → the inbox that receives the 6-digit admin sign-in
+       code (defaults to `ADMIN_EMAIL` itself). Admin sign-in needs working
+       SMTP from here on.
 
    The account is created on boot. There is no admin self-signup, and the
    free tier has no shell to run `npm run admin:create` from, so without
@@ -206,6 +211,93 @@ run migrations — Prisma never migrates on its own, something has to call
   into a free-tier test deploy's environment variables.
 
 ## Breaking changes to carry into an existing deployment
+
+### Security update: admin sign-in code, Google 2FA, real Security tab
+
+**Before deploying:**
+
+1. **Rotate `ADMIN_PASSWORD`** unless you are certain it never appeared in
+   `backend/.env.example`. The repository is public and that file has held
+   `BondKoin@2026!Admin` and `matsumoto@123456`; those (and the other values
+   listed in `src/admin/published-passwords.ts`) are now refused at sign-in,
+   at boot sync and by `npm run admin:create`. An account still hashed with
+   one cannot be signed in to until the variable holds a new password.
+2. **Set `ADMIN_OTP_EMAIL`** to the operator inbox for admin sign-in codes.
+   On EC2 that means the `ENV_FILE` / `BACKEND_ENV` GitHub secret, because
+   the deploy rewrites `.env` from it. Keep it out of the repo.
+3. **Set `TOTP_ENCRYPTION_KEY`** (`openssl rand -hex 32`) in the same place.
+   It encrypts miners' authenticator secrets; set it before anyone turns 2FA
+   on (see the JWT_SECRET note below for why).
+4. **Check SMTP works** (`GET /api/admin/email-health?to=…` while you still
+   have an admin session). Admin sign-in now needs the emailed code. If mail
+   is down, `ADMIN_LOGIN_OTP_ENFORCED=false` is the server-side off-switch.
+
+The schema change (`20261002120000_security_hardening`) only adds nullable or
+defaulted columns and new tables, so `prisma db push` on EC2 and
+`prisma migrate deploy` on Render both apply it without touching data.
+
+**What people will notice:**
+
+- **Every admin is signed out once.** Admin tokens must now carry a session
+  version and the code check, and the old ones carry neither. Admin tokens
+  also expire after `ADMIN_SESSION_TTL` (default 12h) rather than 7 days.
+- **Miners stay signed in**, but every new sign-in needs a second factor on
+  every platform — the mobile app included. Until now the emailed code was
+  only asked for when the request said `platform: 'web'`, so any client that
+  left the field out signed in with the password alone, and a bearer token
+  alone could request a withdrawal. Ship the new mobile build: an older build
+  has no code screen and cannot sign in or withdraw.
+- **Withdrawals** need the emailed code (or the authenticator code) on every
+  platform, record the requesting IP, device and factor for the reviewer, and
+  email the owner while the request waits for review.
+- **Password resets sign the account out everywhere.**
+- **The Security tab is real.** Its sign-up caps used to be a form that never
+  reached the server — whatever was typed reverted to the env value. They
+  are now stored, enforced on the next sign-up, and override the
+  `MAX_ACCOUNTS_*` env values until reset. The tab's log is the real admin
+  audit trail: every sign-in attempt and every change made through the admin
+  API, with IP.
+
+**Rotating `JWT_SECRET`** (to sign every miner out, e.g. after a breach)
+also strands any authenticator secret sealed while `TOTP_ENCRYPTION_KEY` was
+unset. Those miners need "Reset 2FA" from the admin panel afterwards.
+
+### Investigating an account takeover
+
+From this update on, Miners → Inspect → **Account security** shows the
+account's sign-ins (IP, device, platform, which second factor), failed codes,
+2FA changes and withdrawal requests, with **Sign out all sessions** and
+**Reset 2FA**. For anything older, the database and logs are what there is:
+
+```sql
+-- The account, and every device/IP it has been seen on (latest IP per device only)
+SELECT id, email, "createdAt" FROM "User" WHERE email = 'owner@example.com';
+SELECT fingerprint, "lastIp", "seenAt" FROM "DeviceFingerprint"
+ WHERE "userId" = '<id>' ORDER BY "seenAt" DESC;
+
+-- Its withdrawals and balance movements around the date
+SELECT id, "pointsAmount" / 1000 AS points, "toAddress", status,
+       "requestedAt", "resolvedAt", "txHash", "adminNote"
+  FROM "Withdrawal" WHERE "userId" = '<id>' ORDER BY "requestedAt";
+SELECT reason, "deltaMilli" / 1000 AS points, meta, "createdAt" FROM "LedgerEntry"
+ WHERE "userId" = '<id>' AND "createdAt" BETWEEN '2026-09-28' AND '2026-10-02'
+ ORDER BY "createdAt";
+
+-- Everyone else who has withdrawn to the receiving address
+SELECT u.email, w.status, w."requestedAt", w."pointsAmount" / 1000 AS points
+  FROM "Withdrawal" w JOIN "User" u ON u.id = w."userId"
+ WHERE lower(w."toAddress") = lower('0x…');
+```
+
+Sign-ins were not logged before this update, but every website sign-in
+mailed a code, and that left `[OTP GENERATED] owner@example.com |
+purpose=login_2fa` in the API log (`pm2 logs bondkoin-backend --lines 200000
+--nostream | grep -i owner@example.com` — older lines may have rotated
+away). Activity on the account — a new device row, a withdrawal request —
+with no such line shortly before it means the attacker signed in through
+the API without `platform: 'web'`, with the password alone. A
+`purpose=forgot_password` line means someone reset the password, which
+needs the inbox; in that case the owner's email account was compromised too.
 
 - **`JWT_SECRET` is now required.** There is no fallback any more: the API
   refuses to boot without one, and rejects the two example values that used

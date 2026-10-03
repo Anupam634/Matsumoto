@@ -6,14 +6,17 @@ import {
   Param,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AdminService } from './admin.service';
-import { AdminAuthGuard } from './admin.guard';
+import { AdminAuthGuard, type RequestAdmin } from './admin.guard';
 import { WithdrawalsService } from '../withdrawals/withdrawals.service';
 import { TasksService } from '../tasks/tasks.service';
 import { EmailService } from '../email/email.service';
+import { AuditRead } from '../security/admin-audit.interceptor';
+import { requestContext } from '../security/request-context';
 import {
   AdjustRateDto,
   AdminLoginDto,
@@ -31,16 +34,19 @@ export class AdminController {
 
   /**
    * POST /api/admin/login — unguarded; issues the admin-scoped token.
+   * `{ email, password }` mails a code to the operator inbox and answers 401
+   * OTP_REQUIRED; `{ email, password, otp }` signs in.
    *
    * Tighter than the app-wide 300/min: this is the one unauthenticated route
    * that leads to approving withdrawals, and there is exactly one account
    * behind it, so the global ceiling left room for thousands of password
-   * guesses an hour from a single host.
+   * guesses an hour from a single host. Six covers both steps, a resend and
+   * a mistyped code.
    */
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
   @Post('login')
-  login(@Body() dto: AdminLoginDto) {
-    return this.admin.login(dto.email, dto.password);
+  login(@Body() dto: AdminLoginDto, @Req() req: any) {
+    return this.admin.login(dto, requestContext(req));
   }
 }
 
@@ -73,6 +79,7 @@ export class AdminSecureController {
    * for branded phishing. `to` is required — the old version defaulted to
    * an address hardcoded in the source.
    */
+  @AuditRead()
   @Get('email-health')
   emailHealth(@Query('to') to?: string) {
     if (!to?.includes('@')) {
@@ -143,6 +150,22 @@ export class AdminSecureController {
     return this.admin.airdrop(id, dto.points, dto.note);
   }
 
+  /**
+   * POST /api/admin/users/:id/2fa/reset — remove the miner's authenticator
+   * app (lost phone). Signs them out everywhere and emails them. Confirm who
+   * is asking first — the KYC documents are the reference.
+   */
+  @Post('users/:id/2fa/reset')
+  resetTwoFactor(@Param('id') id: string, @Req() req: { admin: RequestAdmin }) {
+    return this.admin.resetUserTwoFactor(id, req.admin.email);
+  }
+
+  /** POST /api/admin/users/:id/sessions/revoke — sign the miner out of every device. */
+  @Post('users/:id/sessions/revoke')
+  revokeUserSessions(@Param('id') id: string, @Req() req: { admin: RequestAdmin }) {
+    return this.admin.revokeUserSessions(id, req.admin.email);
+  }
+
   /** GET /api/admin/referrals/audit — fraud detection and device handshake check */
   /** GET /api/admin/referrals/offenders?limit=50 — inviters ranked by flagged referrals. */
   @Get('referrals/offenders')
@@ -198,42 +221,49 @@ export class AdminSecureController {
     return this.admin.getReportsSummary();
   }
 
+  @AuditRead()
   @Get('reports/users/csv')
   async exportUsers() {
     const csv = await this.admin.exportUsersCsv();
     return { csv, filename: `matsumoto_users_${Date.now()}.csv` };
   }
 
+  @AuditRead()
   @Get('reports/mining/csv')
   async exportMining() {
     const csv = await this.admin.exportMiningCsv();
     return { csv, filename: `matsumoto_mining_ledger_${Date.now()}.csv` };
   }
 
+  @AuditRead()
   @Get('reports/withdrawals/csv')
   async exportWithdrawals() {
     const csv = await this.admin.exportWithdrawalsCsv();
     return { csv, filename: `matsumoto_withdrawals_${Date.now()}.csv` };
   }
 
+  @AuditRead()
   @Get('reports/referrals/csv')
   async exportReferrals() {
     const csv = await this.admin.exportReferralsCsv();
     return { csv, filename: `matsumoto_referrals_${Date.now()}.csv` };
   }
 
+  @AuditRead()
   @Get('reports/kyc/csv')
   async exportKyc() {
     const csv = await this.admin.exportKycCsv();
     return { csv, filename: `matsumoto_kyc_${Date.now()}.csv` };
   }
 
+  @AuditRead()
   @Get('reports/revenue/csv')
   async exportRevenue() {
     const csv = await this.admin.exportRevenueCsv();
     return { csv, filename: `matsumoto_revenue_${Date.now()}.csv` };
   }
 
+  @AuditRead()
   @Get('reports/revenue-by-user/csv')
   async exportRevenueByUser() {
     const csv = await this.admin.exportRevenueByUserCsv();

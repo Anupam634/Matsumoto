@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -6,6 +6,9 @@ import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { InfoNote, TextLink } from '../src/components/common/AuthShell';
+import { OtpInput } from '../src/components/common/OtpInput';
+import { useCaptcha } from '../src/components/common/Captcha';
 import { Text } from '../src/components/ui/Text';
 import { Card } from '../src/components/ui/Card';
 import { Badge, StatRow } from '../src/components/ui/Badge';
@@ -24,12 +27,13 @@ import {
   getWithdrawals,
   POINTS_PER_TOKEN,
   requestWithdrawal,
+  sendWithdrawalOtp,
   WITHDRAWAL_COOLDOWN_DAYS,
   WITHDRAWAL_MIN_POINTS,
   type WithdrawalDto,
   type WithdrawalStatus,
 } from '../src/api/endpoints';
-import { errorMessage } from '../src/api/client';
+import { errorCode, errorMessage } from '../src/api/client';
 import {
   ADDRESS_RE,
   formatDate,
@@ -38,6 +42,11 @@ import {
   shortAddress,
 } from '../src/lib/format';
 
+const RESEND_COOLDOWN_S = 45;
+
+/** The second factor the server asked for; null while the sheet shows the review. */
+type CodeStep = 'email' | 'authenticator' | null;
+
 /**
  * Withdrawals.
  *
@@ -45,6 +54,12 @@ import {
  * operator reviews the request. Every gate the server enforces — verification,
  * the 100-point floor, one request a week — is stated before the form, so a
  * blocked miner learns why here rather than from a rejected submit.
+ *
+ * A request also needs a second factor. The review sheet's confirm sends it
+ * without one and the server says which it wants: the code we email
+ * (`OTP_REQUIRED`), the authenticator app's (`TOTP_REQUIRED` — asked for up
+ * front when the profile says 2FA is on), or 2FA to be set up first
+ * (`TOTP_SETUP_REQUIRED`). The sheet then turns into the code step.
  */
 export default function WithdrawScreen() {
   const { c, spacing, radius, alpha } = useTheme();
@@ -70,6 +85,37 @@ export default function WithdrawScreen() {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const captcha = useCaptcha();
+  const [codeStep, setCodeStep] = useState<CodeStep>(null);
+  const [code, setCode] = useState('');
+  const [codeInfo, setCodeInfo] = useState<string | null>(null);
+  const [sheetError, setSheetError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  // Set when the server refuses because withdrawals need 2FA turned on first.
+  const [needsTwoFactor, setNeedsTwoFactor] = useState(false);
+
+  // The resend countdown lives in a ref so leaving mid-countdown leaks nothing.
+  const cooldownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stopCooldown = useCallback(() => {
+    if (cooldownTimer.current) clearInterval(cooldownTimer.current);
+    cooldownTimer.current = null;
+  }, []);
+  const startCooldown = useCallback(() => {
+    stopCooldown();
+    setCooldown(RESEND_COOLDOWN_S);
+    cooldownTimer.current = setInterval(() => {
+      setCooldown((n) => {
+        if (n <= 1) {
+          stopCooldown();
+          return 0;
+        }
+        return n - 1;
+      });
+    }, 1000);
+  }, [stopCooldown]);
+  useEffect(() => stopCooldown, [stopCooldown]);
 
   const balance = profile?.pointsBalance ?? 0;
 
@@ -108,24 +154,91 @@ export default function WithdrawScreen() {
   const addressError =
     address.trim() && !addressValid ? t('boosters.fromInvalid') : null;
 
-  const submit = async () => {
+  const twoFactorOn = !!profile?.twoFactorEnabled;
+
+  /** Email a confirmation code to the account's own address, then ask for it. */
+  const requestEmailCode = async () => {
+    if (sending || cooldown > 0) return;
+    setSheetError(null);
+    setSending(true);
+    try {
+      const res = await sendWithdrawalOtp(await captcha.solve('withdrawal'));
+      setCode('');
+      setCodeInfo(res.message);
+      setCodeStep('email');
+      startCooldown();
+    } catch (err) {
+      feedback.error();
+      setSheetError(errorMessage(err, t('app.offline')));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const submit = async (codes: { otp?: string; totp?: string } = {}) => {
+    if (busy) return;
     setBusy(true);
     setFormError(null);
+    setSheetError(null);
     try {
-      await requestWithdrawal(amount, address.trim());
+      await requestWithdrawal(amount, address.trim(), codes);
       feedback.success();
       toast.success(t('withdraw.submitted'));
       setPoints('');
       setAddress('');
       setConfirming(false);
+      setNeedsTwoFactor(false);
       await Promise.all([reload({ silent: true }), refresh()]);
     } catch (err) {
-      feedback.error();
-      setFormError(errorMessage(err, t('app.offline')));
-      setConfirming(false);
+      const tag = errorCode(err);
+      if (tag === 'OTP_REQUIRED') {
+        // A code mailed moments ago is still good — ask for it rather than
+        // spending another send.
+        if (cooldown > 0) setCodeStep('email');
+        else await requestEmailCode();
+      } else if (tag === 'TOTP_REQUIRED') {
+        setCode('');
+        setCodeInfo(null);
+        setCodeStep('authenticator');
+      } else if (tag === 'TOTP_SETUP_REQUIRED') {
+        feedback.error();
+        setNeedsTwoFactor(true);
+        setConfirming(false);
+      } else if (codeStep) {
+        // A wrong or expired code: stay on the code step so it can be retyped.
+        feedback.error();
+        setSheetError(errorMessage(err, t('app.offline')));
+      } else {
+        feedback.error();
+        setFormError(errorMessage(err, t('app.offline')));
+        setConfirming(false);
+      }
     } finally {
       setBusy(false);
     }
+  };
+
+  /** The review sheet's confirm: straight to the app's code when 2FA is on. */
+  const confirmReview = () => {
+    if (twoFactorOn) {
+      setSheetError(null);
+      setCode('');
+      setCodeInfo(null);
+      setCodeStep('authenticator');
+      return;
+    }
+    void submit();
+  };
+
+  const confirmWithCode = (value: string) => {
+    if (value.length < 6) return;
+    void submit(codeStep === 'authenticator' ? { totp: value } : { otp: value });
+  };
+
+  const backToReview = () => {
+    setCodeStep(null);
+    setCode('');
+    setSheetError(null);
   };
 
   return (
@@ -246,6 +359,35 @@ export default function WithdrawScreen() {
               date: formatDate(cooldownUntil.toISOString(), locale),
             })}
           />
+        ) : null}
+
+        {needsTwoFactor && !twoFactorOn ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${t('twoFactor.setupRequired')} ${t('twoFactor.setupCta')}`}
+            hitSlop={12}
+            onPress={() => router.push('/settings/two-factor')}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.sm,
+              padding: spacing.md,
+              minHeight: 48,
+              borderRadius: radius.lg,
+              borderWidth: 1,
+              borderColor: alpha(c.gold, 0.25),
+              backgroundColor: alpha(c.gold, 0.1),
+              opacity: pressed ? 0.75 : 1,
+            })}
+          >
+            <Ionicons name="shield-checkmark-outline" size={18} color={c.gold} />
+            <Text variant="footnote" style={{ color: c.gold, flex: 1 }}>
+              {t('twoFactor.setupRequired')}
+            </Text>
+            <Text variant="footnote" weight="700" style={{ color: c.gold }}>
+              {t('twoFactor.setupCta')} →
+            </Text>
+          </Pressable>
         ) : null}
 
         {/* ── Form ── */}
@@ -440,62 +582,153 @@ export default function WithdrawScreen() {
         ) : null}
       </ScrollView>
 
-      {/* Final confirmation — the address is the one thing that cannot be undone. */}
+      {/* Final confirmation — the address is the one thing that cannot be undone —
+          then the second factor the server asks for. */}
       <Sheet
         visible={confirming}
         onClose={() => setConfirming(false)}
-        title={t('withdrawScreen.reviewTitle')}
-        subtitle={t('withdrawScreen.reviewBody')}
+        onDismiss={() => {
+          setCodeStep(null);
+          setCode('');
+          setCodeInfo(null);
+          setSheetError(null);
+        }}
+        title={codeStep ? t('withdrawScreen.codeTitle') : t('withdrawScreen.reviewTitle')}
+        subtitle={
+          codeStep === 'authenticator'
+            ? t('twoFactor.signInBody')
+            : codeStep === 'email'
+              ? t('auth.otpBody', { email: profile?.email ?? '' })
+              : t('withdrawScreen.reviewBody')
+        }
         scrollable={false}
       >
-        <Card elevation={0}>
-          <StatRow
-            label={t('withdraw.amount')}
-            value={`${formatPoints(amount || 0, 2, locale)} ${t('withdraw.pointsShort')}`}
-            mono
-            tone="gold"
-            strong
-          />
-          <StatRow
-            label={t('withdraw.youReceive')}
-            value={`${formatPoints((amount || 0) / POINTS_PER_TOKEN, 4, locale)} $BONDKOIN`}
-            mono
-            tone="brand"
-          />
-        </Card>
+        {codeStep ? (
+          <>
+            {codeInfo ? <InfoNote message={codeInfo} /> : null}
 
-        <View>
-          <Text variant="overline" tone="tertiary" uppercase style={{ marginBottom: 6 }}>
-            {t('withdrawScreen.sending')}
-          </Text>
-          <View
-            style={{
-              padding: spacing.md,
-              borderRadius: radius.lg,
-              backgroundColor: c.dark ? alpha(c.bg, 0.7) : c.surfaceAlt,
-              borderWidth: 1,
-              borderColor: c.border,
-            }}
-          >
-            <Text variant="footnote" mono selectable>
-              {address.trim()}
-            </Text>
-          </View>
-        </View>
+            <Card elevation={0}>
+              <StatRow
+                label={t('withdraw.amount')}
+                value={`${formatPoints(amount || 0, 2, locale)} ${t('withdraw.pointsShort')}`}
+                mono
+                tone="gold"
+                strong
+              />
+              <StatRow
+                label={t('withdrawScreen.sending')}
+                value={shortAddress(address.trim(), 10, 8)}
+                mono
+              />
+            </Card>
 
-        <Button
-          label={t('withdrawScreen.confirmCta')}
-          onPress={() => void submit()}
-          loading={busy}
-          fullWidth
-          size="lg"
-        />
-        <Button
-          label={t('app.cancel')}
-          variant="ghost"
-          onPress={() => setConfirming(false)}
-          fullWidth
-        />
+            <OtpInput
+              value={code}
+              onChange={(next) => {
+                setCode(next);
+                if (sheetError) setSheetError(null);
+              }}
+              onComplete={confirmWithCode}
+            />
+
+            {sheetError ? <ErrorNote message={sheetError} /> : null}
+
+            <Button
+              label={t('withdrawScreen.confirmCta')}
+              onPress={() => confirmWithCode(code)}
+              loading={busy}
+              disabled={code.length < 6}
+              fullWidth
+              size="lg"
+            />
+
+            {codeStep === 'authenticator' ? (
+              <Text variant="caption" tone="tertiary" center>
+                {t('twoFactor.lostDevice')}
+              </Text>
+            ) : null}
+
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: codeStep === 'email' ? 'space-between' : 'center',
+                marginHorizontal: -spacing.sm,
+              }}
+            >
+              <TextLink
+                label={t('app.back')}
+                icon="arrow-back"
+                tone="secondary"
+                onPress={backToReview}
+              />
+              {codeStep === 'email' ? (
+                <TextLink
+                  label={cooldown > 0 ? t('auth.resendIn', { n: cooldown }) : t('auth.resend')}
+                  disabled={cooldown > 0}
+                  loading={sending}
+                  onPress={() => void requestEmailCode()}
+                />
+              ) : null}
+            </View>
+          </>
+        ) : (
+          <>
+            <Card elevation={0}>
+              <StatRow
+                label={t('withdraw.amount')}
+                value={`${formatPoints(amount || 0, 2, locale)} ${t('withdraw.pointsShort')}`}
+                mono
+                tone="gold"
+                strong
+              />
+              <StatRow
+                label={t('withdraw.youReceive')}
+                value={`${formatPoints((amount || 0) / POINTS_PER_TOKEN, 4, locale)} $BONDKOIN`}
+                mono
+                tone="brand"
+              />
+            </Card>
+
+            <View>
+              <Text variant="overline" tone="tertiary" uppercase style={{ marginBottom: 6 }}>
+                {t('withdrawScreen.sending')}
+              </Text>
+              <View
+                style={{
+                  padding: spacing.md,
+                  borderRadius: radius.lg,
+                  backgroundColor: c.dark ? alpha(c.bg, 0.7) : c.surfaceAlt,
+                  borderWidth: 1,
+                  borderColor: c.border,
+                }}
+              >
+                <Text variant="footnote" mono selectable>
+                  {address.trim()}
+                </Text>
+              </View>
+            </View>
+
+            {sheetError ? <ErrorNote message={sheetError} /> : null}
+
+            <Button
+              label={t('withdrawScreen.confirmCta')}
+              onPress={confirmReview}
+              loading={busy || sending}
+              fullWidth
+              size="lg"
+            />
+            <Button
+              label={t('app.cancel')}
+              variant="ghost"
+              onPress={() => setConfirming(false)}
+              fullWidth
+            />
+          </>
+        )}
+        {/* Inside the sheet so it can present over it — iOS shows one modal
+            at a time unless the second is nested in the first. */}
+        {captcha.sheet}
       </Sheet>
     </Screen>
   );

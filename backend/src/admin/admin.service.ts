@@ -1,13 +1,24 @@
 import {
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
-import { EmailService } from '../email/email.service';
+import { adminLoginCodeKey, EmailService } from '../email/email.service';
+import { AdminAuditService } from '../security/admin-audit.service';
+import { SecurityEventsService } from '../security/security-events.service';
+import type { RequestContext } from '../security/request-context';
+import { TwoFactorService } from '../auth/two-factor.service';
+import { maskIdentity } from '../common/mask-identity';
+import { isPublishedAdminPassword } from './published-passwords';
+import { adminOtpEnforced, adminOtpRecipients, adminSessionTtl } from './admin-session';
 import { toCsv, CSV_MAX_ROWS } from '../common/csv';
 import {
   bucketKey,
@@ -227,22 +238,117 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly email: EmailService,
+    private readonly config: ConfigService,
+    private readonly audit: AdminAuditService,
+    private readonly twoFactor: TwoFactorService,
+    private readonly events: SecurityEventsService,
   ) {}
 
   // ────────────────────────── Auth ──────────────────────────
 
-  async login(email: string, password: string) {
+  /**
+   * Admin console sign-in: password, then the code mailed to the operator
+   * inbox (ADMIN_OTP_EMAIL). Both steps go through this one route, the second
+   * repeating the password with the code — the same shape as the miner
+   * sign-in, and stateless: there is no half-signed-in session to steal.
+   *
+   * Every attempt is written to the audit log, failures included, so the
+   * Security tab shows who has been trying.
+   */
+  async login(
+    dto: { email: string; password: string; otp?: string },
+    ctx: RequestContext = {},
+  ) {
+    const email = dto.email.trim();
+    const where = { ip: ctx.ip, userAgent: ctx.userAgent };
+
+    // Refused before the lookup, so the answer is the same whether or not an
+    // account uses it, and an account still hashed with one of these cannot
+    // be signed in to at all until someone sets a real password.
+    if (isPublishedAdminPassword(dto.password)) {
+      await this.audit.record({
+        adminEmail: email,
+        action: 'ADMIN_LOGIN_PUBLISHED_PASSWORD',
+        outcome: 'denied',
+        ...where,
+      });
+      throw new UnauthorizedException({
+        statusCode: 401,
+        code: 'PASSWORD_PUBLISHED',
+        message:
+          'That password was published in the public code repository and can no longer be used. Set a new ADMIN_PASSWORD on the server, redeploy, and sign in with it.',
+      });
+    }
+
     const admin = await this.prisma.adminUser.findUnique({ where: { email } });
     // Verify even when the admin is missing so a bad email and a bad password
     // take the same time — no user enumeration via response latency.
-    const ok = await verifyPassword(password, admin?.passwordHash ?? null);
+    const ok = await verifyPassword(dto.password, admin?.passwordHash ?? null);
     if (!admin || !ok) {
+      await this.audit.record({
+        adminId: admin?.id ?? null,
+        adminEmail: email,
+        action: 'ADMIN_LOGIN_FAILED',
+        outcome: 'denied',
+        detail: { reason: admin ? 'wrong password' : 'unknown email' },
+        ...where,
+      });
       throw new UnauthorizedException('Invalid credentials.');
     }
-    const accessToken = await this.jwt.signAsync({
-      sub: admin.id,
-      email: admin.email,
-      typ: 'admin',
+
+    const enforced = adminOtpEnforced(this.config);
+    if (enforced) {
+      if (!dto.otp) {
+        const sentTo = await this.sendLoginCode(admin, ctx);
+        await this.audit.record({
+          adminId: admin.id,
+          adminEmail: admin.email,
+          action: 'ADMIN_LOGIN_CODE_SENT',
+          outcome: 'ok',
+          detail: { sentTo },
+          ...where,
+        });
+        throw new UnauthorizedException({
+          statusCode: 401,
+          code: 'OTP_REQUIRED',
+          message: `Enter the 6-digit code sent to ${sentTo.join(', ')}.`,
+          sentTo,
+        });
+      }
+      const valid = await this.email.verifyCode(adminLoginCodeKey(admin.id), dto.otp, 'admin_login');
+      if (!valid) {
+        await this.audit.record({
+          adminId: admin.id,
+          adminEmail: admin.email,
+          action: 'ADMIN_LOGIN_CODE_FAILED',
+          outcome: 'denied',
+          ...where,
+        });
+        throw new UnauthorizedException({
+          statusCode: 401,
+          code: 'OTP_INVALID',
+          message: 'That code is wrong or has expired. Check the latest email, or request a new code.',
+        });
+      }
+    }
+
+    const accessToken = await this.jwt.signAsync(
+      {
+        sub: admin.id,
+        email: admin.email,
+        typ: 'admin',
+        sv: admin.sessionVersion,
+        mfa: enforced,
+      },
+      { expiresIn: adminSessionTtl(this.config) },
+    );
+    await this.audit.record({
+      adminId: admin.id,
+      adminEmail: admin.email,
+      action: 'ADMIN_LOGIN_SUCCEEDED',
+      outcome: 'ok',
+      detail: { secondFactor: enforced ? 'email_code' : 'none' },
+      ...where,
     });
     return {
       accessToken,
@@ -253,6 +359,65 @@ export class AdminService {
         permissions: admin.permissions,
       },
     };
+  }
+
+  /**
+   * Mail the code and return the masked recipients for the sign-in screen.
+   * A delivery failure becomes a plain 503 — the 429 from the per-account
+   * send cap is passed through as-is, like the miner flows.
+   */
+  private async sendLoginCode(
+    admin: { id: string; email: string },
+    ctx: RequestContext,
+  ): Promise<string[]> {
+    const recipients = adminOtpRecipients(this.config, admin.email);
+    try {
+      await this.email.sendAdminLoginCode({
+        adminId: admin.id,
+        adminEmail: admin.email,
+        recipients,
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
+    } catch (err) {
+      if (err instanceof HttpException && err.getStatus() === HttpStatus.TOO_MANY_REQUESTS) {
+        throw err;
+      }
+      this.logger.error(
+        `[ADMIN LOGIN CODE SEND FAILED] ${admin.email}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      throw new ServiceUnavailableException(
+        'Could not send the sign-in code right now. Check the SMTP settings, or try again in a moment.',
+      );
+    }
+    return recipients.map((address) => maskIdentity({ id: '', email: address }));
+  }
+
+  /**
+   * Sign every admin out — every account, every device, the caller included.
+   * The button to press when an admin password may have leaked.
+   */
+  async revokeAllAdminSessions(): Promise<{ revoked: number }> {
+    const { count } = await this.prisma.adminUser.updateMany({
+      data: { sessionVersion: { increment: 1 } },
+    });
+    return { revoked: count };
+  }
+
+  /** Sign one miner out of every device, e.g. while investigating a takeover. */
+  async revokeUserSessions(userId: string, adminEmail: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { sessionVersion: { increment: 1 } },
+      select: { id: true },
+    });
+    await this.events.record(userId, 'SESSIONS_REVOKED', {}, { admin: adminEmail });
+    return { revoked: true };
+  }
+
+  /** Remove a miner's authenticator app (lost phone), signing them out everywhere. */
+  resetUserTwoFactor(userId: string, adminEmail: string) {
+    return this.twoFactor.adminReset(userId, adminEmail);
   }
 
   // ───────────────────────── Overview ────────────────────────
@@ -528,7 +693,7 @@ export class AdminService {
       },
     });
 
-    const [tree, ledger, withdrawals] = await Promise.all([
+    const [tree, ledger, withdrawals, securityEvents] = await Promise.all([
       this.gate(() => this.referralTree(userId)),
       this.gate(() =>
         this.prisma.ledgerEntry.findMany({
@@ -552,10 +717,21 @@ export class AdminService {
           take: 10,
         }),
       ),
+      this.gate(() => this.events.listForUser(userId, 50)),
     ]);
 
     return {
       user: this.toRow(user),
+      security: {
+        twoFactorEnabled: !!user.totpEnabledAt,
+        twoFactorEnabledAt: user.totpEnabledAt,
+        // Set while a run of wrong authenticator codes has the check locked.
+        twoFactorLockedUntil:
+          user.totpLockedUntil && user.totpLockedUntil > new Date() ? user.totpLockedUntil : null,
+        // Sign-ins, failed codes, 2FA changes and withdrawal requests, newest
+        // first — where to start when an owner says "that wasn't me".
+        events: securityEvents,
+      },
       devices: user.devices.map((d) => ({
         id: d.id,
         fingerprint: d.fingerprint,
@@ -573,8 +749,11 @@ export class AdminService {
         id: w.id,
         points: Number(w.pointsAmount) / 1000,
         tokenAmount: w.tokenAmount,
+        toAddress: w.toAddress,
         status: w.status,
         requestedAt: w.requestedAt,
+        requestIp: w.requestIp,
+        secondFactor: w.secondFactor,
       })),
     };
   }
@@ -915,27 +1094,60 @@ export class AdminService {
 
   // ───────────────────── Withdrawal queue ────────────────────
 
+  /**
+   * The approval queue, with what a reviewer needs to spot a stolen account
+   * before paying it: whether the owner has 2FA, what confirmed the request,
+   * where it came from, and whether the address has been paid before.
+   */
   async listWithdrawals(status?: string) {
     const rows = await this.prisma.withdrawal.findMany({
       where: status ? { status: status as never } : {},
       orderBy: { requestedAt: 'asc' },
       take: 200,
-      include: { user: { select: { email: true, countryCode: true } } },
+      include: {
+        user: { select: { email: true, countryCode: true, totpEnabledAt: true } },
+      },
     });
-    return rows.map((w) => ({
-      id: w.id,
-      userId: w.userId,
-      userEmail: w.user.email,
-      countryCode: w.user.countryCode,
-      points: Number(w.pointsAmount) / 1000,
-      tokenAmount: w.tokenAmount,
-      toAddress: w.toAddress,
-      status: w.status,
-      txHash: w.txHash,
-      adminNote: w.adminNote,
-      requestedAt: w.requestedAt,
-      resolvedAt: w.resolvedAt,
-    }));
+
+    // One query for the whole page: every address each of these miners has
+    // already been paid at. A first payout to a new address is the shape a
+    // takeover withdrawal has.
+    const paid = rows.length
+      ? await this.prisma.withdrawal.findMany({
+          where: { userId: { in: [...new Set(rows.map((w) => w.userId))] }, status: 'PAID' },
+          select: { id: true, userId: true, toAddress: true },
+        })
+      : [];
+    const paidAt = new Map<string, Set<string>>();
+    for (const p of paid) {
+      const key = `${p.userId}:${p.toAddress.toLowerCase()}`;
+      if (!paidAt.has(key)) paidAt.set(key, new Set());
+      paidAt.get(key)!.add(p.id);
+    }
+
+    return rows.map((w) => {
+      const earlier = paidAt.get(`${w.userId}:${w.toAddress.toLowerCase()}`);
+      return {
+        id: w.id,
+        userId: w.userId,
+        userEmail: w.user.email,
+        countryCode: w.user.countryCode,
+        points: Number(w.pointsAmount) / 1000,
+        tokenAmount: w.tokenAmount,
+        toAddress: w.toAddress,
+        status: w.status,
+        txHash: w.txHash,
+        adminNote: w.adminNote,
+        requestedAt: w.requestedAt,
+        resolvedAt: w.resolvedAt,
+        requestIp: w.requestIp,
+        requestPlatform: w.requestPlatform,
+        secondFactor: w.secondFactor,
+        twoFactorEnabled: !!w.user.totpEnabledAt,
+        // Paid to this address before, not counting this request itself.
+        addressPaidBefore: !!earlier && [...earlier].some((id) => id !== w.id),
+      };
+    });
   }
 
   // ─────────────────── Booster revenue analytics ──────────────────

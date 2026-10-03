@@ -33,10 +33,21 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    /**
+     * Machine-readable tag from the server, when it sends one — e.g.
+     * `OTP_REQUIRED` or `TOTP_REQUIRED`, which mean "ask for a code", not
+     * "something went wrong".
+     */
+    readonly code?: string,
   ) {
     super(message);
     this.name = 'ApiError';
   }
+}
+
+/** The server's error tag, if `err` carries one. */
+export function errorCode(err: unknown): string | undefined {
+  return err instanceof ApiError ? err.code : undefined;
 }
 
 /** Thrown when the request never reached the server (airplane mode, DNS, …). */
@@ -134,6 +145,29 @@ export function onUnauthorized(listener: Listener): () => void {
   return () => unauthorizedListeners.delete(listener);
 }
 
+/** Calls in flight that are replacing the session token server-side. */
+let rotations = 0;
+
+/**
+ * Run a call that retires the current token on the server and answers with
+ * its replacement — turning two-factor authentication on or off does that, to
+ * sign every other device out. Any other request that goes out with the old
+ * token meanwhile (the dashboard poll, say) is refused with a 401 that says
+ * nothing about *this* device's session, so it must not sign the app out.
+ */
+export async function withTokenRotation<T extends { accessToken: string }>(
+  work: () => Promise<T>,
+): Promise<T> {
+  rotations += 1;
+  try {
+    const data = await work();
+    await setToken(data.accessToken);
+    return data;
+  } finally {
+    rotations -= 1;
+  }
+}
+
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
@@ -161,23 +195,29 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
-    // Nest error bodies are { message: string | string[], statusCode }.
+    // Nest error bodies are { message: string | string[], statusCode }, plus
+    // a `code` tag on the ones a screen has to tell apart (OTP_REQUIRED, …).
     let message = res.statusText || `Request failed (${res.status})`;
+    let code: string | undefined;
     try {
       const body = await res.json();
       message = Array.isArray(body.message)
         ? body.message.join(', ')
         : (body.message ?? message);
+      code = typeof body.code === 'string' ? body.code : undefined;
     } catch {
       /* non-JSON error body — keep the status text */
     }
     // Only a rejected *session* should sign the app out. A 401 from an
     // unauthenticated `/auth/*` call (wrong password, bad OTP, …) is the
     // user's mistake, not an expired token — and there was no token to drop.
-    if (token && (res.status === 401 || res.status === 403)) {
+    // Nor is a 401 for a token that has since been replaced, or one that
+    // lands while a replacement is on its way (see withTokenRotation).
+    const stale = token !== tokenCache || rotations > 0;
+    if (token && !stale && (res.status === 401 || res.status === 403)) {
       unauthorizedListeners.forEach((l) => l());
     }
-    throw new ApiError(message, res.status);
+    throw new ApiError(message, res.status, code);
   }
 
   if (res.status === 204) return undefined as T;
