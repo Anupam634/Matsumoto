@@ -21,3 +21,17 @@ const PUBLISHED_ADMIN_PASSWORDS = new Set([
 export function isPublishedAdminPassword(password: string | undefined | null): boolean {
   return !!password && PUBLISHED_ADMIN_PASSWORDS.has(password.trim());
 }
+
+/**
+ * Until this moment, sign-in still accepts a published password — but only
+ * while the emailed sign-in code is required, so the code is what actually
+ * keeps a stranger out. Production was still on one when the refusal
+ * shipped, and this is the week to change ADMIN_PASSWORD without being
+ * locked out meanwhile. After it, the refusal applies again on its own; do
+ * not move it, change the password.
+ */
+export const PUBLISHED_PASSWORD_GRACE_UNTIL = new Date('2026-10-10T00:00:00Z');
+
+export function publishedPasswordGraceActive(nowMs = Date.now()): boolean {
+  return nowMs < PUBLISHED_PASSWORD_GRACE_UNTIL.getTime();
+}

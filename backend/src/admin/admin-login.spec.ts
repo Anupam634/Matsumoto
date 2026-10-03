@@ -6,12 +6,13 @@ import { DEFAULT_ADMIN_OTP_RECIPIENTS } from './admin-session';
 import { hashPassword, verifyPassword } from '../auth/password';
 
 const PASSWORD = 'a-long-unpublished-password';
+const PUBLISHED = 'BondKoin@2026!Admin';
 
-async function build(env: Record<string, string> = {}) {
+async function build(env: Record<string, string> = {}, password = PASSWORD) {
   const admin = {
     id: 'a1',
     email: 'admin@bondkoinlabs.com',
-    passwordHash: await hashPassword(PASSWORD),
+    passwordHash: await hashPassword(password),
     role: 'admin',
     permissions: [],
     sessionVersion: 4,
@@ -43,7 +44,13 @@ const failure = async (p: Promise<unknown>) => {
   } catch (err) {
     if (err instanceof HttpException) {
       const body = err.getResponse() as any;
-      return { status: err.getStatus(), code: body?.code, sentTo: body?.sentTo, message: body?.message };
+      return {
+        status: err.getStatus(),
+        code: body?.code,
+        sentTo: body?.sentTo,
+        warning: body?.warning,
+        message: body?.message,
+      };
     }
     throw err;
   }
@@ -54,16 +61,51 @@ const actions = (audit: { record: jest.Mock }) =>
   audit.record.mock.calls.map(([entry]: any[]) => `${entry.action}:${entry.outcome}`);
 
 describe('admin console sign-in', () => {
-  it('refuses a password that was published in the repo, before looking anyone up', async () => {
-    const { service, prisma, audit } = await build();
+  afterEach(() => jest.restoreAllMocks());
+  const at = (iso: string) => jest.spyOn(Date, 'now').mockReturnValue(new Date(iso).getTime());
 
-    const res = await failure(
-      service.login({ email: 'admin@bondkoinlabs.com', password: 'BondKoin@2026!Admin' }),
-    );
+  it('refuses a password that was published in the repo, before looking anyone up', async () => {
+    at('2026-10-10T00:00:00Z'); // the grace period has run out
+    const { service, prisma, audit } = await build({}, PUBLISHED);
+
+    const res = await failure(service.login({ email: 'admin@bondkoinlabs.com', password: PUBLISHED }));
 
     expect(res).toMatchObject({ status: 401, code: 'PASSWORD_PUBLISHED' });
     expect(prisma.adminUser.findUnique).not.toHaveBeenCalled();
     expect(actions(audit)).toEqual(['ADMIN_LOGIN_PUBLISHED_PASSWORD:denied']);
+  });
+
+  it('lets a published password through to the emailed code during the grace period, with a warning', async () => {
+    at('2026-10-09T23:59:00Z');
+    const { service, email, audit } = await build({}, PUBLISHED);
+
+    const res = await failure(service.login({ email: 'admin@bondkoinlabs.com', password: PUBLISHED }));
+
+    expect(res).toMatchObject({ status: 401, code: 'OTP_REQUIRED' });
+    expect(res.warning).toMatch(/public.*2026-10-10/);
+    expect(email.sendAdminLoginCode).toHaveBeenCalled();
+    expect(actions(audit)).toEqual([
+      'ADMIN_LOGIN_PUBLISHED_PASSWORD_ALLOWED:ok',
+      'ADMIN_LOGIN_CODE_SENT:ok',
+    ]);
+
+    // The code is still required to get in.
+    expect(
+      await failure(service.login({ email: 'admin@bondkoinlabs.com', password: PUBLISHED, otp: '000000' })),
+    ).toMatchObject({ status: 401, code: 'OTP_INVALID' });
+    const signedIn = await service.login({ email: 'admin@bondkoinlabs.com', password: PUBLISHED, otp: '654321' });
+    expect(signedIn.accessToken).toBeDefined();
+  });
+
+  it('never allows a published password while the emailed code is switched off', async () => {
+    at('2026-10-05T00:00:00Z');
+    const { service, prisma } = await build({ ADMIN_LOGIN_OTP_ENFORCED: 'false' }, PUBLISHED);
+
+    expect(await failure(service.login({ email: 'admin@bondkoinlabs.com', password: PUBLISHED }))).toMatchObject({
+      status: 401,
+      code: 'PASSWORD_PUBLISHED',
+    });
+    expect(prisma.adminUser.findUnique).not.toHaveBeenCalled();
   });
 
   it('records a wrong password and mails nothing', async () => {
