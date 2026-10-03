@@ -597,9 +597,9 @@ export class EmailService {
    * Mail the admin-console sign-in code to the operator inbox(es).
    *
    * Keyed by the admin account (`adminLoginCodeKey`), not by a recipient: the
-   * code goes to whatever ADMIN_OTP_EMAIL names, which is not the address the
-   * operator signs in with, and a code issued for one admin account must not
-   * open another. The per-key send cap applies like it does for miners, so a
+   * code goes to the operator inbox (see adminOtpRecipients), which is not
+   * the address the operator signs in with, and a code issued for one admin
+   * account must not open another. The per-key send cap applies like it does for miners, so a
    * correct password still cannot be used to flood the operator's inbox.
    *
    * Throws 429 on the cap and 502 when no transport delivered; the caller

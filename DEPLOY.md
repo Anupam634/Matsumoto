@@ -140,9 +140,11 @@ run by hand, and nothing breaks if a start command is later edited.
      - `ADMIN_PASSWORD` → at least 12 characters, generated
        (`openssl rand -base64 24`) — never one from `.env.example`, which is
        public; every value that file has ever held is refused at sign-in
-     - `ADMIN_OTP_EMAIL` → the inbox that receives the 6-digit admin sign-in
-       code (defaults to `ADMIN_EMAIL` itself). Admin sign-in needs working
-       SMTP from here on.
+     - `ADMIN_OTP_EMAIL` (optional) → the inbox that receives the 6-digit
+       admin sign-in code. Unset, it goes to the operator inbox built into
+       the code (`DEFAULT_ADMIN_OTP_RECIPIENTS` in
+       `src/admin/admin-session.ts`). Admin sign-in needs working SMTP from
+       here on.
 
    The account is created on boot. There is no admin self-signup, and the
    free tier has no shell to run `npm run admin:create` from, so without
@@ -222,12 +224,14 @@ run migrations — Prisma never migrates on its own, something has to call
    listed in `src/admin/published-passwords.ts`) are now refused at sign-in,
    at boot sync and by `npm run admin:create`. An account still hashed with
    one cannot be signed in to until the variable holds a new password.
-2. **Set `ADMIN_OTP_EMAIL`** to the operator inbox for admin sign-in codes.
-   On EC2 that means the `ENV_FILE` / `BACKEND_ENV` GitHub secret, because
-   the deploy rewrites `.env` from it. Keep it out of the repo.
-3. **Set `TOTP_ENCRYPTION_KEY`** (`openssl rand -hex 32`) in the same place.
-   It encrypts miners' authenticator secrets; set it before anyone turns 2FA
-   on (see the JWT_SECRET note below for why).
+2. **Admin sign-in codes** go to the operator inbox built into the code
+   (`DEFAULT_ADMIN_OTP_RECIPIENTS` in `src/admin/admin-session.ts`), so
+   nothing needs setting. `ADMIN_OTP_EMAIL` overrides it if the inbox ever
+   changes — on EC2 that means the `ENV_FILE` / `BACKEND_ENV` GitHub secret,
+   because the deploy rewrites `.env` from it.
+3. **Set `TOTP_ENCRYPTION_KEY`** (`openssl rand -hex 32`) in the same place —
+   recommended, not required. It encrypts miners' authenticator secrets; set
+   it before anyone turns 2FA on (see the JWT_SECRET note below for why).
 4. **Check SMTP works** (`GET /api/admin/email-health?to=…` while you still
    have an admin session). Admin sign-in now needs the emailed code. If mail
    is down, `ADMIN_LOGIN_OTP_ENFORCED=false` is the server-side off-switch.

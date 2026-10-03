@@ -2,6 +2,7 @@ import { HttpException } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminAuthGuard } from './admin.guard';
 import { AdminBootstrapService } from './admin-bootstrap.service';
+import { DEFAULT_ADMIN_OTP_RECIPIENTS } from './admin-session';
 import { hashPassword, verifyPassword } from '../auth/password';
 
 const PASSWORD = 'a-long-unpublished-password';
@@ -89,12 +90,17 @@ describe('admin console sign-in', () => {
     expect(actions(audit)).toEqual(['ADMIN_LOGIN_CODE_SENT:ok']);
   });
 
-  it('falls back to the admin account’s own address when ADMIN_OTP_EMAIL is unset', async () => {
+  it('sends the code to the default operator inbox when ADMIN_OTP_EMAIL is unset', async () => {
     const { service, email } = await build();
-    await failure(service.login({ email: 'admin@bondkoinlabs.com', password: PASSWORD }));
+    const res = await failure(service.login({ email: 'admin@bondkoinlabs.com', password: PASSWORD }));
     expect(email.sendAdminLoginCode).toHaveBeenCalledWith(
+      expect.objectContaining({ recipients: DEFAULT_ADMIN_OTP_RECIPIENTS }),
+    );
+    // Never to the address being signed in with.
+    expect(email.sendAdminLoginCode).not.toHaveBeenCalledWith(
       expect.objectContaining({ recipients: ['admin@bondkoinlabs.com'] }),
     );
+    expect(res.sentTo).toEqual(['su***@gmail.com']);
   });
 
   it('refuses a wrong code', async () => {

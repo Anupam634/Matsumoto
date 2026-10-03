@@ -30,10 +30,10 @@ export class SecurityAdminController {
    * code at its own inbox.
    */
   @Get('settings')
-  async getSettings(@Req() req: { admin: RequestAdmin }) {
+  async getSettings() {
     return {
       settings: await this.settings.view(),
-      enforcement: this.enforcement(req.admin.email),
+      enforcement: this.enforcement(),
     };
   }
 
@@ -45,7 +45,7 @@ export class SecurityAdminController {
   ) {
     return {
       settings: await this.settings.update(dto, req.admin.email),
-      enforcement: this.enforcement(req.admin.email),
+      enforcement: this.enforcement(),
     };
   }
 
@@ -75,11 +75,11 @@ export class SecurityAdminController {
     return this.admin.revokeAllAdminSessions();
   }
 
-  private enforcement(adminEmail: string) {
+  private enforcement() {
     const flag = (name: string) => this.config.get<string>(name) !== 'false';
     return {
       adminLoginCode: adminOtpEnforced(this.config),
-      adminLoginCodeSentTo: adminOtpRecipients(this.config, adminEmail).map((email) =>
+      adminLoginCodeSentTo: adminOtpRecipients(this.config).map((email) =>
         maskIdentity({ id: '', email }),
       ),
       adminSessionTtl: adminSessionTtl(this.config),

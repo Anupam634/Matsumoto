@@ -31,8 +31,9 @@ services:
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
-      # Where the admin console's sign-in code is mailed (comma separated).
-      # Unset, it goes to ADMIN_EMAIL's own inbox.
+      # Optional: where the admin console's sign-in code is mailed (comma
+      # separated). Unset, it goes to the operator inbox built into the code
+      # (src/admin/admin-session.ts).
       - key: ADMIN_OTP_EMAIL
         sync: false
       # Encrypts miners' authenticator-app secrets. Set before anyone enables

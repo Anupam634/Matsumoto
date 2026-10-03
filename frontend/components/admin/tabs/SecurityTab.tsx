@@ -452,7 +452,7 @@ function EnforcementCard({ enforcement }: { enforcement: AdminSecurityEnforcemen
       env: 'ADMIN_LOGIN_OTP_ENFORCED',
       on: enforcement.adminLoginCode,
       detail: enforcement.adminLoginCode
-        ? `Emailed to ${enforcement.adminLoginCodeSentTo.join(', ') || 'the admin account’s own inbox'} (ADMIN_OTP_EMAIL).`
+        ? `Emailed to ${enforcement.adminLoginCodeSentTo.join(', ') || 'the operator inbox'} (ADMIN_OTP_EMAIL overrides it).`
         : 'Off — admins sign in with the password alone.',
       warn: !enforcement.adminLoginCode,
     },
