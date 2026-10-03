@@ -1,4 +1,4 @@
-import { apiFetch, deviceFingerprint, setToken } from './client';
+import { apiFetch, deviceFingerprint, setToken, withTokenRotation } from './client';
 
 /**
  * Every route the app talks to, typed exactly as the server returns it.
@@ -42,10 +42,19 @@ export async function register(params: {
   return data;
 }
 
+/**
+ * Sign in. The first call (password only) is answered with a 401 tagged
+ * `OTP_REQUIRED` — a code has just been emailed — or `TOTP_REQUIRED` when the
+ * account has an authenticator app; the second call repeats the password with
+ * that code as `otp` or `totp`.
+ */
 export async function login(params: {
   email: string;
   password: string;
+  /** The emailed sign-in code. */
   otp?: string;
+  /** The authenticator app's current code. */
+  totp?: string;
   /** Turnstile solution; required on the first step when the server asks. */
   captchaToken?: string | null;
 }): Promise<AuthResponse> {
@@ -55,6 +64,7 @@ export async function login(params: {
       email: params.email,
       password: params.password,
       otp: params.otp || undefined,
+      totp: params.totp || undefined,
       captchaToken: params.captchaToken || undefined,
       platform: 'mobile',
       deviceFingerprint: await deviceFingerprint(),
@@ -112,10 +122,46 @@ export interface Profile {
   referralCount: number;
   referralTier: { level: number; multiplier: number };
   kycStatus: KycStatus;
+  /** Signing in and withdrawing need the authenticator app's code. */
+  twoFactorEnabled: boolean;
   createdAt: string;
 }
 
 export const getProfile = () => apiFetch<Profile>('/auth/me');
+
+/* ─────────────────── Two-factor (authenticator app) ─────────────────── */
+
+export interface TwoFactorSetup {
+  /** Base32 key, for typing into the app by hand. */
+  secret: string;
+  /** `otpauth://` link — opens the authenticator on this phone, or renders as a QR code. */
+  otpauthUrl: string;
+  issuer: string;
+  account: string;
+}
+
+/** A fresh secret to add to the authenticator. Nothing is enforced until `enableTwoFactor`. */
+export const setupTwoFactor = () =>
+  apiFetch<TwoFactorSetup>('/auth/2fa/setup', { method: 'POST' });
+
+/**
+ * Turning 2FA on or off signs every session out server-side and answers with
+ * a fresh token for this device, which is stored before anything else can
+ * run on the old one.
+ */
+const changeTwoFactor = (action: 'enable' | 'disable', code: string, password: string) =>
+  withTokenRotation(() =>
+    apiFetch<{ enabled: boolean; accessToken: string }>(`/auth/2fa/${action}`, {
+      method: 'POST',
+      body: JSON.stringify({ code, password }),
+    }),
+  );
+
+export const enableTwoFactor = (code: string, password: string) =>
+  changeTwoFactor('enable', code, password);
+
+export const disableTwoFactor = (code: string, password: string) =>
+  changeTwoFactor('disable', code, password);
 
 /* ────────────────────────────── Mining ────────────────────────────── */
 
@@ -490,10 +536,34 @@ export const POINTS_PER_TOKEN = 3;
 
 export const getWithdrawals = () => apiFetch<WithdrawalDto[]>('/withdrawals');
 
-export const requestWithdrawal = (points: number, toAddress: string) =>
+/** Mails a confirmation code to the signed-in account's own address. */
+export const sendWithdrawalOtp = (captchaToken?: string | null) =>
+  apiFetch<{ success: boolean; message: string }>('/withdrawals/send-otp', {
+    method: 'POST',
+    body: JSON.stringify({ captchaToken: captchaToken || undefined, platform: 'mobile' }),
+  });
+
+/**
+ * Request a payout. Sent without a code first, the server answers 400 tagged
+ * `OTP_REQUIRED` (email a code with `sendWithdrawalOtp`), `TOTP_REQUIRED`
+ * (the authenticator's code) or `TOTP_SETUP_REQUIRED` (withdrawals need 2FA
+ * turned on first); resend with the code in `codes`.
+ */
+export const requestWithdrawal = async (
+  points: number,
+  toAddress: string,
+  codes: { otp?: string; totp?: string } = {},
+) =>
   apiFetch<WithdrawalDto>('/withdrawals', {
     method: 'POST',
-    body: JSON.stringify({ points, toAddress }),
+    body: JSON.stringify({
+      points,
+      toAddress,
+      otp: codes.otp || undefined,
+      totp: codes.totp || undefined,
+      platform: 'mobile',
+      deviceFingerprint: await deviceFingerprint(),
+    }),
   });
 
 /* ────────────────────────────── Support ───────────────────────────── */

@@ -4,6 +4,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Length,
   Max,
   MaxLength,
   Min,
@@ -16,7 +17,38 @@ export class AdminLoginDto {
 
   @IsString()
   @MinLength(8)
+  @MaxLength(128)
   password!: string;
+
+  /** The code mailed to the operator inbox — the second step of sign-in. */
+  @IsOptional()
+  @IsString()
+  @Length(6, 6)
+  otp?: string;
+}
+
+/**
+ * Security tab changes. Every field is optional, and `null` — which
+ * @IsOptional lets through — puts a setting back on its env default. Bounds
+ * are checked in SecuritySettingsService, which owns them; these only keep
+ * the wrong types out.
+ */
+export class UpdateSecuritySettingsDto {
+  @IsOptional()
+  @IsInt()
+  maxAccountsPerDevice?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  maxAccountsPerIp?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  maxAccountsPerSubnet?: number | null;
+
+  @IsOptional()
+  @IsBoolean()
+  requireTotpForWithdrawal?: boolean | null;
 }
 
 export class BlockUserDto {

@@ -31,6 +31,14 @@ services:
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
+      # Where the admin console's sign-in code is mailed (comma separated).
+      # Unset, it goes to ADMIN_EMAIL's own inbox.
+      - key: ADMIN_OTP_EMAIL
+        sync: false
+      # Encrypts miners' authenticator-app secrets. Set before anyone enables
+      # 2FA — see DEPLOY.md.
+      - key: TOTP_ENCRYPTION_KEY
+        sync: false
       - key: HOT_WALLET_PRIVATE_KEY
         sync: false
       # Booster payments stay disabled until these two are set — see DEPLOY.md.

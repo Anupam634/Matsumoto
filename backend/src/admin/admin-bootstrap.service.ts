@@ -1,7 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
-import { hashPassword } from '../auth/password';
+import { hashPassword, verifyPassword } from '../auth/password';
+import { isPublishedAdminPassword } from './published-passwords';
 
 /** Refuse to stand up an operator account behind a trivial password. */
 const MIN_PASSWORD_LENGTH = 12;
@@ -15,7 +16,12 @@ const MIN_PASSWORD_LENGTH = 12;
  *
  * `*_PASSWORD` is the source of truth: each account is upserted on every
  * boot, so a forgotten password is recovered by changing the variable and
- * redeploying rather than by getting shell access to the database.
+ * redeploying rather than by getting shell access to the database. A changed
+ * password also ends every admin session signed in under the old one.
+ *
+ * A password that has been published in this repository is refused outright
+ * (see published-passwords.ts) — the account keeps its current password and
+ * the boot log says why.
  *
  * Two accounts can be bootstrapped this way:
  *  - ADMIN_EMAIL/ADMIN_PASSWORD — the general admin (unchanged from before).
@@ -71,17 +77,41 @@ export class AdminBootstrapService implements OnModuleInit {
       );
       return;
     }
+    if (isPublishedAdminPassword(password)) {
+      this.logger.error(
+        `${opts.passwordVar} is a password that was published in the public repository's .env.example — refusing to use it for ${opts.kind} ${email}. Set a new one (openssl rand -base64 24) and redeploy; until then that account cannot sign in.`,
+      );
+      return;
+    }
 
     try {
-      const passwordHash = await hashPassword(password);
       const existing = await this.prisma.adminUser.findUnique({
         where: { email },
-        select: { id: true },
+        select: { id: true, passwordHash: true, role: true },
       });
 
+      // Unchanged password: leave the hash alone, so restarts do not end
+      // every admin session. Only the role may still need syncing.
+      if (existing && (await verifyPassword(password, existing.passwordHash))) {
+        if (opts.role && existing.role !== opts.role) {
+          await this.prisma.adminUser.update({
+            where: { email },
+            data: { role: opts.role },
+          });
+        }
+        this.logger.log(`${opts.kind} ${email} is in sync with ${opts.passwordVar}.`);
+        return;
+      }
+
+      const passwordHash = await hashPassword(password);
       await this.prisma.adminUser.upsert({
         where: { email },
-        update: opts.role ? { passwordHash, role: opts.role } : { passwordHash },
+        update: {
+          passwordHash,
+          ...(opts.role ? { role: opts.role } : {}),
+          // A new password ends every session signed in under the old one.
+          sessionVersion: { increment: 1 },
+        },
         create: opts.role
           ? { email, passwordHash, role: opts.role }
           : { email, passwordHash },
@@ -89,7 +119,7 @@ export class AdminBootstrapService implements OnModuleInit {
 
       this.logger.log(
         existing
-          ? `${opts.kind} ${email} synced from ${opts.passwordVar}.`
+          ? `${opts.kind} ${email} password changed from ${opts.passwordVar}; existing admin sessions signed out.`
           : `${opts.kind} ${email} created from environment.`,
       );
     } catch (err) {

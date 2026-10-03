@@ -15,6 +15,7 @@ import {
 import { AppHeader } from '../../../components/AppHeader';
 import { MobileTabBar } from '../../../components/MobileTabBar';
 import { BnbLogo } from '../../../components/BnbLogo';
+import { TwoFactorCard } from '../../../components/TwoFactorCard';
 import { countryFlag, countryName } from '../../../lib/countries';
 
 /** 3 points = 1 $BONDKOIN BEP-20. */
@@ -81,6 +82,7 @@ export default function ProfileClient() {
           <div className="mt-6 space-y-4">
             <BalanceCard profile={profile} locale={locale} />
             <AccountCard profile={profile} locale={locale} />
+            <TwoFactorCard profile={profile} onChanged={load} />
             <IdentityCard profile={profile} locale={locale} />
             <ReferralCard profile={profile} locale={locale} />
             <HelpCard locale={locale} />

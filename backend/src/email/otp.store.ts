@@ -1,7 +1,12 @@
 import { Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 
-export type OtpPurpose = 'signup' | 'forgot_password' | 'login_2fa' | 'withdrawal';
+export type OtpPurpose =
+  | 'signup'
+  | 'forgot_password'
+  | 'login_2fa'
+  | 'withdrawal'
+  | 'admin_login';
 
 export interface OtpRecord {
   code: string;

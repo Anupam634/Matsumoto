@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -25,17 +24,18 @@ const RESEND_COOLDOWN_S = 45;
  * Change password.
  *
  * The API has no authenticated change-password route, so this runs the same
- * email-a-code flow as recovery — but in place, on the signed-in account, and
- * without signing out: a password change is housekeeping, not an exit.
+ * email-a-code flow as recovery, in place on the signed-in account. A reset
+ * ends every session on the server — this device's included, so an attacker
+ * holding a stolen session is thrown out with it — which is why this finishes
+ * by signing out and sending the miner to sign in with the new password.
  */
 export default function ChangePasswordScreen() {
   const { c, spacing, radius, alpha } = useTheme();
   const insets = useSafeAreaInsets();
   const t = useT();
-  const router = useRouter();
   const toast = useToast();
   const feedback = useFeedback();
-  const { profile } = useSession();
+  const { profile, signOut } = useSession();
 
   const email = profile?.email?.trim().toLowerCase() ?? '';
 
@@ -105,7 +105,9 @@ export default function ChangePasswordScreen() {
       await resetPassword({ email, otp, newPassword });
       feedback.success();
       toast.success(t('auth.passwordResetDone'));
-      router.back();
+      // This session ended with the reset; the root layout takes the signed-out
+      // state to the sign-in screen.
+      await signOut();
     } catch (err) {
       feedback.error();
       setError(errorMessage(err, t('app.offline')));

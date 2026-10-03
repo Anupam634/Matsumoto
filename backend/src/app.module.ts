@@ -19,6 +19,7 @@ import { EmailModule } from './email/email.module';
 import { ReferralsModule } from './referrals/referrals.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { SecurityModule } from './security/security.module';
 
 /**
  * Root module.
@@ -35,6 +36,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     // even if the proxy hides the client IP.
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
     EmailModule,
+    SecurityModule,
     AuthModule,
     AntiabuseModule,
     MiningModule,

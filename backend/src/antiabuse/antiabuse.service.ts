@@ -1,32 +1,25 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
+import { SecuritySettingsService } from '../security/security-settings.service';
 
 /**
  * Anti-abuse guards required by SPEC §7: multi-accounting, same-IP farms,
  * same-device farms and fake (self-)referrals.
  *
  * The signals live in the DeviceFingerprint table; this service is the only
- * place that decides what counts as abuse, so thresholds can be tuned in one
- * spot (env-configurable).
+ * place that decides what counts as abuse. The thresholds come from
+ * SecuritySettingsService — the admin panel's Security tab, falling back to
+ * the MAX_ACCOUNTS_* env values — and are read per check, not once at boot,
+ * so a change saved in the panel applies to the next signup.
  */
 @Injectable()
 export class AntiabuseService {
   private readonly logger = new Logger(AntiabuseService.name);
-  private readonly maxPerDevice: number;
-  private readonly maxPerIp: number;
-  private readonly maxPerSubnet: number;
 
   constructor(
     private readonly prisma: PrismaService,
-    config: ConfigService,
-  ) {
-    this.maxPerDevice = Number(config.get('MAX_ACCOUNTS_PER_DEVICE') ?? 3);
-    this.maxPerIp = Number(config.get('MAX_ACCOUNTS_PER_IP') ?? 5);
-    // 0 disables it. Off by default: a /24 can be one household or a whole
-    // mobile carrier behind NAT, so the right number depends on the audience.
-    this.maxPerSubnet = Number(config.get('MAX_ACCOUNTS_PER_SUBNET') ?? 0);
-  }
+    private readonly settings: SecuritySettingsService,
+  ) {}
 
   /**
    * The /24 an IPv4 address sits in, as a `startsWith` prefix. Null for
@@ -60,9 +53,15 @@ export class AntiabuseService {
     fingerprint?: string;
     ip?: string;
   }): Promise<void> {
+    // The /24 cap is 0 (off) unless set: a /24 can be one household or a
+    // whole mobile carrier behind NAT, so the right number depends on the
+    // audience.
+    const { maxAccountsPerDevice, maxAccountsPerIp, maxAccountsPerSubnet } =
+      await this.settings.effective();
+
     if (signals.fingerprint) {
       const ids = await this.accountsOn({ fingerprint: signals.fingerprint });
-      if (ids.length >= this.maxPerDevice) {
+      if (ids.length >= maxAccountsPerDevice) {
         this.logger.warn(
           `signup blocked: device ${signals.fingerprint} already has ${ids.length} accounts`,
         );
@@ -73,7 +72,7 @@ export class AntiabuseService {
     }
     if (signals.ip) {
       const ids = await this.accountsOn({ lastIp: signals.ip });
-      if (ids.length >= this.maxPerIp) {
+      if (ids.length >= maxAccountsPerIp) {
         this.logger.warn(
           `signup blocked: ip ${signals.ip} already has ${ids.length} accounts`,
         );
@@ -85,10 +84,10 @@ export class AntiabuseService {
       // Farms spread across neighbouring addresses of one rented range —
       // 154.16.137.131, .132, .195, .221 — which keeps every single address
       // under the per-IP cap. Counting the whole /24 is what catches that.
-      const prefix = this.maxPerSubnet > 0 ? this.subnetPrefix(signals.ip) : null;
+      const prefix = maxAccountsPerSubnet > 0 ? this.subnetPrefix(signals.ip) : null;
       if (prefix) {
         const subnetIds = await this.accountsOn({ lastIp: { startsWith: prefix } });
-        if (subnetIds.length >= this.maxPerSubnet) {
+        if (subnetIds.length >= maxAccountsPerSubnet) {
           this.logger.warn(
             `signup blocked: subnet ${prefix}0/24 already has ${subnetIds.length} accounts`,
           );

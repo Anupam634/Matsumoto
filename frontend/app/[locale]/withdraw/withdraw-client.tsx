@@ -124,14 +124,22 @@ function RequestForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
-  const [step, setStep] = useState<'form' | 'otp'>('form');
+  // `otp` confirms with the emailed code; `totp` with the authenticator app,
+  // which is what an account with two-factor authentication on is asked for.
+  const [step, setStep] = useState<'form' | 'otp' | 'totp'>('form');
   const [otp, setOtp] = useState('');
+  const [totp, setTotp] = useState('');
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
+  // Set when the operators require an authenticator app for withdrawals and
+  // this account has none yet.
+  const [setupRequired, setSetupRequired] = useState(false);
   // Guards the step that mails the confirmation code. The confirm after it
-  // carries that code, so it needs no second solve.
+  // carries that code, so it needs no second solve — and an account with an
+  // authenticator app is never mailed one, so it needs no solve at all.
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaNonce, setCaptchaNonce] = useState(0);
-  const captchaMissing = turnstileConfigured && !captchaToken;
+  const usesTotp = profile.twoFactorEnabled;
+  const captchaMissing = turnstileConfigured && !usesTotp && !captchaToken;
 
   function spendCaptcha() {
     if (!turnstileConfigured) return;
@@ -163,26 +171,70 @@ function RequestForm({
     amount <= balance;
   const addressValid = ADDRESS_RE.test(toAddress.trim());
 
+  /** Reset the form after a request went through. */
+  function finished() {
+    setPoints('');
+    setToAddress('');
+    setOtp('');
+    setTotp('');
+    setStep('form');
+    setInfoMsg(null);
+    setDone(true);
+    onDone();
+  }
+
+  /**
+   * The server's answer to an unconfirmed (or wrongly confirmed) request,
+   * turned into the next step. Returns false for an ordinary error, which
+   * the caller shows as-is.
+   */
+  async function handleCodeRequirement(err: unknown): Promise<boolean> {
+    if (!(err instanceof ApiError)) return false;
+    if (err.code === 'TOTP_REQUIRED') {
+      // 2FA was turned on since the profile loaded (another tab, the app).
+      setTotp('');
+      setStep('totp');
+      onDone();
+      return true;
+    }
+    if (err.code === 'TOTP_SETUP_REQUIRED') {
+      setSetupRequired(true);
+      setStep('form');
+      onDone();
+      return true;
+    }
+    if (err.code === 'OTP_REQUIRED') {
+      try {
+        const res = await sendWithdrawalOtp(captchaToken ?? undefined);
+        setInfoMsg(res.message || 'A confirmation code has been sent to your email.');
+        setStep('otp');
+      } catch (sendErr) {
+        setError(sendErr instanceof ApiError ? sendErr.message : t('offline'));
+      }
+      return true;
+    }
+    return false;
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
     setError(null);
+    setDone(false);
+
+    // The server would only answer TOTP_REQUIRED; ask for the code straight
+    // away and skip a round trip — and the captcha, since nothing is mailed.
+    if (usesTotp) {
+      setTotp('');
+      setStep('totp');
+      return;
+    }
+
+    setBusy(true);
     try {
       await requestWithdrawal(amount, toAddress.trim());
-      setPoints('');
-      setToAddress('');
-      setDone(true);
-      onDone();
+      finished();
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'OTP_REQUIRED') {
-        try {
-          const res = await sendWithdrawalOtp(captchaToken ?? undefined);
-          setInfoMsg(res.message || 'A confirmation code has been sent to your email.');
-          setStep('otp');
-        } catch (sendErr) {
-          setError(sendErr instanceof ApiError ? sendErr.message : t('offline'));
-        }
-      } else {
+      if (!(await handleCodeRequirement(err))) {
         setError(err instanceof ApiError ? err.message : t('offline'));
       }
     } finally {
@@ -200,16 +252,42 @@ function RequestForm({
     setBusy(true);
     setError(null);
     try {
-      await requestWithdrawal(amount, toAddress.trim(), otp.trim());
-      setPoints('');
-      setToAddress('');
-      setOtp('');
-      setStep('form');
-      setInfoMsg(null);
-      setDone(true);
-      onDone();
+      await requestWithdrawal(amount, toAddress.trim(), { otp: otp.trim() });
+      finished();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('offline'));
+      if (!(await handleCodeRequirement(err))) {
+        setError(err instanceof ApiError ? err.message : t('offline'));
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmWithTotp(e: React.FormEvent) {
+    e.preventDefault();
+    const code = totp.replace(/\s/g, '');
+    if (!/^\d{6}$/.test(code)) {
+      setError(t('totpRequired'));
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await requestWithdrawal(amount, toAddress.trim(), { totp: code });
+      finished();
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'OTP_REQUIRED') {
+        // 2FA was turned off since the profile loaded: start over on the
+        // emailed-code path, which needs its own captcha solve.
+        setStep('form');
+        setTotp('');
+        setError(err.message);
+        onDone();
+      } else if (!(await handleCodeRequirement(err))) {
+        // TOTP_INVALID / TOTP_LOCKED / TOTP_UNAVAILABLE explain themselves.
+        setTotp('');
+        setError(err instanceof ApiError ? err.message : t('offline'));
+      }
     } finally {
       setBusy(false);
     }
@@ -279,13 +357,71 @@ function RequestForm({
         </p>
       )}
 
+      {setupRequired && !usesTotp && (
+        <Link
+          href={`/${locale}/profile#security`}
+          className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-amber-400/25 bg-amber-500/10 p-3 text-sm text-amber-200 transition hover:border-amber-400/50"
+        >
+          <span>{t('setupRequired')}</span>
+          <span className="shrink-0 font-bold">{t('setupRequiredCta')} →</span>
+        </Link>
+      )}
+
       {infoMsg && step === 'otp' && (
         <p className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
           {infoMsg}
         </p>
       )}
 
-      {step === 'otp' ? (
+      {step === 'totp' ? (
+        <form onSubmit={confirmWithTotp} className="mt-4 space-y-4" noValidate>
+          <label className="block">
+            <span className="field-label">{t('totpLabel')}</span>
+            <input
+              className="input-field mt-1.5 text-center font-mono text-lg tracking-widest"
+              value={totp}
+              onChange={(e) => setTotp(e.target.value.replace(/\D/g, ''))}
+              disabled={busy}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="••••••"
+              autoFocus
+            />
+            <span className="mt-1.5 block break-all text-xs text-slate-500">
+              {t('totpPrompt', { points: amount, address: toAddress.trim() })}
+            </span>
+          </label>
+
+          {error && (
+            <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={busy || totp.length !== 6}
+            className="btn-primary flex w-full items-center justify-center gap-2 py-3.5 text-center text-sm font-black uppercase tracking-wider text-white shadow-lg transition-all disabled:opacity-50"
+          >
+            {busy ? `⏳ ${t('confirming')}` : t('confirm')}
+          </button>
+
+          <div className="pt-1 text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                setStep('form');
+                setTotp('');
+                setError(null);
+              }}
+              className="font-bold text-slate-400 transition hover:text-slate-200"
+            >
+              {t('backToEdit')}
+            </button>
+          </div>
+        </form>
+      ) : step === 'otp' ? (
         <form onSubmit={confirmWithOtp} className="mt-4 space-y-4" noValidate>
           <label className="block">
             <span className="field-label">6-Digit Confirmation Code</span>
@@ -315,7 +451,7 @@ function RequestForm({
             disabled={busy || otp.trim().length !== 6}
             className="btn-primary flex w-full items-center justify-center gap-2 py-3.5 text-center text-sm font-black uppercase tracking-wider text-white shadow-lg transition-all disabled:opacity-50"
           >
-            {busy ? '⏳ Confirming…' : 'Confirm Withdrawal'}
+            {busy ? `⏳ ${t('confirming')}` : t('confirm')}
           </button>
 
           {turnstileConfigured && (
@@ -338,7 +474,7 @@ function RequestForm({
               }}
               className="font-bold text-slate-400 transition hover:text-slate-200"
             >
-              ← Back to edit
+              {t('backToEdit')}
             </button>
             <button
               type="button"
@@ -413,7 +549,7 @@ function RequestForm({
           </p>
         )}
 
-          {turnstileConfigured && (
+          {turnstileConfigured && !usesTotp && (
             <Turnstile
               action="withdrawal"
               resetKey={captchaNonce}
@@ -437,6 +573,7 @@ function RequestForm({
           )}
         </button>
 
+        {usesTotp && <p className="text-xs text-slate-400">🔐 {t('totpNote')}</p>}
         <p className="text-xs text-slate-500">{t('reviewNote')}</p>
       </form>
       )}

@@ -41,6 +41,22 @@ model User {
   // milli-points/hour. Signed: negative throttles a suspected abuser.
   rateAdjustMilli Int @default(0)
 
+  // Stamped into every token as `sv`. Bumping it signs the account out
+  // everywhere — a password reset, a 2FA change, or an operator revoking
+  // sessions all do, so a stolen token stops working at once.
+  sessionVersion Int @default(0)
+
+  // Authenticator-app (TOTP) second factor. `totpSecret` is encrypted (see
+  // auth/totp.ts); `totpEnabledAt` is what turns it on — a secret with no
+  // date is a setup the user has not confirmed yet.
+  totpSecret      String?
+  totpEnabledAt   DateTime?
+  // Last 30-second step a code was accepted for, so a code cannot be used
+  // twice, and the run of wrong codes that locks the check for a while.
+  totpLastStep    Int?
+  totpFailedCount Int       @default(0)
+  totpLockedUntil DateTime?
+
   kyc              KycRecord?
   boosters         Booster[]
   taskClaims       TaskClaim[]
@@ -49,6 +65,7 @@ model User {
   ledger           LedgerEntry[]
   devices          DeviceFingerprint[]
   supportTickets   SupportTicket[]
+  securityEvents   UserSecurityEvent[]
 
   @@index([referredById])
   @@index([countryCode])
@@ -271,6 +288,14 @@ model Withdrawal {
   requestedAt  DateTime         @default(now())
   resolvedAt   DateTime?
 
+  // Where the request came from and what confirmed it, for the operator
+  // deciding whether to pay it. Null on rows written before these existed.
+  requestIp          String?
+  requestFingerprint String?
+  requestPlatform    String?
+  // "totp" | "email" | "none" (only when WITHDRAWAL_OTP_ENFORCED=false).
+  secondFactor       String?
+
   @@index([userId])
   @@index([status])
 }
@@ -314,16 +339,71 @@ model DeviceFingerprint {
 
 // ─────────────────────────── Admin ───────────────────────────
 model AdminUser {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  role         String   @default("admin")
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  role           String   @default("admin")
   // Fine-grained grants beyond `role`. A "super" role bypasses this check
   // entirely (PermissionGuard treats it as having every permission); this
   // array is how a specific non-super admin gets one extra capability, e.g.
   // CRYPTO_PAYMENT_VIEW, without becoming super.
-  permissions  String[] @default([])
-  createdAt    DateTime @default(now())
+  permissions    String[] @default([])
+  createdAt      DateTime @default(now())
+  // Same role as User.sessionVersion. Bumped when the password changes and
+  // when an operator signs every admin session out.
+  sessionVersion Int      @default(0)
+}
+
+// Every admin sign-in attempt and every change made through the admin API.
+// Written by AdminService (sign-in) and AdminAuditInterceptor (everything
+// else); the Security tab reads it. Rows are never updated.
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  // Null when the attempt named an email no admin account has.
+  adminId    String?
+  adminEmail String
+  // A sign-in step (ADMIN_LOGIN_*) or "METHOD /admin/route/:param".
+  action     String
+  // The route's id parameter — usually the user or withdrawal acted on.
+  target     String?
+  // "ok" | "error" | "denied"
+  outcome    String
+  // Request body and query with credentials stripped, plus any error.
+  detail     Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([adminId, createdAt])
+}
+
+// Sign-ins, failed second factors, 2FA changes and withdrawal requests on a
+// miner's account — the trail an operator needs when an owner says "that
+// wasn't me". DeviceFingerprint keeps only the latest IP per device.
+model UserSecurityEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String
+  ip          String?
+  fingerprint String?
+  platform    String?
+  userAgent   String?
+  detail      Json?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+// Settings an operator changes from the admin panel, overriding the env
+// default of the same name. A missing row means "use the env value".
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+  updatedBy String?
 }
 
 // ────────────────────────── Support ──────────────────────────

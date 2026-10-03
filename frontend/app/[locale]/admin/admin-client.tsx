@@ -138,7 +138,7 @@ function Panel({ onSignOut }: { onSignOut: () => void }) {
             {tab === 'support' && <SupportTab onUnauthorized={onSignOut} />}
             {tab === 'cms' && <CmsTab />}
             {tab === 'reports' && <ReportsTab />}
-            {tab === 'security' && <SecurityTab stats={stats} />}
+            {tab === 'security' && <SecurityTab stats={stats} onUnauthorized={onSignOut} />}
             {tab === 'system' && <SystemTab />}
           </div>
         </main>

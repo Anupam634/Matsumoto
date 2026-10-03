@@ -13,6 +13,9 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import { AntiabuseService } from '../antiabuse/antiabuse.service';
 import { EmailService } from '../email/email.service';
+import { SecurityEventsService } from '../security/security-events.service';
+import type { RequestContext } from '../security/request-context';
+import { TwoFactorService } from './two-factor.service';
 import { hashPassword, verifyPassword } from './password';
 import {
   ForgotPasswordDto,
@@ -49,6 +52,8 @@ function assertNotDisposable(email: string) {
 export interface SignupSignals {
   ip?: string;
   fingerprint?: string;
+  /** Recorded on the account's security events; not used for any decision. */
+  userAgent?: string;
 }
 
 /** What `sendOtp` needs beyond the address: abuse signals and the captcha. */
@@ -67,15 +72,17 @@ export class AuthService {
     private readonly antiabuse: AntiabuseService,
     private readonly emailService: EmailService,
     private readonly config: ConfigService,
+    private readonly twoFactor: TwoFactorService,
+    private readonly events: SecurityEventsService,
   ) {}
 
   /**
-   * Emergency off-switch for the web login OTP requirement, checked on every
-   * call rather than cached at boot so flipping it takes effect without a
+   * Emergency off-switch for the emailed login code, checked on every call
+   * rather than cached at boot so flipping it takes effect without a
    * redeploy. Exists because the requirement hard-fails login the moment
    * mail delivery has a bad day (see `sendLoginOtpOrFail`) — this is how an
-   * operator gets the site back to password-only login in that window
-   * without shipping code.
+   * operator gets sign-in back to password-only in that window without
+   * shipping code. Accounts with an authenticator app still need its code.
    */
   private loginOtpEnforced(): boolean {
     return this.config.get<string>('LOGIN_OTP_ENFORCED') !== 'false';
@@ -108,8 +115,26 @@ export class AuthService {
     }
   }
 
-  private sign(user: { id: string; email: string | null }) {
-    return this.jwt.signAsync({ sub: user.id, email: user.email });
+  /**
+   * `sv` is the account's session version at signing time. JwtAuthGuard
+   * refuses a token whose `sv` no longer matches, which is how a password
+   * reset or a 2FA change signs every other session out.
+   */
+  private sign(user: { id: string; email: string | null; sessionVersion: number }) {
+    return this.jwt.signAsync({ sub: user.id, email: user.email, sv: user.sessionVersion });
+  }
+
+  /**
+   * A fresh token for an already-authenticated user, after something bumped
+   * their session version — so the device that made the change stays signed
+   * in while every other one is signed out.
+   */
+  async tokenFor(userId: string): Promise<string> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { id: true, email: true, sessionVersion: true },
+    });
+    return this.sign(user);
   }
 
   /**
@@ -265,7 +290,7 @@ export class AuthService {
   /**
    * Reset user password using real verified OTP.
    */
-  async resetPassword(dto: ResetPasswordDto) {
+  async resetPassword(dto: ResetPasswordDto, ctx: RequestContext = {}) {
     const email = dto.email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) {
@@ -284,9 +309,26 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired verification code. Please request a new OTP.');
     }
 
+    // Every existing session ends here. An owner resetting their password
+    // after a scare must not leave an attacker's session alive behind it.
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { passwordHash: await hashPassword(dto.newPassword) },
+      data: {
+        passwordHash: await hashPassword(dto.newPassword),
+        sessionVersion: { increment: 1 },
+      },
+    });
+    await this.events.record(user.id, 'PASSWORD_RESET', ctx);
+    void this.emailService.sendSecurityNotice(email, {
+      subject: 'Your BONDKOIN password was changed',
+      title: 'Password changed',
+      lead: 'The password for your BONDKOIN account was just changed, and every device signed in to it has been signed out.',
+      rows: [
+        ['When', new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC'],
+        ...(ctx.ip ? ([['IP address', ctx.ip]] as [string, string][]) : []),
+      ],
+      warning:
+        "If you didn't change it, someone else can read your email. Secure your email account first, then reset your BONDKOIN password again and reply to this email.",
     });
 
     return {
@@ -363,7 +405,7 @@ export class AuthService {
         countryCode: dto.countryCode?.toUpperCase(),
         referredById,
       },
-      select: { id: true, email: true, referralCode: true },
+      select: { id: true, email: true, referralCode: true, sessionVersion: true },
     });
 
     await this.antiabuse.recordDevice(user.id, {
@@ -384,11 +426,17 @@ export class AuthService {
 
   async login(dto: LoginDto, signals: SignupSignals) {
     const email = dto.email.trim().toLowerCase();
+    const ctx: RequestContext = {
+      ip: signals.ip,
+      fingerprint: signals.fingerprint,
+      platform: dto.platform,
+      userAgent: signals.userAgent,
+    };
 
-    // Only the first step: the second carries an OTP that was mailed after
+    // Only the first step: the second carries a code that was issued after
     // this same check, so a scripted caller can never reach it. Placed ahead
     // of the password check so credential stuffing pays the captcha too.
-    if (!dto.otp && captchaApplies(dto.platform)) {
+    if (!dto.otp && !dto.totp && captchaApplies(dto.platform)) {
       await assertHuman(dto.captchaToken, {
         ip: signals.ip,
         action: CAPTCHA_ACTIONS.login,
@@ -403,46 +451,62 @@ export class AuthService {
         passwordHash: true,
         isBlocked: true,
         referralCode: true,
+        sessionVersion: true,
+        totpEnabledAt: true,
       },
     });
 
     // Same message for unknown email and wrong password — no account probing.
-    // Checked before OTP so a caller with no password can't use this route to
-    // spam a stranger's inbox with codes.
+    // Checked before any second factor so a caller with no password can't use
+    // this route to spam a stranger's inbox with codes.
     const ok = user && (await verifyPassword(dto.password, user.passwordHash));
     if (!user || !ok) {
+      if (user) {
+        await this.events.record(user.id, 'LOGIN_FAILED', ctx, { reason: 'password' });
+      }
       throw new UnauthorizedException('Invalid email or password.');
     }
     if (user.isBlocked) {
       throw new ForbiddenException('Account is blocked.');
     }
 
-    // The website requires a second factor; the mobile app's sign-in screen
-    // has no OTP step yet, so it stays on the password-only path (see the
-    // `platform` field on LoginDto for the caveat on what this does and does
-    // not guard against).
-    if (dto.otp) {
-      const isValid = await this.emailService.verifyOtp(
-        email,
-        dto.otp,
-        'login_2fa',
-      );
+    // The second factor applies on every platform. It used to be demanded
+    // only when the client sent `platform: 'web'` — a field the caller writes
+    // — so leaving it out, or saying "mobile", signed in with the password
+    // alone. The mobile app now runs the same second step as the website.
+    let method: 'password' | 'email_code' | 'authenticator' = 'password';
+    if (user.totpEnabledAt) {
+      if (!dto.totp) {
+        throw new UnauthorizedException({
+          statusCode: 401,
+          code: 'TOTP_REQUIRED',
+          message: 'Enter the 6-digit code from your authenticator app to finish signing in.',
+        });
+      }
+      await this.twoFactor.assertCode(user.id, dto.totp, ctx);
+      method = 'authenticator';
+    } else if (this.loginOtpEnforced()) {
+      if (!dto.otp) {
+        await this.sendLoginOtpOrFail(email);
+        throw new UnauthorizedException({
+          statusCode: 401,
+          code: 'OTP_REQUIRED',
+          message: 'Enter the verification code we just emailed you to finish signing in.',
+        });
+      }
+      const isValid = await this.emailService.verifyOtp(email, dto.otp, 'login_2fa');
       if (!isValid) {
+        await this.events.record(user.id, 'LOGIN_FAILED', ctx, { reason: 'email_code' });
         throw new BadRequestException('Invalid or expired 2FA verification code. Please request a new OTP.');
       }
-    } else if (dto.platform === 'web' && this.loginOtpEnforced()) {
-      await this.sendLoginOtpOrFail(email);
-      throw new UnauthorizedException({
-        statusCode: 401,
-        code: 'OTP_REQUIRED',
-        message: 'Enter the verification code we just emailed you to finish signing in.',
-      });
+      method = 'email_code';
     }
 
     await this.antiabuse.recordDevice(user.id, {
       fingerprint: signals.fingerprint,
       ip: signals.ip,
     });
+    await this.events.record(user.id, 'LOGIN_SUCCEEDED', ctx, { method });
 
     return {
       accessToken: await this.sign(user),
@@ -466,6 +530,7 @@ export class AuthService {
         pointsBalance: true,
         referralCode: true,
         createdAt: true,
+        totpEnabledAt: true,
         kyc: { select: { status: true } },
         _count: { select: { referrals: true } },
       },
@@ -482,6 +547,7 @@ export class AuthService {
       referralCount: user._count.referrals,
       referralTier: referralTierFor(user._count.referrals),
       kycStatus: user.kyc?.status ?? 'NONE',
+      twoFactorEnabled: !!user.totpEnabledAt,
       createdAt: user.createdAt,
     };
   }

@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsString,
   Length,
+  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -59,9 +60,8 @@ export class LoginDto {
   password!: string;
 
   /**
-   * Second factor. Required when `platform` is `web` (see AuthService.login);
-   * optional otherwise so the mobile app, which has no OTP step in its
-   * sign-in screen yet, keeps working unchanged.
+   * The emailed sign-in code. Required on the second step for an account
+   * without an authenticator app, on every platform (see AuthService.login).
    */
   @IsOptional()
   @IsString()
@@ -69,10 +69,19 @@ export class LoginDto {
   otp?: string;
 
   /**
-   * Which client is calling, so the OTP requirement below can apply to the
-   * website without breaking the mobile app's password-only sign-in. Not a
-   * security boundary — a caller can simply omit it — but it closes the gap
-   * for the real website and for any generic (non-mobile-aware) attack tool.
+   * The current code from the account's authenticator app. Required on the
+   * second step for an account with two-factor authentication on — in place
+   * of the emailed code, not as well as it.
+   */
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'Enter the 6-digit code from your authenticator app.' })
+  totp?: string;
+
+  /**
+   * Which client is calling. Decides only whether the captcha is asked for
+   * (see common/turnstile.ts) — it is written by the caller, so it no longer
+   * decides whether a second factor is required.
    */
   @IsOptional()
   @IsIn(['web', 'mobile'])
@@ -151,4 +160,16 @@ export class SendOtpDto {
   @IsString()
   @MaxLength(128)
   deviceFingerprint?: string;
+}
+
+/** Body of `POST /auth/2fa/enable` and `POST /auth/2fa/disable`. */
+export class TotpConfirmDto {
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'Enter the 6-digit code from your authenticator app.' })
+  code!: string;
+
+  /** The account password, so a stolen session alone cannot change 2FA. */
+  @IsString()
+  @MaxLength(128)
+  password!: string;
 }

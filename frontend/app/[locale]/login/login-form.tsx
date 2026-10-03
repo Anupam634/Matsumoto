@@ -20,7 +20,12 @@ import { LocaleSwitcher } from '../../../components/LocaleSwitcher';
 import { ThemeToggle } from '../../../components/ThemeToggle';
 
 type Mode = 'login' | 'register' | 'forgot';
-type Step = 'form' | 'otp';
+/**
+ * `otp` is the emailed code (sign-up, password reset, and sign-in for an
+ * account without an authenticator app); `totp` is the authenticator-app
+ * code, asked for instead when the account has two-factor authentication on.
+ */
+type Step = 'form' | 'otp' | 'totp';
 
 /**
  * The captcha action per mode. These strings must match CAPTCHA_ACTIONS on
@@ -72,6 +77,7 @@ function AuthForm() {
 
   // OTP & Reset Password fields
   const [otp, setOtp] = useState('');
+  const [totp, setTotp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
 
@@ -148,6 +154,12 @@ function AuthForm() {
           setEmail(email.trim().toLowerCase());
           setStep('otp');
           setInfoMsg(err.message);
+        } else if (err instanceof ApiError && err.code === 'TOTP_REQUIRED') {
+          // The account has an authenticator app: nothing was mailed, so
+          // there is no resend — the code is on the miner's phone.
+          setEmail(email.trim().toLowerCase());
+          setTotp('');
+          setStep('totp');
         } else {
           setError(err instanceof ApiError ? err.message : 'Invalid email or password.');
         }
@@ -203,6 +215,33 @@ function AuthForm() {
         spendCaptcha();
         setBusy(false);
       }
+    }
+  }
+
+  // 2b. Finish signing in with the authenticator-app code
+  async function handleVerifyTotp(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setInfoMsg(null);
+
+    const code = totp.replace(/\s/g, '');
+    if (!/^\d{6}$/.test(code)) {
+      setError(t('totpRequired'));
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await login({ email, password, totp: code });
+      router.push(`/${params.locale}/dashboard`);
+    } catch (err) {
+      // TOTP_INVALID, TOTP_LOCKED (429) and TOTP_UNAVAILABLE all carry a
+      // message written for the miner; show it as-is. A wrong code is
+      // cleared so the next one is typed fresh.
+      setTotp('');
+      setError(err instanceof ApiError ? err.message : t('networkError'));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -341,6 +380,8 @@ function AuthForm() {
               <h1 className="text-2xl font-black tracking-tight sm:text-3xl text-slate-100">
                 {mode === 'forgot'
                   ? 'Reset Password'
+                  : step === 'totp'
+                  ? t('totpTitle')
                   : step === 'otp'
                   ? 'Verify Code'
                   : mode === 'login'
@@ -350,8 +391,10 @@ function AuthForm() {
               <p className="mt-1.5 text-xs text-slate-400">
                 {mode === 'forgot'
                   ? 'Enter your email to receive a recovery code & set a new password.'
+                  : step === 'totp'
+                  ? t('totpBody')
                   : step === 'otp'
-                  ? 'Enter the 5-digit verification code sent to your email.'
+                  ? 'Enter the 6-digit verification code sent to your email.'
                   : mode === 'login'
                   ? 'Access your node mining terminal & daily yield.'
                   : 'Start earning BONDKOIN Points with zero hardware cost.'}
@@ -512,6 +555,65 @@ function AuthForm() {
                       </button>
                     </div>
                   )}
+                </form>
+              ) : step === 'totp' ? (
+                /* ──────────── STEP 2: Authenticator-app code (2FA on) ──────────── */
+                <form onSubmit={handleVerifyTotp} className="mt-5 space-y-4" noValidate>
+                  <div>
+                    <label className="block">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        {t('totpLabel')}
+                      </span>
+                      <div className="relative mt-1.5">
+                        <input
+                          className="w-full rounded-xl border border-slate-800 bg-slate-950/80 py-3.5 px-4 text-center font-mono text-xl font-black tracking-widest text-amber-400 placeholder-slate-700 outline-none transition-all focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40"
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          maxLength={6}
+                          value={totp}
+                          onChange={(e) => setTotp(e.target.value.replace(/\D/g, ''))}
+                          placeholder="• • • • • •"
+                          autoFocus
+                          required
+                        />
+                      </div>
+                    </label>
+                    <p className="mt-2 text-center text-[11px] text-slate-400">{t('totpHint')}</p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={busy || totp.length !== 6}
+                    className="btn-gold mt-3 w-full rounded-xl py-3.5 text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-lg shadow-amber-500/20 disabled:opacity-50"
+                  >
+                    {busy ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <IconSpinner />
+                        <span>{t('working')}</span>
+                      </span>
+                    ) : (
+                      <span>{t('totpSubmit')}</span>
+                    )}
+                  </button>
+
+                  <p className="text-center text-[11px] leading-relaxed text-slate-500">
+                    {t('totpLostPhone')}
+                  </p>
+
+                  <div className="pt-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStep('form');
+                        setTotp('');
+                        setError(null);
+                      }}
+                      className="font-bold text-slate-400 hover:text-slate-200 transition"
+                    >
+                      {t('backToEdit')}
+                    </button>
+                  </div>
                 </form>
               ) : (
                 /* ───────────────── STEP 2: OTP Verification ───────────────── */

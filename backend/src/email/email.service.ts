@@ -35,6 +35,11 @@ function senderAddress(): string {
   return (user && user.includes('@') ? user : 'hello@bondkoinlabs.com').toLowerCase();
 }
 
+/** Where the admin sign-in code for one admin account is stored. */
+export function adminLoginCodeKey(adminId: string): string {
+  return `admin-login:${adminId}`;
+}
+
 /** Minimal HTML escaping for values interpolated into email templates. */
 function escapeHtml(value: string): string {
   return value
@@ -175,15 +180,23 @@ export class EmailService {
    * credential into every log sink the box ships to.
    */
   async generateOtp(rawEmail: string, purpose: OtpPurpose): Promise<string> {
-    const cleanEmail = this.sanitizeEmail(rawEmail);
+    return this.issueCode(this.sanitizeEmail(rawEmail), purpose);
+  }
+
+  /**
+   * Store a fresh code under `key`. Usually the address it is mailed to; the
+   * admin sign-in code is keyed by the admin account instead, because it is
+   * mailed to an address that is not the account's own.
+   */
+  private async issueCode(key: string, purpose: OtpPurpose): Promise<string> {
     const code = randomInt(100000, 1000000).toString();
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    await this.otpStore.put(cleanEmail, { code, expiresAt, purpose });
+    await this.otpStore.put(key, { code, expiresAt, purpose });
     // A new code starts with a clean slate, so a legitimate user who mistyped
     // the last one is not locked out of this one.
-    await this.otpStore.clearAttempts(cleanEmail);
-    this.logger.log(`[OTP GENERATED] ${cleanEmail} | purpose=${purpose} | ttl=10m`);
+    await this.otpStore.clearAttempts(key);
+    this.logger.log(`[OTP GENERATED] ${key} | purpose=${purpose} | ttl=10m`);
 
     return code;
   }
@@ -202,18 +215,26 @@ export class EmailService {
     code: string,
     expectedPurpose: OtpPurpose,
   ): Promise<boolean> {
-    const cleanEmail = this.sanitizeEmail(rawEmail);
+    return this.verifyCode(this.sanitizeEmail(rawEmail), code, expectedPurpose);
+  }
+
+  /** `verifyOtp` for a code stored under a key that is not an address. */
+  async verifyCode(
+    key: string,
+    code: string,
+    expectedPurpose: OtpPurpose,
+  ): Promise<boolean> {
     const cleanCode = code.trim();
-    const record = await this.otpStore.take(cleanEmail);
+    const record = await this.otpStore.take(key);
 
     if (!record) {
-      this.logger.warn(`[OTP VERIFY FAILED] no active code for ${cleanEmail}`);
+      this.logger.warn(`[OTP VERIFY FAILED] no active code for ${key}`);
       return false;
     }
 
     if (Date.now() > record.expiresAt) {
-      this.logger.warn(`[OTP VERIFY FAILED] expired for ${cleanEmail}`);
-      await this.otpStore.drop(cleanEmail);
+      this.logger.warn(`[OTP VERIFY FAILED] expired for ${key}`);
+      await this.otpStore.drop(key);
       return false;
     }
 
@@ -221,9 +242,9 @@ export class EmailService {
       // Burn it: a code being presented to the wrong flow is either a client
       // bug or someone walking a code between endpoints.
       this.logger.warn(
-        `[OTP VERIFY FAILED] purpose mismatch for ${cleanEmail} (issued=${record.purpose} presented=${expectedPurpose})`,
+        `[OTP VERIFY FAILED] purpose mismatch for ${key} (issued=${record.purpose} presented=${expectedPurpose})`,
       );
-      await this.otpStore.drop(cleanEmail);
+      await this.otpStore.drop(key);
       return false;
     }
 
@@ -231,27 +252,27 @@ export class EmailService {
     // attempt is still someone's live credential.
     if (record.code !== cleanCode) {
       const attempts = await this.otpStore.failAttempt(
-        cleanEmail,
+        key,
         OTP_SEND_WINDOW_MS,
       );
       if (attempts >= OTP_MAX_ATTEMPTS) {
         // Burn the code rather than the account: the address can request a
         // new one, but this code is no longer guessable.
-        await this.otpStore.drop(cleanEmail);
+        await this.otpStore.drop(key);
         this.logger.warn(
-          `[OTP BURNED] ${cleanEmail} after ${attempts} wrong codes`,
+          `[OTP BURNED] ${key} after ${attempts} wrong codes`,
         );
         return false;
       }
       this.logger.warn(
-        `[OTP VERIFY FAILED] code mismatch for ${cleanEmail} (${attempts}/${OTP_MAX_ATTEMPTS})`,
+        `[OTP VERIFY FAILED] code mismatch for ${key} (${attempts}/${OTP_MAX_ATTEMPTS})`,
       );
       return false;
     }
 
-    await this.otpStore.drop(cleanEmail);
-    await this.otpStore.clearAttempts(cleanEmail);
-    this.logger.log(`[OTP VERIFY SUCCESS] ${cleanEmail}`);
+    await this.otpStore.drop(key);
+    await this.otpStore.clearAttempts(key);
+    this.logger.log(`[OTP VERIFY SUCCESS] ${key}`);
     return true;
   }
 
@@ -570,6 +591,195 @@ export class EmailService {
     `;
 
     return this.deliver({ to: cleanEmail, subject, html, text });
+  }
+
+  /**
+   * Mail the admin-console sign-in code to the operator inbox(es).
+   *
+   * Keyed by the admin account (`adminLoginCodeKey`), not by a recipient: the
+   * code goes to whatever ADMIN_OTP_EMAIL names, which is not the address the
+   * operator signs in with, and a code issued for one admin account must not
+   * open another. The per-key send cap applies like it does for miners, so a
+   * correct password still cannot be used to flood the operator's inbox.
+   *
+   * Throws 429 on the cap and 502 when no transport delivered; the caller
+   * turns the latter into a 503 like the miner flows do.
+   */
+  async sendAdminLoginCode(params: {
+    adminId: string;
+    adminEmail: string;
+    recipients: string[];
+    ip?: string;
+    userAgent?: string;
+  }): Promise<void> {
+    const key = adminLoginCodeKey(params.adminId);
+    const allowed = await this.otpStore.allowSend(key, OTP_SENDS_PER_ADDRESS, OTP_SEND_WINDOW_MS);
+    if (!allowed) {
+      this.logger.warn(`[OTP THROTTLED] ${key}`);
+      throw new HttpException(
+        `Too many sign-in codes requested for this admin account. Try again in ${Math.round(OTP_SEND_WINDOW_MS / 60000)} minutes.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    const code = await this.issueCode(key, 'admin_login');
+    const when = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+    const where = params.ip ?? 'unknown IP';
+    const device = params.userAgent ?? 'unknown browser';
+    const warning =
+      'If you did not just sign in to the BONDKOIN admin console, someone else has the admin password. Do not share this code, and change ADMIN_PASSWORD on the server now.';
+
+    const text = [
+      `Your BONDKOIN admin console sign-in code is: ${code}`,
+      'It expires in 10 minutes and works once.',
+      '',
+      `Admin account: ${params.adminEmail}`,
+      `Requested: ${when} from ${where}`,
+      `Browser: ${device}`,
+      '',
+      warning,
+    ].join('\n');
+
+    const html = this.noticeHtml({
+      accent: '#f59e0b',
+      title: 'Admin console sign-in',
+      lead: 'Use this code to finish signing in to the BONDKOIN admin console. It expires in 10 minutes and works once.',
+      code,
+      rows: [
+        ['Admin account', params.adminEmail],
+        ['Requested', when],
+        ['IP address', where],
+        ['Browser', device],
+      ],
+      warning,
+    });
+
+    const delivered = await this.deliver({
+      to: params.recipients.join(', '),
+      subject: 'BONDKOIN admin console sign-in code',
+      html,
+      text,
+    });
+    if (!delivered) {
+      await this.otpStore.drop(key);
+      throw new HttpException(
+        'We could not send the sign-in code right now. Please try again in a moment.',
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  /**
+   * A heads-up to a miner that something security-relevant happened on their
+   * account: a withdrawal request, a password reset, two-factor turned on or
+   * off. Best effort — resolves false on a failed send, never throws — because
+   * the action it reports has already happened.
+   *
+   * These are what let an owner notice a takeover while there is still time
+   * to stop it: a withdrawal waits for operator review, and the email tells
+   * the real owner to speak up before it is approved.
+   */
+  async sendSecurityNotice(
+    rawEmail: string,
+    params: {
+      subject: string;
+      title: string;
+      lead: string;
+      rows?: [string, string][];
+      warning?: string;
+    },
+  ): Promise<boolean> {
+    const cleanEmail = this.sanitizeEmail(rawEmail);
+    const warning =
+      params.warning ??
+      "If this wasn't you, reset your password now and reply to this email so our team can secure your account.";
+    const text = [
+      params.lead,
+      '',
+      ...(params.rows ?? []).map(([label, value]) => `${label}: ${value}`),
+      '',
+      warning,
+    ].join('\n');
+
+    try {
+      return await this.deliver({
+        to: cleanEmail,
+        subject: params.subject,
+        html: this.noticeHtml({
+          accent: '#38bdf8',
+          title: params.title,
+          lead: params.lead,
+          rows: params.rows,
+          warning,
+        }),
+        text,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `[SECURITY NOTICE FAILED] ${cleanEmail} "${params.subject}": ${err instanceof Error ? err.message : err}`,
+      );
+      return false;
+    }
+  }
+
+  /** The shared layout of the security emails; every interpolated value is escaped. */
+  private noticeHtml(params: {
+    accent: string;
+    title: string;
+    lead: string;
+    code?: string;
+    rows?: [string, string][];
+    warning: string;
+  }): string {
+    const rows = (params.rows ?? [])
+      .map(
+        ([label, value]) =>
+          `<tr><td class="label">${escapeHtml(label)}</td><td class="value">${escapeHtml(value)}</td></tr>`,
+      )
+      .join('');
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { margin: 0; padding: 0; background-color: #05070f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f1f5f9; }
+          .wrapper { width: 100%; max-width: 540px; margin: 30px auto; background-color: #0b0f19; border: 1px solid #1e293b; border-radius: 20px; overflow: hidden; }
+          .header { padding: 28px 24px; text-align: center; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); border-bottom: 1px solid #334155; }
+          .logo { font-size: 22px; font-weight: 900; letter-spacing: 1px; color: #f8fafc; text-transform: uppercase; }
+          .logo-accent { color: #38bdf8; }
+          .content { padding: 32px 28px; }
+          .title { font-size: 18px; font-weight: 800; color: ${params.accent}; margin-bottom: 12px; text-align: center; }
+          .desc { font-size: 13px; line-height: 1.6; color: #cbd5e1; margin-bottom: 18px; }
+          .code { font-family: 'Courier New', Courier, monospace; font-size: 34px; font-weight: 900; letter-spacing: 10px; color: ${params.accent}; text-align: center; background: #020617; border: 2px dashed ${params.accent}; border-radius: 14px; padding: 18px; margin: 18px 0; }
+          table { width: 100%; border-collapse: collapse; margin: 12px 0 18px; font-size: 12px; }
+          td { padding: 7px 0; border-bottom: 1px solid #1e293b; vertical-align: top; }
+          td.label { color: #64748b; width: 38%; padding-right: 10px; }
+          td.value { color: #e2e8f0; word-break: break-all; }
+          .warning { font-size: 12px; color: #cbd5e1; background: rgba(30, 41, 59, 0.6); padding: 12px 16px; border-radius: 10px; border-left: 3px solid #f59e0b; line-height: 1.6; }
+          .footer { padding: 20px 24px; text-align: center; font-size: 11px; color: #475569; border-top: 1px solid #1e293b; background: #070a14; }
+          .footer a { color: #38bdf8; text-decoration: none; }
+        </style>
+      </head>
+      <body>
+        <div class="wrapper">
+          <div class="header">
+            <div class="logo">BONDKOIN <span class="logo-accent">LABS</span></div>
+          </div>
+          <div class="content">
+            <div class="title">${escapeHtml(params.title)}</div>
+            <div class="desc">${escapeHtml(params.lead)}</div>
+            ${params.code ? `<div class="code">${escapeHtml(params.code)}</div>` : ''}
+            ${rows ? `<table>${rows}</table>` : ''}
+            <div class="warning">🔒 ${escapeHtml(params.warning)}</div>
+          </div>
+          <div class="footer">
+            © ${new Date().getFullYear()} BONDKOIN Labs (<a href="https://bondkoinlabs.com">bondkoinlabs.com</a>)
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
   }
 
   /**
