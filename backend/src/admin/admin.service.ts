@@ -17,7 +17,11 @@ import { SecurityEventsService } from '../security/security-events.service';
 import type { RequestContext } from '../security/request-context';
 import { TwoFactorService } from '../auth/two-factor.service';
 import { maskIdentity } from '../common/mask-identity';
-import { isPublishedAdminPassword } from './published-passwords';
+import {
+  isPublishedAdminPassword,
+  PUBLISHED_PASSWORD_GRACE_UNTIL,
+  publishedPasswordGraceActive,
+} from './published-passwords';
 import { adminOtpEnforced, adminOtpRecipients, adminSessionTtl } from './admin-session';
 import { toCsv, CSV_MAX_ROWS } from '../common/csv';
 import {
@@ -261,11 +265,17 @@ export class AdminService {
   ) {
     const email = dto.email.trim();
     const where = { ip: ctx.ip, userAgent: ctx.userAgent };
+    const enforced = adminOtpEnforced(this.config);
 
     // Refused before the lookup, so the answer is the same whether or not an
     // account uses it, and an account still hashed with one of these cannot
-    // be signed in to at all until someone sets a real password.
-    if (isPublishedAdminPassword(dto.password)) {
+    // be signed in to at all until someone sets a real password. The one
+    // exception is the grace period in published-passwords.ts, and only while
+    // the emailed code is required: the code is then what keeps a stranger
+    // out, and every sign-in warns the operator to change the password.
+    const published = isPublishedAdminPassword(dto.password);
+    const graced = published && enforced && publishedPasswordGraceActive();
+    if (published && !graced) {
       await this.audit.record({
         adminEmail: email,
         action: 'ADMIN_LOGIN_PUBLISHED_PASSWORD',
@@ -296,7 +306,21 @@ export class AdminService {
       throw new UnauthorizedException('Invalid credentials.');
     }
 
-    const enforced = adminOtpEnforced(this.config);
+    let warning: string | undefined;
+    if (graced) {
+      const until = PUBLISHED_PASSWORD_GRACE_UNTIL.toISOString().slice(0, 10);
+      warning = `This admin password is public in the code repository, so the emailed code is all that protects this account. Set a new ADMIN_PASSWORD on the server before ${until} — after that, this password stops working.`;
+      this.logger.warn(`[ADMIN SIGN-IN WITH A PUBLISHED PASSWORD] ${admin.email} — change ADMIN_PASSWORD before ${until}`);
+      await this.audit.record({
+        adminId: admin.id,
+        adminEmail: admin.email,
+        action: 'ADMIN_LOGIN_PUBLISHED_PASSWORD_ALLOWED',
+        outcome: 'ok',
+        detail: { graceUntil: until },
+        ...where,
+      });
+    }
+
     if (enforced) {
       if (!dto.otp) {
         const sentTo = await this.sendLoginCode(admin, ctx);
@@ -313,6 +337,7 @@ export class AdminService {
           code: 'OTP_REQUIRED',
           message: `Enter the 6-digit code sent to ${sentTo.join(', ')}.`,
           sentTo,
+          ...(warning ? { warning } : {}),
         });
       }
       const valid = await this.email.verifyCode(adminLoginCodeKey(admin.id), dto.otp, 'admin_login');
