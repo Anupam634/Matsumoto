@@ -248,7 +248,7 @@ export class AdminService {
 
   /**
    * Admin console sign-in: password, then the code mailed to the operator
-   * inbox (ADMIN_OTP_EMAIL). Both steps go through this one route, the second
+   * inbox (see adminOtpRecipients). Both steps go through this one route, the second
    * repeating the password with the code — the same shape as the miner
    * sign-in, and stateless: there is no half-signed-in session to steal.
    *
@@ -370,7 +370,7 @@ export class AdminService {
     admin: { id: string; email: string },
     ctx: RequestContext,
   ): Promise<string[]> {
-    const recipients = adminOtpRecipients(this.config, admin.email);
+    const recipients = adminOtpRecipients(this.config);
     try {
       await this.email.sendAdminLoginCode({
         adminId: admin.id,

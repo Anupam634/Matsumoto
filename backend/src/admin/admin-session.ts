@@ -19,17 +19,25 @@ export function adminOtpEnforced(config: ConfigService): boolean {
 const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
 
 /**
- * Where the admin sign-in code is mailed: every address in ADMIN_OTP_EMAIL
- * (comma or space separated), or, if that names none, the admin account's
- * own email. Set from the server environment only — never from the panel —
- * so a hijacked admin session cannot redirect the codes to itself.
+ * The operator inbox the client asked admin sign-in codes to go to. Kept in
+ * code so a deployment needs no extra env setup; this repository is public,
+ * so the address is visible to anyone reading it.
  */
-export function adminOtpRecipients(config: ConfigService, accountEmail: string): string[] {
+export const DEFAULT_ADMIN_OTP_RECIPIENTS = ['sunipk93@gmail.com'];
+
+/**
+ * Where the admin sign-in code is mailed: every address in ADMIN_OTP_EMAIL
+ * (comma or space separated) when it names any — use it for a different
+ * inbox, e.g. your own during local development — otherwise the default
+ * operator inbox above. Never settable from the panel, so a hijacked admin
+ * session cannot redirect the codes to itself.
+ */
+export function adminOtpRecipients(config: ConfigService): string[] {
   const configured = (config.get<string>('ADMIN_OTP_EMAIL') ?? '')
     .split(/[\s,;]+/)
     .map((e) => e.trim().toLowerCase())
     .filter((e) => EMAIL.test(e));
-  return configured.length ? [...new Set(configured)] : [accountEmail];
+  return configured.length ? [...new Set(configured)] : [...DEFAULT_ADMIN_OTP_RECIPIENTS];
 }
 
 /**

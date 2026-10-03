@@ -94,8 +94,9 @@ All routes are under `/api`. Everything except register/login needs
 
 Separate token type — `typ: 'admin'`; a miner token is rejected on every route
 below. Create the first operator with `npm run admin:create -- <email> <pass>`.
-Sign-in takes the password and then a 6-digit code mailed to `ADMIN_OTP_EMAIL`;
-admin tokens last `ADMIN_SESSION_TTL` (12h). Every sign-in attempt and every
+Sign-in takes the password and then a 6-digit code mailed to the operator
+inbox (built into `src/admin/admin-session.ts`, overridable with
+`ADMIN_OTP_EMAIL`); admin tokens last `ADMIN_SESSION_TTL` (12h). Every sign-in attempt and every
 change made through these routes is written to the audit log.
 
 | Method | Route | Notes |
