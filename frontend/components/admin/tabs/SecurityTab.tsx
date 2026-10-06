@@ -4,9 +4,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ApiError,
   getAuditLog,
+  getReviewAccounts,
   getSecuritySettings,
   revokeAllAdminSessions,
+  saveReviewAccount,
   updateSecuritySettings,
+  type ReviewAccount,
   type AdminAuditEntry,
   type AdminAuditPage,
   type AdminSecurityConfig,
@@ -136,6 +139,8 @@ export function SecurityTab({
       {config && <EnforcementCard enforcement={config.enforcement} />}
 
       <SessionsCard ttl={config?.enforcement.adminSessionTtl} onUnauthorized={onUnauthorized} />
+
+      <ReviewAccountCard onUnauthorized={onUnauthorized} />
 
       <AuditLogCard onUnauthorized={onUnauthorized} />
     </div>
@@ -534,6 +539,139 @@ function EnforcementCard({ enforcement }: { enforcement: AdminSecurityEnforcemen
 
 /* ─────────────────────────────── Admin sessions ─────────────────────────────── */
 
+/* ─────────────────────────── App-store review account ─────────────────────────── */
+
+/**
+ * The account Google Play's reviewers sign in with. Created straight into the
+ * database — KYC-approved, with test points — and it signs in on the password
+ * alone, because reviewers cannot receive a code. In exchange the server
+ * refuses to approve any withdrawal it requests.
+ */
+function ReviewAccountCard({ onUnauthorized }: { onUnauthorized: () => void }) {
+  const [accounts, setAccounts] = useState<ReviewAccount[] | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      setAccounts(await getReviewAccounts());
+    } catch (err) {
+      if (isUnauthorized(err)) return onUnauthorized();
+      setError(errorText(err));
+    }
+  }, [onUnauthorized]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (password.length < 16) {
+      setError('Use a password of at least 16 characters — this account has no second factor.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await saveReviewAccount(email.trim(), password);
+      setNotice(
+        res.created
+          ? `Created ${res.email}. In Play Console → App content → App access, give Google this email and password; no code is needed.`
+          : `New password set for ${res.email}. Update it in Play Console's App access too.`,
+      );
+      setPassword('');
+      await load();
+    } catch (err) {
+      if (isUnauthorized(err)) return onUnauthorized();
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={save} className="card space-y-4 border-slate-800 bg-slate-900/80 p-5 sm:p-6">
+      <div>
+        <h3 className="text-sm font-black uppercase tracking-wider text-white">🧪 App-Store Review Account</h3>
+        <p className="mt-1 text-xs text-slate-400">
+          For Google Play&apos;s reviewers, who cannot receive a sign-in code. It signs in with the
+          password alone, starts KYC-approved with test points, and can try every feature — but the
+          server refuses to approve any withdrawal it requests. Use an email nobody has signed up with.
+        </p>
+      </div>
+
+      {accounts && accounts.length > 0 && (
+        <ul className="space-y-1.5 text-xs">
+          {accounts.map((a) => (
+            <li
+              key={a.id}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-950 px-3 py-2"
+            >
+              <span className="font-mono font-bold text-slate-200">{a.email}</span>
+              <span className="text-slate-500">
+                KYC {a.kycStatus} · {a.balancePoints.toFixed(2)} PTS · created {fmtDate(a.createdAt)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {error && (
+        <div className="rounded-xl border border-red-500/40 bg-red-950/40 p-3 text-xs text-red-300">
+          <span className="font-bold">⚠</span> {error}
+        </div>
+      )}
+      {notice && (
+        <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/40 p-3 text-xs font-bold text-emerald-300">
+          ✓ {notice}
+        </div>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className="text-xs font-bold uppercase text-slate-400">Email</span>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="playreview@bondkoinlabs.com"
+            autoComplete="off"
+            required
+            className="mt-1.5 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-amber-500"
+          />
+        </label>
+        <label className="block">
+          <span className="text-xs font-bold uppercase text-slate-400">Password (16+ characters)</span>
+          <input
+            type="text"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+            required
+            className="mt-1.5 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2.5 font-mono text-sm text-slate-100 outline-none focus:border-amber-500"
+          />
+        </label>
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          type="submit"
+          disabled={busy || !email.trim() || !password}
+          className="btn-gold rounded-xl px-6 py-2.5 text-xs font-black uppercase text-slate-950 disabled:opacity-50"
+        >
+          {busy ? 'Saving…' : 'Create / set password'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function SessionsCard({ ttl, onUnauthorized }: { ttl?: string; onUnauthorized: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -613,6 +751,7 @@ const ROUTE_LABELS: Record<string, string> = {
   'GET /admin/email-health': 'Sent SMTP test email',
   'POST /admin/security/settings': 'Changed security settings',
   'POST /admin/security/sessions/revoke-all': 'Signed out every admin session',
+  'POST /admin/security/review-account': 'Saved app-store review account',
   'POST /admin/tasks': 'Created task',
   'POST /admin/tasks/:id/update': 'Edited task',
   'POST /admin/tasks/:id/delete': 'Deleted task',

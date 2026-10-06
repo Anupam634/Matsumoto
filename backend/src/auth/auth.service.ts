@@ -453,6 +453,7 @@ export class AuthService {
         referralCode: true,
         sessionVersion: true,
         totpEnabledAt: true,
+        isReviewAccount: true,
       },
     });
 
@@ -485,7 +486,10 @@ export class AuthService {
       }
       await this.twoFactor.assertCode(user.id, dto.totp, ctx);
       method = 'authenticator';
-    } else if (this.loginOtpEnforced()) {
+    } else if (this.loginOtpEnforced() && !user.isReviewAccount) {
+      // The one exception is the app-store review account: Google's
+      // reviewers cannot receive a code, and nothing can ever be paid out of
+      // that account (WithdrawalsService.approve refuses it).
       if (!dto.otp) {
         await this.sendLoginOtpOrFail(email);
         throw new UnauthorizedException({
@@ -506,7 +510,10 @@ export class AuthService {
       fingerprint: signals.fingerprint,
       ip: signals.ip,
     });
-    await this.events.record(user.id, 'LOGIN_SUCCEEDED', ctx, { method });
+    await this.events.record(user.id, 'LOGIN_SUCCEEDED', ctx, {
+      method,
+      ...(user.isReviewAccount ? { reviewAccount: true } : {}),
+    });
 
     return {
       accessToken: await this.sign(user),

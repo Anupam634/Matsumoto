@@ -266,6 +266,17 @@ defaulted columns and new tables, so `prisma db push` on EC2 and
 also strands any authenticator secret sealed while `TOTP_ENCRYPTION_KEY` was
 unset. Those miners need "Reset 2FA" from the admin panel afterwards.
 
+### The Google Play review account
+
+Play's reviewers must be able to sign in, and they cannot receive a sign-in
+code. Admin panel → Security → **App-Store Review Account** creates one
+straight into the database: it signs in with its password alone (16+
+characters), starts KYC-approved with 500 test points, and can try every
+feature — but the server refuses to approve any withdrawal it requests, so
+reject those from the queue. Give its email and password to Google in Play
+Console → App content → App access. Saving the same email again sets a new
+password; an email that belongs to a real miner is refused.
+
 ### Investigating an account takeover
 
 From this update on, Miners → Inspect → **Account security** shows the

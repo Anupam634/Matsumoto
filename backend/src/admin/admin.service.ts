@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -33,12 +34,18 @@ import {
 } from '../common/revenue-buckets';
 import { TtlCache } from '../common/ttl-cache';
 import { createGate } from '../common/concurrency';
-import { verifyPassword } from '../auth/password';
+import { hashPassword, verifyPassword } from '../auth/password';
 import {
   effectiveRateMilli,
   referralTierFor,
   ActiveBooster,
 } from '../mining/mining.engine';
+
+/**
+ * Points a new app-store review account starts with: past the 100-point
+ * withdrawal minimum, so the reviewers can try the whole withdrawal flow.
+ */
+const REVIEW_ACCOUNT_TEST_POINTS = 500;
 
 /** A miner counts as "active" if they tapped Mine within this window. */
 const ACTIVE_WINDOW_MS = 24 * 3_600_000;
@@ -443,6 +450,92 @@ export class AdminService {
   /** Remove a miner's authenticator app (lost phone), signing them out everywhere. */
   resetUserTwoFactor(userId: string, adminEmail: string) {
     return this.twoFactor.adminReset(userId, adminEmail);
+  }
+
+  // ─────────────────── App-store review account ───────────────────
+
+  /** The accounts handed to app-store reviewers, newest first. */
+  async listReviewAccounts() {
+    const rows = await this.prisma.user.findMany({
+      where: { isReviewAccount: true },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        email: true,
+        pointsBalance: true,
+        createdAt: true,
+        kyc: { select: { status: true } },
+      },
+    });
+    return rows.map((u) => ({
+      id: u.id,
+      email: u.email,
+      balancePoints: Number(u.pointsBalance) / 1000,
+      kycStatus: u.kyc?.status ?? 'NONE',
+      createdAt: u.createdAt,
+    }));
+  }
+
+  /**
+   * Create the account Google Play's reviewers sign in with, straight into
+   * the database — no sign-up, no inbox. It starts KYC-approved and holding
+   * test points so every feature can be tried; it signs in on the password
+   * alone, and WithdrawalsService.approve refuses anything it requests.
+   *
+   * Calling it again for the same email sets a new password and signs the
+   * old sessions out. An email that already belongs to a real miner is
+   * refused: turning their account into one without a second factor is
+   * exactly what this must never do.
+   */
+  async upsertReviewAccount(rawEmail: string, password: string, adminEmail: string) {
+    const email = rawEmail.trim().toLowerCase();
+    const existing = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true, isReviewAccount: true },
+    });
+    if (existing && !existing.isReviewAccount) {
+      throw new BadRequestException(
+        'That email belongs to a real miner account. Use an address nobody has signed up with.',
+      );
+    }
+
+    const passwordHash = await hashPassword(password);
+    if (existing) {
+      await this.prisma.user.update({
+        where: { id: existing.id },
+        data: { passwordHash, isBlocked: false, sessionVersion: { increment: 1 } },
+      });
+      return { id: existing.id, email, created: false };
+    }
+
+    const testPointsMilli = BigInt(REVIEW_ACCOUNT_TEST_POINTS * 1000);
+    const created = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: { email, passwordHash, isReviewAccount: true, pointsBalance: testPointsMilli },
+        select: { id: true },
+      });
+      await tx.kycRecord.create({
+        data: {
+          userId: user.id,
+          status: 'APPROVED',
+          provider: 'manual',
+          fullName: 'App store review',
+          submittedAt: new Date(),
+          reviewedAt: new Date(),
+          reviewerNote: `App-store review account, created by ${adminEmail}`,
+        },
+      });
+      await tx.ledgerEntry.create({
+        data: {
+          userId: user.id,
+          reason: 'AIRDROP',
+          deltaMilli: testPointsMilli,
+          meta: { note: 'App-store review account test points', admin: adminEmail },
+        },
+      });
+      return user;
+    });
+    return { id: created.id, email, created: true };
   }
 
   // ───────────────────────── Overview ────────────────────────

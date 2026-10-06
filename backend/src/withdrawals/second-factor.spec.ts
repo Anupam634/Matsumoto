@@ -5,11 +5,14 @@ import { WithdrawalsService } from './withdrawals.service';
  * A withdrawal used to need the emailed code only when the request said
  * `platform: 'web'`. Leaving the field out moved funds on a bearer token alone.
  */
-function build(opts: { totp?: boolean; requireTotp?: boolean; env?: Record<string, string> } = {}) {
+function build(
+  opts: { totp?: boolean; requireTotp?: boolean; review?: boolean; env?: Record<string, string> } = {},
+) {
   const user = {
     id: 'u1',
     email: 'miner@example.com',
     totpEnabledAt: opts.totp ? new Date() : null,
+    isReviewAccount: !!opts.review,
     kyc: { status: 'APPROVED' },
   };
   const created: any[] = [];
@@ -151,5 +154,41 @@ describe('withdrawal second factor', () => {
     const { service, created } = build({ env: { WITHDRAWAL_OTP_ENFORCED: 'false' } });
     await service.request('u1', ADDRESS, 150_000, {});
     expect(created[0].secondFactor).toBe('none');
+  });
+});
+
+describe('app-store review account withdrawals', () => {
+  it('can request one without a code, even with the authenticator rule on', async () => {
+    const { service, created } = build({ review: true, requireTotp: true });
+    await service.request('u1', ADDRESS, 150_000, { platform: 'mobile' });
+    expect(created[0]).toMatchObject({ status: 'PENDING', secondFactor: 'none' });
+  });
+
+  it('can never have one approved, so nothing is ever paid out of it', async () => {
+    const payout = jest.fn();
+    const prisma = {
+      withdrawal: {
+        findUniqueOrThrow: jest.fn(async () => ({
+          id: 'w1',
+          toAddress: ADDRESS,
+          tokenAmount: '50',
+          user: { isReviewAccount: true },
+        })),
+        updateMany: jest.fn(),
+      },
+    };
+    const service = new WithdrawalsService(
+      prisma as any,
+      { payout } as any,
+      {} as any,
+      { get: () => undefined } as any,
+      {} as any,
+      {} as any,
+      {} as any,
+    );
+
+    await expect(service.approve('w1')).rejects.toThrow(/review account/i);
+    expect(prisma.withdrawal.updateMany).not.toHaveBeenCalled();
+    expect(payout).not.toHaveBeenCalled();
   });
 });

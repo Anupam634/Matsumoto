@@ -8,7 +8,7 @@ import { hashPassword } from './password';
  * asked for only when the request said `platform: 'web'`, so a script that
  * left the field out — or said "mobile" — signed in with the password alone.
  */
-async function build(opts: { totp?: boolean; env?: Record<string, string> } = {}) {
+async function build(opts: { totp?: boolean; review?: boolean; env?: Record<string, string> } = {}) {
   const user = {
     id: 'u1',
     email: 'miner@example.com',
@@ -17,6 +17,7 @@ async function build(opts: { totp?: boolean; env?: Record<string, string> } = {}
     referralCode: 'REF',
     sessionVersion: 3,
     totpEnabledAt: opts.totp ? new Date() : null,
+    isReviewAccount: !!opts.review,
   };
   const prisma = { user: { findUnique: jest.fn(async () => user) } };
   const jwt = { signAsync: jest.fn(async (payload: unknown) => JSON.stringify(payload)) };
@@ -126,6 +127,22 @@ describe('sign-in second factor', () => {
 
     await expect(service.login(login(), {})).resolves.toHaveProperty('accessToken');
     expect(emailService.sendOtpEmail).not.toHaveBeenCalled();
+  });
+
+  it('lets the app-store review account in on the password alone, and says so in its log', async () => {
+    const { service, emailService, events } = await build({ review: true });
+
+    await expect(service.login(login({ platform: 'mobile' }), {})).resolves.toHaveProperty('accessToken');
+    expect(emailService.sendOtpEmail).not.toHaveBeenCalled();
+    expect(events.record).toHaveBeenCalledWith('u1', 'LOGIN_SUCCEEDED', expect.anything(), {
+      method: 'password',
+      reviewAccount: true,
+    });
+  });
+
+  it('still refuses the review account a wrong password', async () => {
+    const { service } = await build({ review: true });
+    await expect(service.login(login({ password: 'nope' }), {})).rejects.toThrow(UnauthorizedException);
   });
 });
 
