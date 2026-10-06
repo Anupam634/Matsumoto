@@ -496,6 +496,25 @@ export const revokeAllAdminSessions = () =>
     method: 'POST',
   });
 
+/** The account app-store reviewers sign in with (password only, never paid out). */
+export interface ReviewAccount {
+  id: string;
+  email: string | null;
+  balancePoints: number;
+  kycStatus: string;
+  createdAt: string;
+}
+
+export const getReviewAccounts = () =>
+  adminFetch<ReviewAccount[]>('/security/review-accounts');
+
+/** Create the review account, or set a new password on it. */
+export const saveReviewAccount = (email: string, password: string) =>
+  adminFetch<{ id: string; email: string; created: boolean }>('/security/review-account', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+
 export const listWithdrawals = (status?: string) =>
   adminFetch<AdminWithdrawal[]>(
     `/withdrawals${status ? `?status=${status}` : ''}`,

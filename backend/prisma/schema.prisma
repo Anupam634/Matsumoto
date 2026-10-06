@@ -57,6 +57,12 @@ model User {
   totpFailedCount Int       @default(0)
   totpLockedUntil DateTime?
 
+  // The account handed to the app-store review team (Google Play). It signs
+  // in with the password alone — reviewers cannot receive a code — and in
+  // exchange no withdrawal from it is ever approved. Created from the admin
+  // panel's Security tab, never by sign-up.
+  isReviewAccount Boolean @default(false)
+
   kyc              KycRecord?
   boosters         Booster[]
   taskClaims       TaskClaim[]

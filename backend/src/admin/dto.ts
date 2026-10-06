@@ -51,6 +51,22 @@ export class UpdateSecuritySettingsDto {
   requireTotpForWithdrawal?: boolean | null;
 }
 
+/** Body of `POST /admin/security/review-account`. */
+export class ReviewAccountDto {
+  @IsEmail()
+  @MaxLength(254)
+  email!: string;
+
+  /**
+   * Long, because this account signs in on the password alone: the login
+   * rate limit is all that stands between it and a guesser.
+   */
+  @IsString()
+  @MinLength(16, { message: 'Use at least 16 characters — this account has no second factor.' })
+  @MaxLength(128)
+  password!: string;
+}
+
 export class BlockUserDto {
   @IsBoolean()
   blocked!: boolean;

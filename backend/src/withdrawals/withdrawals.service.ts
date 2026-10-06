@@ -160,8 +160,13 @@ export class WithdrawalsService {
   ): Promise<WithdrawalSecondFactor> {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { email: true, totpEnabledAt: true },
+      select: { email: true, totpEnabledAt: true, isReviewAccount: true },
     });
+
+    // The app-store review account can walk through the whole request so the
+    // reviewers see the feature work, without a code they cannot receive —
+    // safe only because `approve` refuses every request it makes.
+    if (user.isReviewAccount) return 'none';
 
     if (user.totpEnabledAt) {
       if (!confirmation.totp) {
@@ -321,7 +326,16 @@ export class WithdrawalsService {
   async approve(withdrawalId: string, adminNote?: string) {
     const w = await this.prisma.withdrawal.findUniqueOrThrow({
       where: { id: withdrawalId },
+      include: { user: { select: { isReviewAccount: true } } },
     });
+
+    // It signs in on a password alone and asks for no code here, so nothing
+    // may ever leave it — whatever an operator clicks.
+    if (w.user.isReviewAccount) {
+      throw new BadRequestException(
+        'This request comes from the app-store review account, whose withdrawals are never paid out. Reject it instead.',
+      );
+    }
 
     // Reserve it. Whoever wins this update owns the payout; everyone else
     // sees count 0 and stops here.

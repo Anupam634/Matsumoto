@@ -2,7 +2,7 @@ import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/comm
 import { ConfigService } from '@nestjs/config';
 import { AdminAuthGuard, type RequestAdmin } from './admin.guard';
 import { AdminService } from './admin.service';
-import { UpdateSecuritySettingsDto } from './dto';
+import { ReviewAccountDto, UpdateSecuritySettingsDto } from './dto';
 import { adminOtpEnforced, adminOtpRecipients, adminSessionTtl } from './admin-session';
 import { SecuritySettingsService } from '../security/security-settings.service';
 import { AdminAuditService } from '../security/admin-audit.service';
@@ -73,6 +73,22 @@ export class SecurityAdminController {
   @Post('sessions/revoke-all')
   revokeAll() {
     return this.admin.revokeAllAdminSessions();
+  }
+
+  /** GET /api/admin/security/review-accounts — the app-store review account(s). */
+  @Get('review-accounts')
+  reviewAccounts() {
+    return this.admin.listReviewAccounts();
+  }
+
+  /**
+   * POST /api/admin/security/review-account — `{ email, password }`. Creates
+   * the account Google Play's reviewers sign in with (password only, KYC
+   * approved, test points, never paid out), or sets a new password on it.
+   */
+  @Post('review-account')
+  saveReviewAccount(@Body() dto: ReviewAccountDto, @Req() req: { admin: RequestAdmin }) {
+    return this.admin.upsertReviewAccount(dto.email, dto.password, req.admin.email);
   }
 
   private enforcement() {
