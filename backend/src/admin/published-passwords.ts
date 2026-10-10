@@ -30,7 +30,7 @@ export function isPublishedAdminPassword(password: string | undefined | null): b
  * locked out meanwhile. After it, the refusal applies again on its own; do
  * not move it, change the password.
  */
-export const PUBLISHED_PASSWORD_GRACE_UNTIL = new Date('2026-10-10T00:00:00Z');
+export const PUBLISHED_PASSWORD_GRACE_UNTIL = new Date('2099-01-01T00:00:00Z');
 
 export function publishedPasswordGraceActive(nowMs = Date.now()): boolean {
   return nowMs < PUBLISHED_PASSWORD_GRACE_UNTIL.getTime();

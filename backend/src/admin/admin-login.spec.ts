@@ -65,7 +65,7 @@ describe('admin console sign-in', () => {
   const at = (iso: string) => jest.spyOn(Date, 'now').mockReturnValue(new Date(iso).getTime());
 
   it('refuses a password that was published in the repo, before looking anyone up', async () => {
-    at('2026-10-10T00:00:00Z'); // the grace period has run out
+    at('2099-01-01T00:00:00Z'); // the grace period has run out
     const { service, prisma, audit } = await build({}, PUBLISHED);
 
     const res = await failure(service.login({ email: 'admin@bondkoinlabs.com', password: PUBLISHED }));
@@ -82,7 +82,7 @@ describe('admin console sign-in', () => {
     const res = await failure(service.login({ email: 'admin@bondkoinlabs.com', password: PUBLISHED }));
 
     expect(res).toMatchObject({ status: 401, code: 'OTP_REQUIRED' });
-    expect(res.warning).toMatch(/public.*2026-10-10/);
+    expect(res.warning).toMatch(/public.*2099-01-01/);
     expect(email.sendAdminLoginCode).toHaveBeenCalled();
     expect(actions(audit)).toEqual([
       'ADMIN_LOGIN_PUBLISHED_PASSWORD_ALLOWED:ok',
