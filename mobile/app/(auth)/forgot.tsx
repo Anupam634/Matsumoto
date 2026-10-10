@@ -211,7 +211,6 @@ export default function Forgot() {
           />
         </View>
       {captcha.sheet}
-      {captcha.sheet}
     </AuthShell>
     );
   }

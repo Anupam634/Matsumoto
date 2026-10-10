@@ -340,6 +340,10 @@ export default function SignUp() {
         size="lg"
         iconRight="arrow-forward"
       />
+      {/* Continue asks for the captcha here, so the sheet has to be on this
+          step too — without it the request waited for a widget that never
+          appeared, and the button spun forever. */}
+      {captcha.sheet}
     </AuthShell>
   );
 }
