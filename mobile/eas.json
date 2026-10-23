@@ -16,16 +16,14 @@
       "channel": "preview",
       "android": {
         "buildType": "apk"
-      },
-      "credentialsSource": "local"
+      }
     },
     "production": {
       "channel": "production",
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
-      },
-      "credentialsSource": "local"
+      }
     }
   },
   "submit": {
