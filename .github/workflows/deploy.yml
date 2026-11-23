@@ -79,6 +79,17 @@ jobs:
             # Ensure PORT=3001 is set in .env
             sed -i '/^PORT=/d' .env 2>/dev/null || true
             echo "PORT=3001" >> .env
+
+            # OTP codes live in Redis. ENV_FILE's REDIS_URL is Render's private
+            # Redis host, which this server can't reach, so run Redis on the box
+            # and point the API at it, the same way PORT is forced above.
+            if ! command -v redis-server &> /dev/null; then
+              echo "⚙️ Installing Redis..."
+              sudo apt-get update && sudo apt-get install -y redis-server
+            fi
+            sudo systemctl enable --now redis-server
+            sed -i '/^REDIS_URL=/d' .env 2>/dev/null || true
+            echo 'REDIS_URL="redis://127.0.0.1:6379"' >> .env
             
             # Install npm dependencies
             echo "📦 Installing npm dependencies..."
